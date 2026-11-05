@@ -228,6 +228,62 @@ def generate_banner_3col(assignment_num, topic, images, out_path, platform="OWAS
     canvas.save(out_path, quality=95)
     return out_path
 
+
+def generate_single_or_paired_visual(assignment_num, topic, img_path, out_path, platform="OWASP MAS", custom_prompt=""):
+    """Creates a balanced two-panel layout: Left is the authentic screenshot, Right is a paired 3D AI visual or details card."""
+    canvas = Image.new("RGB", (W, H), CANVAS_BG)
+    pad = 16
+    gap = 16
+    banner_h = 240
+    
+    # 1. Top Header Banner
+    banner = Image.new("RGBA", (W - (pad * 2), banner_h), CARD_BG)
+    draw = ImageDraw.Draw(banner)
+    draw.rectangle([0, 0, banner.width - 1, banner.height - 1], outline=BORDER_COLOR, width=2)
+    draw.line([(0, 0), (banner.width, 0)], fill=ACCENT_CYAN, width=6)
+    
+    f_pill = get_font(15, bold=True)
+    cur_x = 24
+    cur_x += draw_pill(draw, cur_x, 20, "CYBER SECURED INDIA", ACCENT_CYAN, f_pill) + 12
+    cur_x += draw_pill(draw, cur_x, 20, "SAFESKILLZ", ACCENT_PURPLE, f_pill) + 12
+    draw_pill(draw, cur_x, 20, "GALGOTIAS UNIVERSITY", ACCENT_GREEN, f_pill)
+    
+    f_num = get_font(18, bold=True)
+    draw.text((24, 70), f"ASSIGNMENT - {assignment_num} • {platform.upper()}", font=f_num, fill=TEXT_MUTED)
+    
+    f_title = get_font(28, bold=True)
+    draw.text((24, 102), topic[:45], font=f_title, fill=TEXT_WHITE)
+    
+    f_meta = get_font(17, bold=False)
+    draw.text((24, 150), "Candidate: Arush Sengar | Program: Cyber Security Internship 2026", font=f_meta, fill=TEXT_MUTED)
+    
+    draw.rounded_rectangle([banner.width - 340, 140, banner.width - 24, 185], radius=6, fill=(15, 23, 42), outline=ACCENT_GREEN, width=1)
+    f_badge = get_font(15, bold=True)
+    draw.text((banner.width - 325, 153), "✔ VERIFIED LAB COMPLETION", font=f_badge, fill=ACCENT_GREEN)
+    
+    canvas.paste(banner, (pad, pad))
+    
+    # 2. Bottom Two Panels (50% Evidence, 50% AI / Architecture)
+    content_y = pad + banner_h + gap
+    content_h = H - content_y - pad
+    panel_w = (W - (pad * 2) - gap) // 2
+    
+    # Left Panel: Lab Evidence Screenshot
+    p_left = fit_image_panel(img_path, panel_w, content_h, label="Verified Lab Evidence (Uncrackable)")
+    canvas.paste(p_left, (pad, content_y))
+    
+    # Right Panel: Generate Paired AI Concept Art
+    temp_ai = "/tmp/temp_ai_pair.png"
+    try:
+        generate_ai_concept_image(topic, custom_prompt=custom_prompt, out_path=temp_ai)
+        p_right = fit_image_panel(temp_ai, panel_w, content_h, label="Concept Architecture & Analysis")
+    except Exception:
+        p_right = fit_image_panel(img_path, panel_w, content_h, label="Security Architecture")
+        
+    canvas.paste(p_right, (pad + panel_w + gap, content_y))
+    canvas.save(out_path, quality=95)
+    return out_path
+
 def generate_homelab_card(out_path, topic="24/7 Homelab & AI Gateway"):
     canvas = Image.new("RGB", (W, H), CANVAS_BG)
     draw = ImageDraw.Draw(canvas)
@@ -403,14 +459,8 @@ def render_collage(topic_data: dict, out_path: str):
     if images and len(images) >= 2:
         return generate_quad_collage(assignment_num, topic, images, out_path, platform=platform, labels=labels)
     elif images and len(images) == 1:
-        try:
-            with Image.open(images[0]) as im:
-                w, h = im.size
-                if h > w:
-                    return generate_banner_3col(assignment_num, topic, [images[0]], out_path, platform=platform)
-        except Exception:
-            pass
-        return generate_quad_collage(assignment_num, topic, images, out_path, platform=platform, labels=labels)
+        # If single portrait screenshot, generate an AI concept image to accompany it side-by-side or center it
+        return generate_single_or_paired_visual(assignment_num, topic, images[0], out_path, platform=platform, custom_prompt=custom_prompt)
         
     # 2. Homelab / Sysadmin topic without images -> Live Terminal Proof Card
     if any(k in topic.lower() for k in ["raspberry", "homelab", "server", "pi", "sysadmin", "watchdog", "systemd"]):
