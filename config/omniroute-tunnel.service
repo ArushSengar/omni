@@ -1,0 +1,16 @@
+[Unit]
+Description=OmniRoute Public Cloudflare Tunnel
+After=network-online.target omniroute.service
+Wants=network-online.target
+PartOf=omniroute.service
+
+[Service]
+Type=simple
+User=arush
+WorkingDirectory=/home/arush/.omniroute
+ExecStart=/home/arush/.omniroute/bin/launch_tunnel.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

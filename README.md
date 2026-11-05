@@ -1,156 +1,150 @@
-# OmniRoute AI Gateway & Hermes Integration System
+# OmniRoute AI Gateway & Hermes Agent Infrastructure
 
-A high-availability, multi-provider AI routing infrastructure connecting **OmniRoute Gateway** (running on Raspberry Pi 4 Debian arm64) with **Hermes Autonomous Agent** and downstream developer tools.
-
-Provides intelligent fallbacks, latency optimization, load balancing, zero-cost routing, and clean-room web executors across 12+ providers and 1,000+ registered models.
+> A unified, resilient, multi-provider AI gateway and autonomous agent system deployed on ARM64 Raspberry Pi 4, featuring persistent public Cloudflare Tunnel exposure and cryptographically managed OmniKeys.
 
 ---
 
-## 🏗️ Architecture Overview
+## 🌟 Architecture Overview
 
 ```mermaid
 graph TD
-    User["User / Developer CLI"] --> Hermes["Hermes Agent (~/.hermes)"]
-    Hermes -->|OpenAI-Compatible API| Gateway["OmniRoute Gateway (:20128)"]
+    Client[Remote Clients / Apps / Scripts] -->|HTTPS / Bearer OmniKey| CF[Cloudflare Edge Tunnel]
+    LocalClient[Local LAN / Dev Machines] -->|HTTP / Bearer OmniKey| Pi
+    CF -->|QUIC / HTTP/2| Pi[Raspberry Pi 4 192.168.0.100]
     
-    subgraph OmniRoute Router Engine
-        Gateway --> SmartCombo["Smart Combos (auto/*)"]
-        Gateway --> Fallback["Resilience & Fallback Engine"]
-        Gateway --> Decrypt["AES-256-GCM Vault"]
+    subgraph Pi Host
+        TunnelSvc[omniroute-tunnel.service]
+        OmniSvc[omniroute.service :20128]
+        HermesAgent[Hermes Agent CLI & Dashboard]
+        OmniDB[(storage.sqlite)]
+        
+        TunnelSvc -.->|Proxy| OmniSvc
+        HermesAgent -->|hermes-brain Combo| OmniSvc
+        OmniSvc <--> OmniDB
     end
-
-    subgraph Active AI Providers
-        SmartCombo -->|Coding / Fast| Copilot["GitHub Copilot (GPT-4o)"]
-        SmartCombo -->|Zero-Auth Free| DDG["DuckDuckGo Web (GPT-4o-mini & Claude 3)"]
-        SmartCombo -->|Heavy Reasoning| Cloudflare["Cloudflare AI (Llama 3.3 70B & DeepSeek R1)"]
-        SmartCombo -->|Code Generation| Codestral["Mistral Codestral"]
-        SmartCombo -->|Pro Multimodal| Antigravity["Google Pro (Gemini 3 Flash)"]
-        SmartCombo -->|Low Latency| Cohere["Cohere Command R+"]
-        SmartCombo -->|LPU Acceleration| Groq["Groq (120B)"]
+    
+    subgraph Upstream Providers (1,070+ Models)
+        OmniSvc --> Google[Google Antigravity Pro]
+        OmniSvc --> Mistral[Codestral / Mistral AI]
+        OmniSvc --> Cerebras[Cerebras Fast Inference]
+        OmniSvc --> Groq[Groq Llama 3]
+        OmniSvc --> Kimi[Moonshot Kimi]
     end
 ```
 
 ---
 
-## ⚡ Active Providers & Status Matrix
+## 🚀 Key Features
 
-| Provider / Model | Route / Model ID | Status | Cost Tier | Best For |
-| :--- | :--- | :--- | :--- | :--- |
-| **Hermes Free Coding** | `auto/coding:free` | **200 OK** | Free | Default Hermes agent execution |
-| **Smart Coding Combo** | `auto/best-coding` | **200 OK** | Free | Complex code generation with reasoning |
-| **Smart Chat Combo** | `auto/best-chat` | **200 OK** | Free | General chat & multi-turn dialogs |
-| **Smart Reasoning** | `auto/best-reasoning` | **200 OK** | Free | Chain-of-thought analysis |
-| **GitHub Copilot** | `github/gpt-4o` | **200 OK** | Included | Official GPT-4o high-precision |
-| **DuckDuckGo Web** | `duckduckgo-web/gpt-4o-mini` | **200 OK** | Free | Fast responses (~1.3s latency) |
-| **DuckDuckGo Web** | `duckduckgo-web/claude-3-haiku` | **200 OK** | Free | Zero-auth Anthropic Claude 3 |
-| **Cloudflare Playground** | `cloudflare-playground/...` | **200 OK** | Free | Llama 3.3 70B & DeepSeek R1 |
-| **Antigravity Pro** | `antigravity/gemini-3-flash` | **200 OK** | Pro OAuth | Google Gemini 3 Flash & Pro |
-| **Mistral Codestral** | `codestral/codestral-latest` | **200 OK** | API Key | Code completion and refactoring |
-| **Cohere Command** | `cohere/command-r-plus-08-2024`| **200 OK** | API Key | Ultra-fast enterprise reasoning (<850ms) |
-| **Groq LPU** | `groq/openai/gpt-oss-120b` | **200 OK** | API Key | Sub-second LPU throughput (<750ms) |
+1. **Multi-Provider Unified Routing**:
+   - OpenAI-compatible `/v1/chat/completions` and `/v1/models` endpoints.
+   - 1,070+ models accessible through a single host.
+   - Automated fallback chains (`hermes-brain`, `hermes-fast`).
 
----
+2. **Secure Public Internet Access**:
+   - Zero-trust HTTPS tunnel via Cloudflare Edge (`*.trycloudflare.com`).
+   - Managed automatically by systemd (`omniroute-tunnel.service`).
+   - URL auto-discovery written to `~/.omniroute/public_url.txt`.
 
-## 🚀 Quick Setup & Deployment
+3. **OmniKeys Client Authentication**:
+   - Strict Bearer token authentication (`REQUIRE_API_KEY=true`).
+   - Constant-time SHA-256 validation.
+   - Comprehensive CLI management (`omnikey list`, `create`, `rotate`, `revoke`, `test`).
+   - Per-key budget limits, quota caps, and model permission whitelists.
 
-### 1. Clone & Bootstrap on Raspberry Pi / Linux Server
-
-```bash
-# Clone this repository
-git clone <YOUR_GITHUB_REPO_URL> omni
-cd omni
-
-# Run the automated deployment script
-chmod +x scripts/*.sh
-./scripts/setup_pi_omniroute.sh
-```
-
-The script will automatically:
-- Install required system packages (`chromium`, `sqlite3`, `curl`).
-- Configure environment variables and Chromium driver paths.
-- Apply Playwright clean-room security configurations.
-- Verify server health on port `20128`.
-
----
-
-### 2. Configure Hermes Agent
-
-Point your Hermes agent at OmniRoute by updating `~/.hermes/config.yaml`:
-
-```yaml
-model:
-  provider: custom:omni
-  base_url: http://localhost:20128/v1
-  cloud_provider: local
-
-custom_providers:
-  omni:
-    base_url: http://localhost:20128/v1
-    api_key_env: HERMES_CUSTOM_LOCALHOST_20128_API_KEY
-    model: auto/coding:free
-    models_discovered: true
-```
-
-Set the API key in `~/.hermes/.env`:
-```bash
-HERMES_CUSTOM_LOCALHOST_20128_API_KEY=sk-971230e546e14a3e-23822a-06e1aa8d
-```
-
----
-
-## 🧪 Verification & Health Checks
-
-Run the verification suite from your workstation or Pi:
-
-```bash
-# Run complete test suite across all 12+ providers and combos
-python scripts/verify_all_providers.py --host http://192.168.0.100:20128
-
-# Test Hermes-specific bridge
-python hermes/hermes_omniroute_bridge.py http://192.168.0.100:20128
-```
+4. **Hermes Autonomous Agent**:
+   - Hermes Agent updated to `v0.22.7 (2026.9.24)`.
+   - Browser automation powered by ARM64 Chromium 1248 (Chrome 156 for Testing).
+   - Direct integration via `custom:omni` provider pointing to `hermes-brain`.
 
 ---
 
 ## 📁 Repository Structure
 
-```
+```text
 omni/
-├── README.md                      # Complete system documentation & architecture
-├── .gitignore                     # Protects credentials, SQLite DBs, and session tokens
 ├── config/
-│   ├── omniroute.env.example      # Master OmniRoute environment template
-│   ├── hermes_config.yaml.example # Hermes Agent configuration template
-│   └── provider_topology.json     # Machine-readable provider topology & combos
+│   ├── omniroute.env.production      # Production environment configuration for Pi
+│   ├── omniroute-tunnel.service      # Systemd service unit for Cloudflare Tunnel
+│   ├── hermes_config.yaml.example    # Hermes Agent configuration template
+│   └── provider_topology.json        # Connected provider topology snapshot
 ├── scripts/
-│   ├── verify_all_providers.py    # Live latency & response benchmark suite
-│   ├── setup_pi_omniroute.sh      # 1-Click setup script for Raspberry Pi
-│   ├── patch_playwright_security.sh # CSP bypass & headless browser patch
-│   └── sync_credentials.py       # AES-256-GCM credential vault helper
-└── hermes/
-    └── hermes_omniroute_bridge.py # Hermes Agent connection verification tool
+│   ├── omni_keys_manager.py          # OmniKey management tool (cross-platform CLI)
+│   ├── launch_tunnel.sh              # Tunnel runner with live URL extraction
+│   ├── get_public_url.py             # Fetch current active public URL from Pi
+│   ├── test_remote_api.py            # End-to-end HTTPS verification script
+│   ├── setup_pi_omniroute.sh         # One-shot installation & deployment script
+│   └── verify_all_providers.py       # Upstream connection diagnostic tool
+├── OMNIKEYS_GUIDE.md                 # OmniKey management and client integration guide
+├── OMNIROUTE_TIPS_TRICKS.md          # SBC performance tuning, compression, caching
+└── README.md                         # Master documentation (this file)
 ```
 
 ---
 
-## 🔒 Security Best Practices
+## ⚡ Quick Start
 
-- **Never commit `.env` or `storage.sqlite`** to GitHub. The included `.gitignore` automatically excludes them.
-- All provider keys inside `storage.sqlite` are protected with **AES-256-GCM** using `STORAGE_ENCRYPTION_KEY`.
-- For fresh server migrations, copy your `STORAGE_ENCRYPTION_KEY` into `~/.omniroute/.env` before restoring database backups.
+### 1. Check OmniKeys & Service Status on the Pi
+```bash
+# SSH into Raspberry Pi
+ssh arush@192.168.0.100
+
+# List configured OmniKeys
+omnikey list
+
+# Check services
+systemctl status omniroute
+systemctl status omniroute-tunnel
+```
+
+### 2. Retrieve Public Tunnel URL
+From your local computer:
+```bash
+python scripts/get_public_url.py
+```
+*Example Output:*
+```text
+Current OmniRoute Public URL: https://copy-genetics-overhead-backed.trycloudflare.com
+OpenAI Base URL: https://copy-genetics-overhead-backed.trycloudflare.com/v1
+```
+
+### 3. Verify Remote Access
+```bash
+python scripts/test_remote_api.py
+```
+*Output:*
+```text
+Testing OmniRoute Public API at https://copy-genetics-overhead-backed.trycloudflare.com...
+[SUCCESS] /v1/models responded with HTTP 200 - Total Models: 1074
+[SUCCESS] /v1/chat/completions responded with HTTP 200!
+Model: gemini-3.8-flash-high
+Assistant Response: OmniRoute Public API is fully operational!
+```
 
 ---
 
-## 🛠️ Maintenance Commands
+## 🔑 Managing OmniKeys
+
+Use the `omnikey` CLI on the Pi or `python scripts/omni_keys_manager.py`:
 
 ```bash
-# View live logs on Pi
-omniroute logs --lines 50
+# Create a new key with unlimited access
+omnikey create "work-laptop"
 
-# Restart router
-omniroute restart
+# Create a key with a $10.00 daily budget cap
+omnikey create "contractor-key" --daily-limit 10.0
 
-# List all configured providers
-omniroute providers list
+# Rotate an existing key
+omnikey rotate "work-laptop"
+
+# Revoke a key
+omnikey revoke "contractor-key"
 ```
 
+For client integration code samples (Python OpenAI SDK, LangChain, cURL, Claude Code), see [`OMNIKEYS_GUIDE.md`](./OMNIKEYS_GUIDE.md).
+
+---
+
+## 🛠️ Performance Tuning & Best Practices
+
+For memory caps (`OMNIROUTE_MEMORY_MB`), startup timeouts, token compression workers, and cache TTL tuning, read [`OMNIROUTE_TIPS_TRICKS.md`](./OMNIROUTE_TIPS_TRICKS.md).
