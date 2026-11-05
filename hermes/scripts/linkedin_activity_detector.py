@@ -45,6 +45,97 @@ BACKLOG_TOPICS = [
         "tags": ["RaspberryPi", "Homelab", "Linux", "DevOps", "CyberSecurity", "BCA", "StudentDev"]
     },
     {
+        "topic": "Debugging Silent Memory Leaks in Python Daemons with tracemalloc",
+        "category": "Software Engineering & Python",
+        "platform": "Python 3.11 / Linux",
+        "assignment_num": "",
+        "labels": ["tracemalloc", "Memory Profiling", "Garbage Collection"],
+        "context": (
+            "Diagnosed a silent memory leak in a long-running background daemon where resident set size grew by 80MB daily. "
+            "Standard print debugging failed; used Python's native tracemalloc module to take memory snapshots and identify "
+            "unbounded ring buffer allocations. Replaced linear search with an LRU cache."
+        ),
+        "tags": ["Python", "SoftwareEngineering", "Debugging", "CleanCode", "Performance", "StudentDev"]
+    },
+    {
+        "topic": "Tuning SQLite for Concurrency: Why Enabling WAL Mode Solved Lock Contention",
+        "category": "Databases & Storage",
+        "platform": "SQLite / Debian Linux",
+        "assignment_num": "",
+        "labels": ["WAL Mode", "Lock Contention", "Database Optimization"],
+        "context": (
+            "Encountered 'database is locked' operational errors when concurrent agent processes wrote to a local SQLite ledger. "
+            "Instead of installing heavy database servers like PostgreSQL, enabled PRAGMA journal_mode=WAL and PRAGMA synchronous=NORMAL. "
+            "Achieved over 4,800 concurrent reads/writes per second with zero lock timeouts."
+        ),
+        "tags": ["Databases", "SQLite", "Performance", "Backend", "Storage", "DevOps"]
+    },
+    {
+        "topic": "Troubleshooting Split-Brain DNS and Latency Bottlenecks on Local Subnets",
+        "category": "Computer Networking",
+        "platform": "Networking / Linux",
+        "assignment_num": "",
+        "labels": ["DNS Resolution", "TCP Handshake", "Wireshark"],
+        "context": (
+            "Investigated intermittent 2-second API latency spikes across internal homelab services. "
+            "Packet analysis with tcpdump and curl format profilers revealed that fallback DNS queries were timing out on non-routable domains. "
+            "Configured a local Unbound caching resolver and reduced lookup latency to under 0.8ms."
+        ),
+        "tags": ["Networking", "DNS", "Sysadmin", "Linux", "Infrastructure", "Protocols"]
+    },
+    {
+        "topic": "SUID Binary Privilege Escalation: How GTFOBins Explains Misconfigurations",
+        "category": "Cyber Security & Pentesting",
+        "platform": "Linux PrivEsc Lab",
+        "assignment_num": "",
+        "labels": ["SUID Exploitation", "GTFOBins", "Kernel Permissions"],
+        "context": (
+            "Completed hands-on Linux privilege escalation exercises targeting misconfigured SUID bits on standard administrative binaries. "
+            "Demonstrated how binaries with SUID permissions like base64, find, or vim allow root shell spawning if not properly restricted. "
+            "Emphasized principle of least privilege and automated SUID auditing."
+        ),
+        "tags": ["CyberSecurity", "EthicalHacking", "Linux", "PrivilegeEscalation", "InfoSec", "TryHackMe"]
+    },
+    {
+        "topic": "Hardening Edge Servers with Strict UFW and iptables Egress Policies",
+        "category": "Network Security",
+        "platform": "UFW / iptables",
+        "assignment_num": "",
+        "labels": ["Firewall Hardening", "Egress Filtering", "Rate Limiting"],
+        "context": (
+            "Configured zero-trust perimeter security on a public-facing edge server. "
+            "Defaulted to strict incoming deny, rate-limited SSH handshakes to mitigate brute-force attempts, "
+            "and restricted outbound traffic strictly to necessary API gateways and DNS resolvers."
+        ),
+        "tags": ["CyberSecurity", "NetworkSecurity", "Firewall", "DevOps", "Sysadmin", "Linux"]
+    },
+    {
+        "topic": "AsyncIO vs Multiprocessing in Python: Lessons from Writing a High-Throughput Proxy",
+        "category": "Software Engineering & Architecture",
+        "platform": "Python Architecture",
+        "assignment_num": "",
+        "labels": ["AsyncIO", "Concurrency", "Event Loops"],
+        "context": (
+            "Evaluated concurrency models while building a lightweight reverse proxy router. "
+            "Discovered that CPU-bound JSON parsing choked the single-threaded asyncio event loop under high load; "
+            "solved it by offloading payload decoding to worker process pools while keeping network I/O purely asynchronous."
+        ),
+        "tags": ["Python", "SoftwareArchitecture", "AsyncIO", "BackendEngineering", "Programming"]
+    },
+    {
+        "topic": "Bulletproof Bash Scripting: Error Traps and Defensive Automation",
+        "category": "DevOps & Automation",
+        "platform": "Bash / Linux",
+        "assignment_num": "",
+        "labels": ["Bash Scripting", "Defensive Automation", "Error Traps"],
+        "context": (
+            "Upgraded mission-critical maintenance shell scripts using defensive scripting principles: "
+            "enforced 'set -euo pipefail', atomic file replacements with mktemp, and exit traps to ensure "
+            "temporary lockfiles and PID files are always cleaned up even on unexpected termination."
+        ),
+        "tags": ["DevOps", "Bash", "Linux", "Automation", "Sysadmin", "Scripting"]
+    },
+    {
         "topic": "Lakera AI Agent Breaker: Bypassing Prompt Injection Guardrails",
         "category": "AI Security",
         "platform": "Lakera AI",
@@ -57,16 +148,17 @@ BACKLOG_TOPICS = [
         "tags": ["AISecurity", "PromptInjection", "Lakera", "EthicalHacking", "InfoSec", "StudentLearning"]
     },
     {
-        "topic": "Vibeathon Hackathon: What Rapid MVP Development Taught Me",
-        "category": "Hackathon & Dev",
-        "platform": "Hackathon",
+        "topic": "What Being a 1st-Year BCA Student Building in Public Taught Me",
+        "category": "Student Builder & Mindset",
+        "platform": "Galgotias University",
         "assignment_num": "",
-        "labels": ["Rapid Prototyping", "Scope Management", "MVP Execution"],
+        "labels": ["Building In Public", "Hands-on Learning", "Student Dev"],
         "context": (
-            "Participated in the Vibeathon hackathon under strict time constraints. "
-            "Learned that aggressive scope trimming and shipping a robust core MVP beats trying to over-engineer 10 unfinished features."
+            "Reflecting on balancing 1st-year BCA coursework at Galgotias University with autonomous homelab experiments and internships. "
+            "Realized that setting up real servers, fixing 3 AM kernel crashes, and breaking code teaches more durable intuition "
+            "than reading multiple choice textbooks. Practical experience compound daily."
         ),
-        "tags": ["Hackathon", "StudentDev", "SoftwareEngineering", "BuildingInPublic", "GalgotiasUniversity"]
+        "tags": ["StudentBuilder", "GalgotiasUniversity", "LearningInPublic", "CareerJourney", "ComputerScience"]
     }
 ]
 
@@ -202,6 +294,7 @@ def detect_daily_topic(force_assignment: str = None, force_topic: str = None) ->
                     "source": "backlog",
                     "assignment_num": b.get("assignment_num", ""),
                     "topic": b["topic"],
+                    "category": b.get("category", "General Engineering"),
                     "platform": b["platform"],
                     "context": b["context"],
                     "images": [],
@@ -211,6 +304,7 @@ def detect_daily_topic(force_assignment: str = None, force_topic: str = None) ->
             "source": "custom",
             "assignment_num": "",
             "topic": force_topic,
+            "category": "General Engineering",
             "platform": "CyberSecurity",
             "context": f"Hands-on cybersecurity deep dive: {force_topic}",
             "images": [],
@@ -245,6 +339,7 @@ def detect_daily_topic(force_assignment: str = None, force_topic: str = None) ->
                 "source": "assignment",
                 "assignment_num": a["assignment_num"],
                 "topic": a["topic"],
+                "category": "Cyber Security & Pentesting",
                 "platform": a["platform"],
                 "context": ref_summary,
                 "labs": a["labs"],
@@ -252,16 +347,29 @@ def detect_daily_topic(force_assignment: str = None, force_topic: str = None) ->
                 "tags": ["CyberSecurity", "EthicalHacking", "TryHackMe", "CyberSecuredIndia", "SafeSkillz"]
             }
             
-    # 5. If all assignments have been posted at least once, rotate through assignments with fresh angles!
-    # Instead of falling back to empty or stock photos, pick the least recently posted assignment:
+    # 5. Check Backlog Topics (Rotate diverse non-internship builder posts)
+    for b in BACKLOG_TOPICS:
+        if b["topic"] not in used:
+            return {
+                "source": "backlog",
+                "assignment_num": b.get("assignment_num", ""),
+                "topic": b["topic"],
+                "category": b.get("category", "General Engineering"),
+                "platform": b["platform"],
+                "context": b["context"],
+                "images": [],
+                "tags": b["tags"]
+            }
+
+    # 6. If all backlog topics have also been used, rotate back through assignments with fresh angles
     if assignments:
-        # Sort by assignment number or rotation
         selected = assignments[0]
         ref_summary = " ".join(selected["reflections"]) if selected["reflections"] else selected["topic"]
         return {
             "source": "assignment_rotation",
             "assignment_num": selected["assignment_num"],
             "topic": selected["topic"],
+            "category": "Cyber Security & Pentesting",
             "platform": selected["platform"],
             "context": ref_summary,
             "labs": selected["labs"],
@@ -269,20 +377,18 @@ def detect_daily_topic(force_assignment: str = None, force_topic: str = None) ->
             "tags": ["CyberSecurity", "EthicalHacking", "TryHackMe", "CyberSecuredIndia", "SafeSkillz"]
         }
         
-    # 6. Fallback to Backlog
-    for b in BACKLOG_TOPICS:
-        if b["topic"] not in used:
-            return {
-                "source": "backlog",
-                "assignment_num": b.get("assignment_num", ""),
-                "topic": b["topic"],
-                "platform": b["platform"],
-                "context": b["context"],
-                "images": [],
-                "tags": b["tags"]
-            }
-            
-    return None
+    # 7. Ultimate loop back through BACKLOG
+    selected_b = BACKLOG_TOPICS[0]
+    return {
+        "source": "backlog_rotation",
+        "assignment_num": selected_b.get("assignment_num", ""),
+        "topic": selected_b["topic"],
+        "category": selected_b.get("category", "General Engineering"),
+        "platform": selected_b["platform"],
+        "context": selected_b["context"],
+        "images": [],
+        "tags": selected_b["tags"]
+    }
 
 if __name__ == "__main__":
     t = detect_daily_topic()

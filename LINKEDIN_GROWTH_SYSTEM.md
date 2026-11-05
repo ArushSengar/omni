@@ -1,4 +1,4 @@
-# 🚀 Autonomous LinkedIn Growth & Proof-of-Work Engine (v3.0 God-Mode)
+# 🚀 Autonomous LinkedIn Growth & Proof-of-Work Engine (v3.3 God-Mode)
 
 > **Designed for Arush Sengar**  
 > *1st-Year BCA Cyber Security Student @ Galgotias University*  
@@ -9,54 +9,53 @@
 
 ## 1. Executive Summary & Root Cause Analysis
 
-### Why Hermes's Previous Posts Were Flawed
-1. **The Stock Photo Trap**:
-   - `linkedin_daily_card_v2.py` previously queried the **Wikimedia Commons API** with generic keyword queries (`cybersecurity`, `technology`).
-   - When matching failed or yielded non-cyber images, it selected museum photos (such as the cutaway diesel engine in post #1) with an arbitrary dark banner overlay.
-   - Result: Zero proof of work, zero credibility, disconnected visual imagery, and low engagement (3 likes).
-2. **Missing Assignment Pipeline**:
-   - `linkedin_activity_detector.py` previously looked for docx files in `~/`, but completed assignment reports were archived in `~/assignments_archive/documents/`. As a result, the detector perceived zero active assignments and fell back to generic backlog prompts.
-3. **Sterile, Non-Humanized Copy**:
-   - The LLM was prompted to open abruptly without greeting or celebration, omitted mentor recognition, and lacked the authentic student milestone structure that drives community engagement.
+### Why Previous Posts Failed & What Was Upgraded
+1. **The Stock Photo & AI Art Trap (Eliminated)**:
+   - *Previous*: Used generic Wikimedia Commons museum cutaway engines or 3D neon cyberpunk fantasy renders that screamed "pure AI".
+   - *Upgraded (v3.3)*:
+     - **Assignment Days**: Pure multi-screenshot collage of real lab proof (`assignment_media/`) with zero synthetic text overlays or artificial headers.
+     - **Autonomous Builder Days**: Dynamically generated **Authentic Dark-Mode Terminal Proof Cards** (1200x1200) tailored to the topic domain (Homelab, Python, Networking, Databases, Pentesting) with real commands, live stats, macOS window traffic lights, and active bash cursors. Zero AI fantasy art.
+2. **Sterile AI Copywriting (Humanized)**:
+   - *Previous*: Full of ChatGPT corporate buzzwords ("without breaking a sweat", "rock-solid", "game-changer", "delve into"), rocket openers (🚀), and diamond bullets (🔹).
+   - *Upgraded (v3.3)*: 100% human, candid student builder voice (120–180 words). Real friction hooks, diagnosis under the hood, numbered 1-2-3 actionable fixes, real numbers, and natural peer discussion questions.
+3. **Multi-Domain Topic Scope Expansion**:
+   - Expanded beyond just Cyber Security, AI, and Cloud into:
+     - **Software Engineering & Python Internals** (`tracemalloc`, memory leaks, GIL, async vs multiprocessing)
+     - **Databases & Storage** (SQLite WAL mode tuning, LRU caching, tmpfs ramdisks)
+     - **Computer Networking & Protocols** (DNS latency, split-brain resolution, TCP handshake & TIME-WAIT)
+     - **Linux & Kernel Internals** (OOM killer mitigation, zram-tools, cgroups, systemd timers)
+     - **Student Builder Realities** (1st-year BCA journey at Galgotias University, shipping MVPs, learning curves)
 
 ---
 
-## 2. The Peer Benchmark: The Kaushik Choubey Winning Formula
+## 2. Dynamic Visual Engine Architecture
 
-Analysis of high-performing posts from classmate & peer **Kaushik Choubey** revealed a consistent 6-part anatomy:
+The visual engine ([`linkedin_collage_generator.py`](file:///c:/Users/Arush/OneDrive/Documents/omni/hermes/scripts/linkedin_collage_generator.py)) operates in two distinct, high-credibility modes:
 
 ```mermaid
 flowchart TD
-    A["1. Milestone Celebration Hook<br>('🚀 Completed Assignment-X: [Topic] as part of my cybersecurity internship...')"] --> B["2. Hands-on Lab Context<br>(TryHackMe, OWASP MAS, Azure NSG, tools used, real friction)"]
-    B --> C["3. Practical Technical Bullets<br>(Specific commands, flags, SUID, Frida, LinPEAS, NSG rules)"]
-    C --> D["4. Mentor & Institution Gratitude<br>(Cyber Secured India, SafeSkillz, Galgotias University)"]
-    D --> E["5. Engaging Community Question<br>('Fellow security enthusiasts, what is your go-to vector...?')"]
-    E --> F["6. Curated SEO Hashtags<br>(#CyberSecurity #EthicalHacking #TryHackMe #SafeSkillz...)"]
+    A["Topic Detected<br>(Assignment vs Builder Backlog)"] --> B{"Screenshots Available?"}
+    B -- "Yes (Assignment Days)" --> C["Pure Screenshot Collage<br>(No Text Overlays, Clean Centered/Tiled)"]
+    B -- "No (Autonomous Days)" --> D{"Detect Domain Category"}
+    D -- "Homelab / Linux" --> E["Pi Host Terminal Card<br>(uname, omniroute systemd, free -h, watchdog)"]
+    D -- "Cyber / Pentest" --> F["Recon & Audit Terminal Card<br>(nmap -sV -sC, ufw status, TLS 1.3 audit)"]
+    D -- "Software / Python" --> G["Python Dev Terminal Card<br>(pytest 16 passed, tracemalloc, git log)"]
+    D -- "Networking / Protocols" --> H["NetOps Terminal Card<br>(curl latency profiler, ip route, DNS dig)"]
+    D -- "Databases / Storage" --> I["DB & DevOps Terminal Card<br>(sqlite3 WAL mode, tmpfs ramdisk, timers)"]
 ```
-
-### Visual Proof-of-Work Benchmark:
-- **Never Stock Photos**: Every image must feature genuine, verifiable evidence.
-- **2x2 Quad Proof Collage**:
-  - **Q1 (Top-Left)**: Branded Header Card (Cyber Secured India, SafeSkillz, Galgotias University badges, assignment name, candidate name, verified badge).
-  - **Q2 (Top-Right)**: Platform badge or completion card (TryHackMe room completed, points, streak).
-  - **Q3 (Bottom-Left)**: Core tool scan / enumeration screenshot (Nmap, Gobuster, LinPEAS).
-  - **Q4 (Bottom-Right)**: Exploitation, flag capture, or system configuration proof.
-- **Mobile Pentesting Layout**: Top header banner with 3 mobile emulator / runtime hooks side-by-side.
-- **Homelab Days**: Live terminal proof card with active systemd status (`omniroute`, `hermes-gateway`, `watchdog`), RAM allocation, and uptime.
-- **Concept & Non-Assignment Days**: High-impact **3D AI Cyber Visuals** generated dynamically via your local OmniRoute AI image endpoint (`antigravity/gemini-3.1-flash-image`) with Pollinations.ai (FLUX) fallback, branded with your custom student title header and topic bar. Zero Wikimedia stock photos.
 
 ---
 
 ## 3. Core Engine Architecture
 
-The upgraded architecture consists of four modular components running on the Raspberry Pi 4:
+The upgraded architecture consists of four modular components running on the Raspberry Pi 4 (`192.168.0.100`):
 
 ```
 /home/arush/
 ├── linkedin_daily_post.py          <-- Master orchestration & Composio publisher
-├── linkedin_activity_detector.py   <-- Assignment parser, DOCX extractor & rotation
-├── linkedin_copywriter.py          <-- OmniRoute LLM humanized copywriting engine
-├── linkedin_collage_generator.py   <-- Pillow-based 1200x1200 proof-of-work collage renderer
+├── linkedin_activity_detector.py   <-- Assignment parser, DOCX extractor, and multi-domain backlog rotation
+├── linkedin_copywriter.py          <-- OmniRoute LLM humanized copywriting engine (100% candid builder tone)
+├── linkedin_collage_generator.py   <-- Pillow-based 1200x1200 pure collage & dynamic terminal card renderer
 └── assignment_media/               <-- High-resolution extracted assignment screenshots
 ```
 
@@ -64,10 +63,10 @@ The upgraded architecture consists of four modular components running on the Ras
 
 | Component | File | Responsibilities |
 | :--- | :--- | :--- |
-| **Detector** | [`linkedin_activity_detector.py`](file:///c:/Users/Arush/OneDrive/Documents/omni/hermes/scripts/linkedin_activity_detector.py) | Scans `~/assignments_archive/documents/*.docx` and `~/*.docx`. Extracts Assignment #, Topic, Sub-labs, Reflection snippets, and loads corresponding 1080p lab screenshots from `~/assignment_media/`. |
-| **Copywriter** | [`linkedin_copywriter.py`](file:///c:/Users/Arush/OneDrive/Documents/omni/hermes/scripts/linkedin_copywriter.py) | Connects to local OmniRoute AI Gateway (`http://localhost:20128/v1`). Employs Kaushik's milestone formula, enforces authentic student voice, validates post length (180–260 words), and filters prohibited AI keywords and docx extensions. |
-| **Collage Engine** | [`linkedin_collage_generator.py`](file:///c:/Users/Arush/OneDrive/Documents/omni/hermes/scripts/linkedin_collage_generator.py) | High-performance Pillow rendering. Creates 1200x1200 high-res collages: `quad` (2x2 grid), `banner_3col` (mobile pentesting), or `homelab` (live terminal metrics with real systemd unit states). Zero stock photos. |
-| **Master Poster** | [`linkedin_daily_post.py`](file:///c:/Users/Arush/OneDrive/Documents/omni/hermes/scripts/linkedin_daily_post.py) | Ties detector, copywriter, and collage engine together. Publishes via Composio CLI (`LINKEDIN_CREATE_LINKED_IN_POST`), falls back to Playwright, and logs records to `~/posts/daily/` and `~/.hermes/linkedin_daily/daily_learnings.json`. |
+| **Detector** | [`linkedin_activity_detector.py`](file:///c:/Users/Arush/OneDrive/Documents/omni/hermes/scripts/linkedin_activity_detector.py) | Scans `~/assignments_archive/documents/*.docx`, user notes (`~/posts/notes.md`), and rotates across 10 diverse engineering topics spanning Linux, Python, Networking, Databases, Pentesting, and Hackathons. |
+| **Copywriter** | [`linkedin_copywriter.py`](file:///c:/Users/Arush/OneDrive/Documents/omni/hermes/scripts/linkedin_copywriter.py) | Connects to local OmniRoute AI Gateway (`http://localhost:20128/v1`). Enforces 100% human student builder voice, rejects AI clichés and rocket emojis, formats numbered 1-2-3 fixes, and targets 120–180 words. |
+| **Visual Engine** | [`linkedin_collage_generator.py`](file:///c:/Users/Arush/OneDrive/Documents/omni/hermes/scripts/linkedin_collage_generator.py) | High-performance Pillow rendering. Creates 1200x1200 high-res collages without synthetic text overlays, or renders dynamic dark terminal proof cards matching the topic category. |
+| **Master Poster** | [`linkedin_daily_post.py`](file:///c:/Users/Arush/OneDrive/Documents/omni/hermes/scripts/linkedin_daily_post.py) | Coordinates the end-to-end flow. Publishes via Composio CLI (`LINKEDIN_CREATE_LINKED_IN_POST`), falls back to Playwright, and logs records to `~/posts/daily/` and `~/.hermes/linkedin_daily/daily_learnings.json`. |
 
 ---
 
@@ -91,29 +90,30 @@ All authentic lab screenshots have been extracted and mapped:
 To test or trigger the system on the Raspberry Pi:
 
 ```bash
-# 1. Full dry-run (generates post copy and collage image without publishing to LinkedIn)
+# 1. Full dry-run (generates post copy and collage/terminal image without publishing)
 python3 ~/linkedin_daily_post.py --dry-run
 
 # 2. Force a specific assignment (e.g. Assignment 7)
 python3 ~/linkedin_daily_post.py --dry-run --assignment 7
 
-# 3. Test Homelab Proof Card generation
-python3 ~/linkedin_collage_generator.py --mode homelab --out ~/test_homelab.png
+# 3. Force a specific multi-domain builder topic
+python3 ~/linkedin_daily_post.py --dry-run --topic "Debugging Silent Memory Leaks in Python Daemons with tracemalloc"
 
 # 4. Generate post preview
 python3 ~/linkedin_daily_post.py --preview
 
-# 5. Live publish (triggers Composio LinkedIn post with collage)
+# 5. Live publish (triggers Composio LinkedIn post with image)
 python3 ~/linkedin_daily_post.py
 ```
 
 ---
 
-## 6. Daily Autonomous Schedule
+## 6. Daily Autonomous Schedule & Hermes Integration
 
 - **Hermes Cron Job**: `35a18463b414`
 - **Schedule**: Every day at **10:00 AM IST** (`every day at 10am`)
-- **Attached Skill**: `linkedin-daily-post` (v3.0.0 God-Mode)
+- **Delivery Target**: `local` (clean execution without Telegram delivery errors)
+- **Attached Skill**: `linkedin-daily-post` (v3.3.0 God-Mode in `~/.hermes/skills/social-media/linkedin-daily-post/`)
+- **Hermes Memory**: Trained and persisted in `~/.hermes/memories/MEMORY.md`
 - **Archive Path**: `/home/arush/posts/daily/YYYYMMDD_HHMM.md`
 - **Learnings History**: `/home/arush/.hermes/linkedin_daily/daily_learnings.json`
-

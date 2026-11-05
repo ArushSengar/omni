@@ -147,6 +147,7 @@ def main():
         sys.exit(0)
 
     print(f"    Topic Selected : {topic_data.get('topic')}")
+    print(f"    Category       : {topic_data.get('category', 'N/A')}")
     print(f"    Assignment #   : {topic_data.get('assignment_num', 'N/A')}")
     print(f"    Platform       : {topic_data.get('platform', 'Hands-on Lab')}")
     print(f"    Source         : {topic_data.get('source')}")

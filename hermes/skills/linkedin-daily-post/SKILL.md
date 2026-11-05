@@ -1,44 +1,59 @@
 ---
 name: linkedin-daily-post
-description: "Arush's God-Tier daily LinkedIn engine: scans real assignments & labs, composes humanized peer-benchmark posts (Kaushik Choubey formula), renders branded proof-of-work collages, and posts via Composio CLI."
-version: 3.0.0
+description: "Arush's God-Tier daily LinkedIn growth engine: humanized student-builder storytelling, zero AI buzzwords, pure document collages for assignments, and authentic dark-mode terminal proof cards for engineering & homelab days."
+version: 3.3.0
 ---
 
-# linkedin-daily-post (God-Mode v3.0)
+# linkedin-daily-post (God-Mode v3.3)
 
-## Architecture & Workflow (November 2026)
-1. **Activity & Milestone Detection (`linkedin_activity_detector.py`)**:
-   - Scans `/home/arush/assignments_archive/documents/*.docx` and active lab reports.
-   - Extracts assignment number, topic, sub-labs, reflection text, and screenshots from `/home/arush/assignment_media/`.
-   - Checks `~/posts/notes.md` or `~/posts/today_notes.txt` for live quick notes dropped by Arush.
-   - Rotates through real student experiences (TryHackMe, OWASP MAS, Azure NSG Cloud Defense, Lakera AI Prompt Injection, Raspberry Pi 4 Homelab).
+## Core Philosophy & Tone Rules
+1. **100% Humanized, Grounded Voice**:
+   - Written strictly as Arush Sengar (1st-year BCA Cyber Security student @ Galgotias University, self-taught builder).
+   - **FORBIDDEN AI CLICHÉS**:
+     - No opening rocket emojis (🚀) or emojis on every line.
+     - No bullet points starting with diamond or flame emojis (🔹, 💡, 🔥).
+     - No ChatGPT corporate speak ("without breaking a sweat", "rock-solid", "game-changer", "delve into", "seamlessly", "harnessing", "unlock", "wild ride").
+   - **STRUCTURE**:
+     - Candid real hook (friction, mystery, crash, or unexpected behavior).
+     - Diagnosis (what was actually happening under the hood).
+     - Concrete fix (numbered 1-2-3 list with real tools, commands, or configs).
+     - Real outcome & numbers (load average, memory headroom, throughput, 0 crashes).
+     - Authentic takeaway from building on real hardware or practical labs.
+     - Genuine peer question to spark discussions.
+     - 5-6 clean, focused domain hashtags.
 
-2. **Tone & Humanized Copywriting (`linkedin_copywriter.py`) — The Kaushik Formula**:
-   - **Identity**: 1st-year BCA Cyber Security student at Galgotias University, Cyber Security Intern at Cyber Secured India & SafeSkillz.
-   - **Milestone Greeting**: Opens with celebration & gratitude:
-     `🚀 Completed Assignment-[X]: [Topic] as part of my cybersecurity internship with Cyber Secured India & SafeSkillz!`
-     (or `🚀 Homelab Milestone: ...` for server architecture days).
-   - **Hands-on Lab Story**: Describes real friction, tools used (`nmap -sV -sC`, `bash -p`, `GTFOBins`, `Frida`, `LinPEAS`, `Azure NSG`), and how challenges were resolved.
-   - **3-4 Punchy Bullets**: High-value technical takeaways for fellow students and practitioners.
-   - **Mentor & Community Gratitude**: Expresses sincere appreciation to mentors at Cyber Secured India, SafeSkillz, and Galgotias University.
-   - **Community Question**: Asks peers an engaging question to foster networking and insightful replies.
-   - **SEO Hashtags**: 6-8 relevant hashtags (`#CyberSecurity #EthicalHacking #TryHackMe #CyberSecuredIndia #SafeSkillz #GalgotiasUniversity #InfoSec #StudentDev`).
+2. **Visual Standards — ZERO Stock Photos & ZERO Synthetic Text Overlays**:
+   - **Mode A (Assignment Days)**:
+     - Pure collage of real screenshots from `/home/arush/assignment_media/` or extracted DOCX reports.
+     - Single image: cleanly centered on the 1200x1200 canvas.
+     - 2 images: split horizontal.
+     - 3 images: hero top + 2 bottom split.
+     - 4+ images: 2x2 seamless grid.
+     - **NEVER draw synthetic headers, candidate names, or status pills over uploaded images.**
+   - **Mode B (Autonomous Builder Days — Non-Assignment)**:
+     - Dynamically rendered **Authentic Dark-Mode Terminal Proof Card** (1200x1200 square).
+     - Tailored to domain:
+       * **Homelab / Linux**: live Pi stats (`uname -rm`, `systemctl status omniroute`, `free -h`, `uptime`, `watchdog.py`).
+       * **Cyber Security & Pentesting**: recon & audit (`nmap -sV -sC`, `ss -tulpn`, `ufw status`, `security_audit.py`).
+       * **Software Engineering & Python**: testing & profiling (`pytest`, `tracemalloc`, clean `git log`).
+       * **Networking & Protocols**: latency & DNS (`curl -w`, `ip route`, `ping`, `dig`).
+       * **Databases & DevOps**: storage & WAL mode (`sqlite3 WAL`, `df -h tmpfs`, `systemctl list-timers`).
+     - Features macOS style traffic lights (🔴 🟡 🟢), emerald prompts (`arush@pi4:~$`), cyan parameters, amber memory metrics, crisp DejaVu monospace typography, and active cursor.
 
-3. **Proof-of-Work Collages (`linkedin_collage_generator.py`) — ZERO Stock Photos**:
-   - **NEVER use generic Wikimedia Commons or Pexels photos** (museum engines, abstract locks, etc. are strictly forbidden).
-   - **Quad Collage (2x2 Grid)**:
-     - Top-Left: Branded Header Card with Cyber Secured India, SafeSkillz, and Galgotias University badges, assignment info, candidate name ("Arush Sengar"), and verified badge.
-     - Top-Right, Bottom-Left, Bottom-Right: High-resolution screenshots of TryHackMe badges, room completions, terminal scans, and flag captures.
-   - **3-Column Banner**: Top header banner with 3 mobile/emulator screenshots (OWASP MAS / Android / iOS).
-   - **Homelab Proof Card**: For system administration posts, generates a live dark terminal dashboard with real Raspberry Pi 4 metrics (systemd status of omniroute, uptime, RAM allocation, CPU load), proving genuine engineering credibility.
+3. **Topic Discovery & Rotation Pipeline (`linkedin_activity_detector.py`)**:
+   - Priority 1: Unposted internship assignments from `/home/arush/assignments_archive/documents/*.docx`.
+   - Priority 2: Live quick notes dropped by Arush in `~/posts/notes.md` or `~/posts/today_notes.txt`.
+   - Priority 3: Curated multi-domain engineering backlog (Homelab, Python internals, SQLite WAL mode, DNS latency, Linux privilege escalation, UFW hardening, AsyncIO architecture, Bash error traps, Lakera prompt injection, Student builder journey).
+   - Priority 4: Re-visiting complex assignment labs with fresh technical angles.
 
-4. **Publishing**:
-   - Primary: **Composio CLI** (`LINKEDIN_CREATE_LINKED_IN_POST` with `images: [collage_path]`).
+4. **Publishing Pipeline (`linkedin_daily_post.py`)**:
+   - Primary: **Composio CLI** (`LINKEDIN_CREATE_LINKED_IN_POST` with attached image).
+   - Author URN: `urn:li:person:qzJKgZnzTh`.
    - Fallback: Playwright (`~/linkedin_autopost.py`).
+   - Daily archives: `~/posts/daily/YYYYMMDD_HHMM.md` and `~/.hermes/linkedin_daily/daily_learnings.json`.
 
-5. **Execution**:
-   - Dry-run validation: `python3 ~/linkedin_daily_post.py --dry-run`
-   - Specific assignment: `python3 ~/linkedin_daily_post.py --assignment 7 --dry-run`
-   - Daily production post: `python3 ~/linkedin_daily_post.py`
-   - Hermes Daily Cron: `35a18463b414` scheduled at 10:00 AM IST daily.
-   - Post logs & archives: `~/posts/daily/YYYYMMDD_HHMM.md` and `~/.hermes/linkedin_daily/daily_learnings.json`.
+5. **Hermes Integration & Execution**:
+   - Run manually: `python3 ~/linkedin_daily_post.py`
+   - Run dry-run: `python3 ~/linkedin_daily_post.py --dry-run`
+   - Force specific topic: `python3 ~/linkedin_daily_post.py --topic "<Topic Name>"`
+   - Daily cron: Hermes job `35a18463b414` set for 10:00 AM IST daily.

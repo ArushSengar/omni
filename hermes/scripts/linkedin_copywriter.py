@@ -44,22 +44,22 @@ IF THE TOPIC IS AN INTERNSHIP ASSIGNMENT:
 - Mentor gratitude to Cyber Secured India, SafeSkillz, and Galgotias University.
 - Engaging question + 6-8 hashtags.
 
-IF THE TOPIC IS A NON-INTERNSHIP POST (Homelab, Linux Engineering, AI Security, DevOps, SBCs):
+IF THE TOPIC IS A NON-INTERNSHIP POST (Homelab, Python Engineering, Databases, Networking, DevOps, AI Security, Student Builder):
 - STRICT: DO NOT MENTION ANY INTERNSHIP OR ASSIGNMENT NUMBERS.
 - STRICT: WRITE IN 100% NATURAL, CANDID, HUMAN BUILDER VOICE.
 - FORBIDDEN AI CLICHÉS:
   * NO opening rocket emojis (🚀) or emojis at every heading/bullet.
   * NO bullet points starting with diamond or flame emojis (🔹, 💡, 🔥).
-  * NO ChatGPT buzzwords: "without breaking a sweat", "rock-solid", "delve", "testament to", "game-changer", "dive deep", "seamlessly", "harnessing", "unlock".
+  * NO ChatGPT buzzwords: "without breaking a sweat", "rock-solid", "delve", "testament to", "game-changer", "dive deep", "seamlessly", "harnessing", "unlock", "wild ride".
   * NO corporate PR marketing tone.
 - STRUCTURE:
-  1. Real hook: start with the real friction or mystery you faced (e.g. unexpected service drops, OOM killer triggers, memory exhaustion on a 4GB board).
-  2. The diagnosis: what was actually happening under the hood (kernel SIGKILL, swap thrashing, unconstrained cgroups).
-  3. The concrete fix: simple numbered list (1, 2, 3) with real Linux tools and configs (zram-tools, zstd, systemd MemoryMax, Python watchdog).
-  4. Real results: numbers that prove it (load average, memory headroom, zero crashes).
-  5. Practical takeaway: what building on constrained edge hardware teaches you about operating systems.
-  6. Natural discussion question for fellow sysadmins and homelabbers.
-  7. 5-6 clean, targeted hashtags (#homelab #raspberrypi #linux #sysadmin #devops #selfhosted).
+  1. Real hook: start with the real technical friction or challenge you faced (e.g. database locks, memory leaks, DNS lookup latency, port enumeration deception, OOM kills).
+  2. The diagnosis: what was actually happening under the hood.
+  3. The concrete fix: simple numbered list (1, 2, 3) with real tools, configs, and commands (e.g. WAL mode, tracemalloc, unbound, zram, ufw).
+  4. Real results: numbers or practical impact (latency, throughput, memory saved, stability).
+  5. Practical takeaway: what building and breaking things teaches you as a 1st-year student builder at Galgotias University.
+  6. Natural discussion question for fellow engineers and builders.
+  7. 5-6 clean, targeted hashtags matching the domain.
 
 STRICT RULES FOR ALL POSTS:
 - NEVER mention filenames or file extensions (no '.docx', no 'Global_Internship...').
@@ -69,6 +69,7 @@ STRICT RULES FOR ALL POSTS:
 
 def generate_post(topic_data: dict, angle_modifier: str = "") -> tuple:
     topic = topic_data.get("topic", "Cyber Security Engineering")
+    category = topic_data.get("category", "")
     assignment_num = topic_data.get("assignment_num", "")
     source = topic_data.get("source", "")
     platform = topic_data.get("platform", "")
@@ -81,6 +82,7 @@ def generate_post(topic_data: dict, angle_modifier: str = "") -> tuple:
     if is_assignment:
         user_prompt = f"""Write an engaging LinkedIn post for:
 Topic: {topic}
+Category: {category or 'Cyber Security'}
 Assignment Number: {assignment_num}
 Platform/Environment: {platform}
 Lab Details:
@@ -93,6 +95,7 @@ Output ONLY the final LinkedIn post."""
     else:
         user_prompt = f"""Write a completely natural, human, non-AI LinkedIn post about:
 Topic: {topic}
+Category: {category or 'Engineering & Homelab'}
 Platform: {platform}
 Technical Context:
 {labs_str}
@@ -102,8 +105,8 @@ Technical Context:
 
 Remember:
 - NO rocket emojis, NO diamond bullet points, NO corporate buzzwords ("wild ride", "without breaking a sweat", "game changer").
-- Sound like a real 19-year-old student builder sharing real debugging and Linux tuning.
-- Always format the fix as a clean numbered list (1, 2, 3) with exact tools/commands (zram-tools, systemd MemoryMax, Python watchdog) so it is scannable and authentic.
+- Sound like a real 19-year-old student builder sharing real debugging, tuning, and systems architecture.
+- Always format the fix or solution as a clean numbered list (1, 2, 3) with exact tools/commands so it is scannable and authentic.
 - Output ONLY the final LinkedIn post."""
 
     payload = {
