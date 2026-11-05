@@ -61,3 +61,4 @@ free -h | tee -a "$LOG_FILE"
 df -h / | tee -a "$LOG_FILE"
 
 echo "=== [$(date)] Maintenance Finished Successfully ===" | tee -a "$LOG_FILE"
+

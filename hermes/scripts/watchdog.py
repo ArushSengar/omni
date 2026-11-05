@@ -128,3 +128,4 @@ if __name__ == "__main__":
     signal.signal(signal.SIGALRM, lambda *_: sys.exit(1))
     signal.alarm(RUN_TIMEOUT_SEC)
     sys.exit(main())
+
