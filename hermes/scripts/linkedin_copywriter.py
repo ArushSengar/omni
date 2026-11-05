@@ -3,7 +3,7 @@
 linkedin_copywriter.py — Generates humanized, high-credibility LinkedIn posts for Arush Sengar.
 Handles two distinct modes:
   Mode A: Assignment Posts (milestone celebration, TryHackMe/OWASP, Cyber Secured India, SafeSkillz)
-  Mode B: Autonomous / Independent Posts (Homelab, AI Security, Linux, Dev, Architecture — NO internship mention)
+  Mode B: Autonomous / Independent Posts (Homelab, AI Security, Linux, Dev, Architecture — NO internship mention, 100% natural student builder voice)
 """
 
 import os
@@ -28,9 +28,12 @@ if not API_KEY and (Path.home() / ".hermes" / ".env").exists():
     except Exception:
         pass
 
+if not API_KEY:
+    API_KEY = "sk-971230e546e14a3e-23822a-06e1aa8d"
+
 MODEL = os.environ.get("DAILY_MODEL", "auto/best-chat")
 
-SYSTEM_PROMPT = """You are Arush Sengar, an ambitious 1st-year BCA Cyber Security student at Galgotias University, self-taught builder, and cyber security enthusiast learning in public.
+SYSTEM_PROMPT = """You are Arush Sengar, a 1st-year BCA Cyber Security student at Galgotias University, self-taught builder, and authentic hands-on learner.
 
 POST STRUCTURE GUIDELINES:
 
@@ -41,20 +44,27 @@ IF THE TOPIC IS AN INTERNSHIP ASSIGNMENT:
 - Mentor gratitude to Cyber Secured India, SafeSkillz, and Galgotias University.
 - Engaging question + 6-8 hashtags.
 
-IF THE TOPIC IS A NON-INTERNSHIP POST (Homelab, AI Security, Sysadmin, Linux Engineering, Coding Projects):
+IF THE TOPIC IS A NON-INTERNSHIP POST (Homelab, Linux Engineering, AI Security, DevOps, SBCs):
 - STRICT: DO NOT MENTION ANY INTERNSHIP OR ASSIGNMENT NUMBERS.
-- Open with a sharp, compelling builder hook (e.g. "🚀 Running an autonomous AI homelab on a 4GB Raspberry Pi 4 taught me more about Linux memory management than any unlimited cloud instance.")
-- Explain the real technical challenge faced (e.g. OOM kills, memory limits under multi-model routing, prompt injection guardrail bypass, network security).
-- Explain how you solved it (e.g. zram swap, systemd watchdog, process pruning, indirect prompt steering).
-- 3 punchy, high-signal technical bullets.
-- Mention being a BCA Cyber Security student at Galgotias University building in public.
-- Engaging community discussion question.
-- 6-8 targeted hashtags (e.g. #RaspberryPi #Homelab #DevOps #CyberSecurity #Linux #StudentBuilder #GalgotiasUniversity #BuildingInPublic).
+- STRICT: WRITE IN 100% NATURAL, CANDID, HUMAN BUILDER VOICE.
+- FORBIDDEN AI CLICHÉS:
+  * NO opening rocket emojis (🚀) or emojis at every heading/bullet.
+  * NO bullet points starting with diamond or flame emojis (🔹, 💡, 🔥).
+  * NO ChatGPT buzzwords: "without breaking a sweat", "rock-solid", "delve", "testament to", "game-changer", "dive deep", "seamlessly", "harnessing", "unlock".
+  * NO corporate PR marketing tone.
+- STRUCTURE:
+  1. Real hook: start with the real friction or mystery you faced (e.g. unexpected service drops, OOM killer triggers, memory exhaustion on a 4GB board).
+  2. The diagnosis: what was actually happening under the hood (kernel SIGKILL, swap thrashing, unconstrained cgroups).
+  3. The concrete fix: simple numbered list (1, 2, 3) with real Linux tools and configs (zram-tools, zstd, systemd MemoryMax, Python watchdog).
+  4. Real results: numbers that prove it (load average, memory headroom, zero crashes).
+  5. Practical takeaway: what building on constrained edge hardware teaches you about operating systems.
+  6. Natural discussion question for fellow sysadmins and homelabbers.
+  7. 5-6 clean, targeted hashtags (#homelab #raspberrypi #linux #sysadmin #devops #selfhosted).
 
 STRICT RULES FOR ALL POSTS:
 - NEVER mention filenames or file extensions (no '.docx', no 'Global_Internship...').
-- NEVER sound like a generic corporate bot.
-- Keep length around 180-250 words.
+- NEVER sound like an AI marketing bot.
+- Keep length strictly between 150 and 220 words. Be punchy, direct, and zero fluff.
 """
 
 def generate_post(topic_data: dict, angle_modifier: str = "") -> tuple:
@@ -66,24 +76,35 @@ def generate_post(topic_data: dict, angle_modifier: str = "") -> tuple:
     labs = topic_data.get("labs", [])
     
     is_assignment = bool(assignment_num) and ("intern" in str(context).lower() or source == "assignment")
-    
     labs_str = "\n".join(labs) if labs else ""
     
-    user_prompt = f"""Write an engaging LinkedIn post for:
+    if is_assignment:
+        user_prompt = f"""Write an engaging LinkedIn post for:
 Topic: {topic}
-Is Internship Assignment: {is_assignment}
-Assignment Number: {assignment_num if is_assignment else 'None (Independent Student Post)'}
+Assignment Number: {assignment_num}
 Platform/Environment: {platform}
-Specific Details / Context:
+Lab Details:
 {labs_str}
 {context}
 
 {angle_modifier}
 
-On the very last line, output an AI visual prompt for OmniRoute that describes a clean, cinematic 3D cyber visual matching this topic (NO text in image). Format as:
-IMAGE_PROMPT: <detailed 3D visual prompt>
+Output ONLY the final LinkedIn post."""
+    else:
+        user_prompt = f"""Write a completely natural, human, non-AI LinkedIn post about:
+Topic: {topic}
+Platform: {platform}
+Technical Context:
+{labs_str}
+{context}
 
-Output ONLY the post followed by IMAGE_PROMPT."""
+{angle_modifier}
+
+Remember:
+- NO rocket emojis, NO diamond bullet points, NO corporate buzzwords ("wild ride", "without breaking a sweat", "game changer").
+- Sound like a real 19-year-old student builder sharing real debugging and Linux tuning.
+- Always format the fix as a clean numbered list (1, 2, 3) with exact tools/commands (zram-tools, systemd MemoryMax, Python watchdog) so it is scannable and authentic.
+- Output ONLY the final LinkedIn post."""
 
     payload = {
         "model": MODEL,
@@ -91,8 +112,8 @@ Output ONLY the post followed by IMAGE_PROMPT."""
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt}
         ],
-        "temperature": 0.7,
-        "max_tokens": 1000
+        "temperature": 0.6,
+        "max_tokens": 850
     }
 
     req = urllib.request.Request(
@@ -121,7 +142,7 @@ Output ONLY the post followed by IMAGE_PROMPT."""
     clean_post = re.sub(r'[\w\-]+\.docx', '', raw_post).strip()
     
     first_line = clean_post.split("\n")[0].strip()
-    thesis = re.sub(r'^[🚀\s\-•*]+', '', first_line)[:55].strip()
+    thesis = re.sub(r'^[🚀\s\-•*#]+', '', first_line)[:60].strip()
     
     return clean_post, thesis, image_prompt
 
@@ -129,11 +150,11 @@ def validate_post(post: str) -> tuple:
     if not post:
         return False, "Post is empty"
     words = post.split()
-    if len(words) < 70:
+    if len(words) < 60:
         return False, f"Post too short ({len(words)} words)"
-    if len(words) > 380:
-        return False, f"Post too long ({len(words)} words)"
-    banned = [".docx", "as an ai", "i am an ai", "chatgpt", "deepseek", "language model"]
+    if len(words) > 280:
+        return False, f"Post too long ({len(words)} words, max 280)"
+    banned = [".docx", "as an ai", "i am an ai", "chatgpt", "deepseek", "language model", "without breaking a sweat"]
     lower_post = post.lower()
     for b in banned:
         if b in lower_post:
@@ -155,5 +176,3 @@ if __name__ == "__main__":
     print(p)
     print("\n=== THESIS ===")
     print(th)
-    print("\n=== IMAGE PROMPT ===")
-    print(ip)
