@@ -19,3 +19,4 @@ echo "[$(date)] Starting OmniRoute Cloudflare Tunnel to http://127.0.0.1:20128..
         echo "[$(date)] Public URL detected and saved: $TUNNEL_URL" >> "$LOG_FILE"
     fi
 done
+

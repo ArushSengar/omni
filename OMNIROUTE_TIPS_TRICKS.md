@@ -86,3 +86,4 @@ Use the provided `omniroute-tunnel.service` unit:
 - Automatically starts on boot.
 - Auto-restarts on network dropouts.
 - Dynamically discovers and writes the active trycloudflare URL to `/home/arush/.omniroute/public_url.txt`.
+

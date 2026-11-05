@@ -21,3 +21,4 @@ if __name__ == "__main__":
     else:
         print("Could not retrieve public URL. Check if omniroute-tunnel.service is running.")
         sys.exit(1)
+

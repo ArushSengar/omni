@@ -121,3 +121,4 @@ export ANTHROPIC_BASE_URL="https://<your-tunnel-subdomain>.trycloudflare.com/v1"
 export ANTHROPIC_API_KEY="sk-omni-89b46b201df1ad14ee40da0f2ed964ba-64a2c6d7"
 claude
 ```
+
