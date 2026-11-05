@@ -1,0 +1,41 @@
+# Environment & Secrets
+.env
+*.env
+*.env.*
+!*.env.example
+*.pem
+*.key
+*.token
+tokens.json
+extracted_cookies.json
+*session_token*
+
+# SQLite & Databases
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+*.db-shm
+*.db-wal
+db_backups/
+
+# Logs & Runtime
+*.log
+logs/
+call_logs/
+tmp/
+temp/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# OS Specific
+.DS_Store
+Thumbs.db
+desktop.ini
+

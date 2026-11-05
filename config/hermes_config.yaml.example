@@ -1,0 +1,43 @@
+# =============================================================================
+# Hermes Agent - OmniRoute Integration Profile
+# Place this at: ~/.hermes/config.yaml
+# =============================================================================
+
+model:
+  provider: custom:omni
+  base_url: http://localhost:20128/v1
+  cloud_provider: local
+
+# Default Model Selection:
+# Available combos on OmniRoute:
+# - auto/coding:free (Zero-cost, fast coding fallback)
+# - auto/best-coding (DeepSeek-R1 Distill, Sonnet, Codestral)
+# - auto/best-chat (Cohere, GPT-4o-mini, Copilot)
+# - auto/best-reasoning (Complex chain-of-thought models)
+custom_providers:
+  omni:
+    base_url: http://localhost:20128/v1
+    api_key_env: HERMES_CUSTOM_LOCALHOST_20128_API_KEY
+    model: auto/coding:free
+    models:
+      - auto/coding:free
+      - auto/best-coding
+      - auto/best-chat
+      - auto/best-reasoning
+      - github/gpt-4o
+      - duckduckgo-web/gpt-4o-mini
+      - duckduckgo-web/claude-3-haiku
+      - antigravity/gemini-3-flash
+      - codestral/codestral-latest
+      - cohere/command-r-plus-08-2024
+      - groq/openai/gpt-oss-120b
+      - cloudflare-playground/@cf/meta/llama-3.3-70b-instruct-fp8-fast
+    models_discovered: true
+
+# Execution & Context Optimization for Hermes
+agent:
+  max_turns: 50
+  timeout_seconds: 120
+  stream: true
+  auto_compact: true
+

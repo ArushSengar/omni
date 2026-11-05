@@ -1,0 +1,128 @@
+{
+  "topology_version": "2.0",
+  "gateway_url": "http://192.168.0.100:20128",
+  "default_auth_header": "Authorization: Bearer sk-971230e546e14a3e-23822a-06e1aa8d",
+  "providers": [
+    {
+      "id": "github",
+      "name": "GitHub Copilot",
+      "type": "oauth",
+      "status": "active",
+      "primary_model": "github/gpt-4o",
+      "supported_models": ["github/gpt-4o", "github/gpt-4o-mini", "github/claude-3.5-sonnet", "github/o1-preview"],
+      "latency_tier": "medium",
+      "cost": "included"
+    },
+    {
+      "id": "duckduckgo-web",
+      "name": "DuckDuckGo AI Chat",
+      "type": "zero-auth",
+      "status": "active",
+      "primary_model": "duckduckgo-web/gpt-4o-mini",
+      "supported_models": ["duckduckgo-web/gpt-4o-mini", "duckduckgo-web/claude-3-haiku", "duckduckgo-web/meta-llama/Llama-3.3-70B-Instruct-Turbo"],
+      "latency_tier": "fast",
+      "cost": "free"
+    },
+    {
+      "id": "cloudflare-playground",
+      "name": "Cloudflare AI Playground",
+      "type": "browser-automation",
+      "status": "active",
+      "primary_model": "cloudflare-playground/@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "supported_models": [
+        "cloudflare-playground/@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+        "cloudflare-playground/deepseek-ai/deepseek-r1-distill-qwen-32b"
+      ],
+      "latency_tier": "medium",
+      "cost": "free"
+    },
+    {
+      "id": "antigravity",
+      "name": "Google AI Studio Pro (Antigravity)",
+      "type": "oauth",
+      "status": "active",
+      "primary_model": "antigravity/gemini-3-flash",
+      "supported_models": [
+        "antigravity/gemini-3-flash",
+        "antigravity/claude-sonnet-4-6",
+        "antigravity/claude-opus-4-6-thinking"
+      ],
+      "latency_tier": "fast",
+      "cost": "pro-tier"
+    },
+    {
+      "id": "codestral",
+      "name": "Mistral Codestral",
+      "type": "api_key",
+      "status": "active",
+      "primary_model": "codestral/codestral-latest",
+      "latency_tier": "fast",
+      "cost": "api"
+    },
+    {
+      "id": "cohere",
+      "name": "Cohere Command",
+      "type": "api_key",
+      "status": "active",
+      "primary_model": "cohere/command-r-plus-08-2024",
+      "latency_tier": "ultra-fast",
+      "cost": "api"
+    },
+    {
+      "id": "groq",
+      "name": "Groq LPU Acceleration",
+      "type": "api_key",
+      "status": "active",
+      "primary_model": "groq/openai/gpt-oss-120b",
+      "latency_tier": "ultra-fast",
+      "cost": "api"
+    },
+    {
+      "id": "amazon-q",
+      "name": "Amazon Q Developer",
+      "type": "oauth",
+      "status": "active",
+      "cost": "free"
+    },
+    {
+      "id": "kiro",
+      "name": "Kiro AI",
+      "type": "oauth",
+      "status": "active",
+      "cost": "free"
+    },
+    {
+      "id": "veoaifree-web",
+      "name": "Veo AI Free (Video & Audio)",
+      "type": "zero-auth",
+      "status": "active",
+      "cost": "free"
+    },
+    {
+      "id": "aihorde",
+      "name": "AI Horde Distributed",
+      "type": "zero-auth",
+      "status": "active",
+      "cost": "free"
+    }
+  ],
+  "combos": {
+    "auto/coding:free": {
+      "description": "Zero-cost reliable coding fallback route",
+      "active": true
+    },
+    "auto/best-coding": {
+      "description": "High capability coding with deep reasoning",
+      "active": true
+    },
+    "auto/best-chat": {
+      "description": "Balanced speed and quality for general interaction",
+      "active": true
+    },
+    "auto/best-reasoning": {
+      "description": "Chain-of-thought mathematical & logical verification",
+      "active": true
+    }
+  }
+}
+
