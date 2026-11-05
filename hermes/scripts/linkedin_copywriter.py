@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
 """
 linkedin_copywriter.py — Generates humanized, high-credibility LinkedIn posts for Arush Sengar.
-Modeled after high-performing peer benchmarks (Kaushik Choubey formula):
-  1. Milestone greeting & celebratory hook
-  2. Authentic student lab breakdown
-  3. Key practical takeaways (tools, commands, principles)
-  4. Mentor gratitude (Cyber Secured India, SafeSkillz, Galgotias University)
-  5. Interactive community discussion question
-  6. Targeted, SEO-friendly hashtags
-  7. Tailored AI visual concept prompt for OmniRoute image generator (when no assignment is due).
+Handles two distinct modes:
+  Mode A: Assignment Posts (milestone celebration, TryHackMe/OWASP, Cyber Secured India, SafeSkillz)
+  Mode B: Autonomous / Independent Posts (Homelab, AI Security, Linux, Dev, Architecture — NO internship mention)
 """
 
 import os
@@ -35,57 +30,60 @@ if not API_KEY and (Path.home() / ".hermes" / ".env").exists():
 
 MODEL = os.environ.get("DAILY_MODEL", "auto/best-chat")
 
-SYSTEM_PROMPT = """You are Arush Sengar, a 1st-year BCA Cyber Security student at Galgotias University and Cyber Security Intern at Cyber Secured India & SafeSkillz.
-You write engaging, authentic, humanized LinkedIn posts documenting your real hands-on lab progress, assignments, and cybersecurity engineering insights.
+SYSTEM_PROMPT = """You are Arush Sengar, an ambitious 1st-year BCA Cyber Security student at Galgotias University, self-taught builder, and cyber security enthusiast learning in public.
 
-POST STRUCTURE (Modeled after peer top-performer Kaushik Choubey):
-1. HOOK & MILESTONE GREETING:
-   - For an assignment: "🚀 Completed Assignment-[X]: [Topic] as part of my cybersecurity internship with Cyber Secured India & SafeSkillz!"
-   - For homelab/concept: "🚀 Cyber Security Deep Dive: [Topic] — Hands-on thoughts & takeaways!"
-2. HANDS-ON LAB / CONCEPT BREAKDOWN:
-   - Tell the story of what was tested, what specific tools or platforms were used (e.g. TryHackMe, OWASP MAS, Frida, Radare2, Nmap, Gobuster, Azure NSGs, Lakera AI).
-   - Mention real friction faced and how you solved or understood it.
-   - Write in first person ('I'), humble, curious, technical, and enthusiastic.
-3. CLEAR BULLET TAKEAWAYS:
-   - Provide 3-4 high-value bullet points detailing specific technical lessons, flags, commands, or security rules learned.
-4. MENTOR & INSTITUTION GRATITUDE:
-   - Include sincere appreciation: "A huge thank you to the mentors and team at Cyber Secured India & SafeSkillz for the guidance and structured curriculum!", and mention studying BCA Cyber Security at Galgotias University.
-5. ENGAGING COMMUNITY QUESTION:
-   - Ask fellow cybersecurity enthusiasts, peers, and professionals an insightful question related to the topic to invite comments.
-6. TARGETED SEO HASHTAGS:
-   - Include 6-8 relevant hashtags, such as #CyberSecurity, #EthicalHacking, #TryHackMe, #CyberSecuredIndia, #SafeSkillz, #GalgotiasUniversity, #InfoSec, #StudentDev.
+POST STRUCTURE GUIDELINES:
 
-STRICT RULES:
+IF THE TOPIC IS AN INTERNSHIP ASSIGNMENT:
+- Open with: "🚀 Completed Assignment-[X]: [Topic] as part of my cybersecurity internship with Cyber Secured India & SafeSkillz!"
+- Breakdown the specific lab tools and platforms (TryHackMe, OWASP MAS, etc.).
+- 3-4 bullet takeaways.
+- Mentor gratitude to Cyber Secured India, SafeSkillz, and Galgotias University.
+- Engaging question + 6-8 hashtags.
+
+IF THE TOPIC IS A NON-INTERNSHIP POST (Homelab, AI Security, Sysadmin, Linux Engineering, Coding Projects):
+- STRICT: DO NOT MENTION ANY INTERNSHIP OR ASSIGNMENT NUMBERS.
+- Open with a sharp, compelling builder hook (e.g. "🚀 Running an autonomous AI homelab on a 4GB Raspberry Pi 4 taught me more about Linux memory management than any unlimited cloud instance.")
+- Explain the real technical challenge faced (e.g. OOM kills, memory limits under multi-model routing, prompt injection guardrail bypass, network security).
+- Explain how you solved it (e.g. zram swap, systemd watchdog, process pruning, indirect prompt steering).
+- 3 punchy, high-signal technical bullets.
+- Mention being a BCA Cyber Security student at Galgotias University building in public.
+- Engaging community discussion question.
+- 6-8 targeted hashtags (e.g. #RaspberryPi #Homelab #DevOps #CyberSecurity #Linux #StudentBuilder #GalgotiasUniversity #BuildingInPublic).
+
+STRICT RULES FOR ALL POSTS:
 - NEVER mention filenames or file extensions (no '.docx', no 'Global_Internship...').
-- NEVER sound robotic or like a generic corporate AI.
-- Speak as a passionate student builder learning in public.
-- Keep the post length around 180-260 words.
+- NEVER sound like a generic corporate bot.
+- Keep length around 180-250 words.
 """
 
 def generate_post(topic_data: dict, angle_modifier: str = "") -> tuple:
-    topic = topic_data.get("topic", "Cyber Security Hands-on Lab")
+    topic = topic_data.get("topic", "Cyber Security Engineering")
     assignment_num = topic_data.get("assignment_num", "")
-    platform = topic_data.get("platform", "Hands-on Lab")
+    source = topic_data.get("source", "")
+    platform = topic_data.get("platform", "")
     context = topic_data.get("context", "")
     labs = topic_data.get("labs", [])
     
+    is_assignment = bool(assignment_num) and ("intern" in str(context).lower() or source == "assignment")
+    
     labs_str = "\n".join(labs) if labs else ""
     
-    user_prompt = f"""Write a LinkedIn post with the Kaushik Choubey formula for:
-Assignment Number: {assignment_num}
+    user_prompt = f"""Write an engaging LinkedIn post for:
 Topic: {topic}
-Platform: {platform}
-Specific Labs:
+Is Internship Assignment: {is_assignment}
+Assignment Number: {assignment_num if is_assignment else 'None (Independent Student Post)'}
+Platform/Environment: {platform}
+Specific Details / Context:
 {labs_str}
-Hands-on Reflection & Context:
 {context}
 
 {angle_modifier}
 
-Also, on the very last line, provide an AI image generation prompt for OmniRoute that describes a stunning 3D futuristic cyberpunk or SOC visualization matching this topic. Format that line as:
+On the very last line, output an AI visual prompt for OmniRoute that describes a clean, cinematic 3D cyber visual matching this topic (NO text in image). Format as:
 IMAGE_PROMPT: <detailed 3D visual prompt>
 
-Output format: Return ONLY the post followed by the IMAGE_PROMPT line."""
+Output ONLY the post followed by IMAGE_PROMPT."""
 
     payload = {
         "model": MODEL,
@@ -110,7 +108,6 @@ Output format: Return ONLY the post followed by the IMAGE_PROMPT line."""
         res = json.loads(resp.read().decode("utf-8"))
         raw_output = res["choices"][0]["message"]["content"].strip()
         
-    # Extract image prompt if present
     image_prompt = ""
     lines = raw_output.splitlines()
     post_lines = []
@@ -124,42 +121,36 @@ Output format: Return ONLY the post followed by the IMAGE_PROMPT line."""
     clean_post = re.sub(r'[\w\-]+\.docx', '', raw_post).strip()
     
     first_line = clean_post.split("\n")[0].strip()
-    thesis = re.sub(r'^[🚀\s\-•]+', '', first_line)[:55].strip()
+    thesis = re.sub(r'^[🚀\s\-•*]+', '', first_line)[:55].strip()
     
     return clean_post, thesis, image_prompt
 
 def validate_post(post: str) -> tuple:
     if not post:
         return False, "Post is empty"
-        
     words = post.split()
     if len(words) < 70:
         return False, f"Post too short ({len(words)} words)"
     if len(words) > 380:
         return False, f"Post too long ({len(words)} words)"
-        
     banned = [".docx", "as an ai", "i am an ai", "chatgpt", "deepseek", "language model"]
     lower_post = post.lower()
     for b in banned:
         if b in lower_post:
             return False, f"Post contains forbidden term: '{b}'"
-            
     if "#" not in post:
         return False, "Post missing hashtags"
-        
-    if not any(k in lower_post for k in ["completed", "excited", "happy to share", "milestone", "lab", "homelab", "deep dive"]):
-        return False, "Post lacks celebratory or milestone opening"
-        
     return True, "Valid"
 
 if __name__ == "__main__":
-    sample_topic = {
+    test_topic = {
+        "topic": "Running an Autonomous AI Homelab on a 4GB Raspberry Pi 4",
         "assignment_num": "",
-        "topic": "Zero Trust Security Architecture",
-        "platform": "CyberSecurity",
-        "context": "Exploring why perimeter-based security fails and how micro-segmentation, continuous identity verification, and least privilege access models prevent lateral movement."
+        "source": "backlog",
+        "platform": "Raspberry Pi 4",
+        "context": "Maintained my 24/7 Raspberry Pi 4 home server running OmniRoute AI proxy, systemd units, and local agents. Faced memory pressure with 4GB RAM under multi-model routing; implemented zram swap, container auto-pruning, and an automated self-healing watchdog daemon."
     }
-    p, th, ip = generate_post(sample_topic)
+    p, th, ip = generate_post(test_topic)
     print("=== DRAFT ===")
     print(p)
     print("\n=== THESIS ===")
