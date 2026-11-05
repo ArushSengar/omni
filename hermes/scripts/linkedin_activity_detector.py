@@ -152,6 +152,8 @@ def get_all_assignments() -> list:
                 meta = extract_docx_metadata(p)
                 if meta["topic"]:
                     docs.append(meta)
+        # Prioritize assignments with multiple screenshots (2+)
+    docs.sort(key=lambda x: len(x.get("images", [])), reverse=True)
     return docs
 
 def get_used_topics() -> list:
