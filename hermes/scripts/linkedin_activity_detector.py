@@ -196,6 +196,17 @@ def detect_daily_topic(force_assignment: str = None, force_topic: str = None) ->
                 
     # 2. Force by custom topic
     if force_topic:
+        for b in BACKLOG_TOPICS:
+            if b["topic"].lower() in force_topic.lower() or force_topic.lower() in b["topic"].lower():
+                return {
+                    "source": "backlog",
+                    "assignment_num": b.get("assignment_num", ""),
+                    "topic": b["topic"],
+                    "platform": b["platform"],
+                    "context": b["context"],
+                    "images": [],
+                    "tags": b["tags"]
+                }
         return {
             "source": "custom",
             "assignment_num": "",
