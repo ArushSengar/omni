@@ -7,14 +7,15 @@ Built to match and exceed the top-performing peer benchmark (Kaushik Choubey for
   2. COMPOSE  — OmniRoute LLM writes in authentic student voice:
                 (Milestone greeting -> hands-on lab breakdown -> 3 punchy takeaways ->
                  gratitude to Cyber Secured India, SafeSkillz & Galgotias University -> community question -> SEO hashtags).
-  3. COLLAGE  — Generates branded 1200x1200 quad proof-of-work collage using real lab screenshots
-                or live homelab terminal dashboard. Zero generic stock photos.
-  4. PUBLISH  — Posts via Composio CLI LINKEDIN_CREATE_LINKED_IN_POST with attached collage image.
+  3. VISUAL   — Generates branded 1200x1200 quad proof-of-work collage using real lab screenshots,
+                or generates high-impact 3D AI cyber art via OmniRoute (antigravity/gemini-3.1-flash-image)
+                with Pollinations.ai (FLUX) and live terminal fallbacks. Zero generic stock photos.
+  4. PUBLISH  — Posts via Composio CLI LINKEDIN_CREATE_LINKED_IN_POST with attached image.
   5. ARCHIVE  — Saves post markdown to ~/posts/daily/ and records state to daily_learnings.json.
 
 Usage:
   python3 ~/linkedin_daily_post.py                   # Full auto daily run
-  python3 ~/linkedin_daily_post.py --dry-run         # Compose, generate collage, and validate without publishing
+  python3 ~/linkedin_daily_post.py --dry-run         # Compose, generate visual, and validate without publishing
   python3 ~/linkedin_daily_post.py --assignment 7    # Force specific assignment number
   python3 ~/linkedin_daily_post.py --topic "X"       # Force custom topic
   python3 ~/linkedin_daily_post.py --preview         # Generate & print preview
@@ -50,7 +51,7 @@ AUTHOR_URN = "urn:li:person:qzJKgZnzTh"
 
 
 def publish_composio(post_text: str, img_path: str = "") -> str:
-    """Publish to LinkedIn using Composio CLI with optional card image."""
+    """Publish to LinkedIn using Composio CLI with optional image."""
     images_arg = f', images: [{json.dumps(str(img_path))}]' if img_path and os.path.exists(img_path) else ''
     cmd = [
         "/home/arush/.local/bin/composio", "run", f"""
@@ -109,7 +110,6 @@ def log_learning(topic_data: dict, post: str, thesis: str, img_path: str, share_
     learnings.append(record)
     LEARNINGS_FILE.write_text(json.dumps(learnings, indent=2))
 
-    # Also record in used.json
     used = []
     if USED_FILE.exists():
         try:
@@ -124,7 +124,7 @@ def log_learning(topic_data: dict, post: str, thesis: str, img_path: str, share_
 
 def main():
     parser = argparse.ArgumentParser(description="Autonomous LinkedIn Poster for Arush Sengar")
-    parser.add_argument("--dry-run", action="store_true", help="Generate post & collage without publishing")
+    parser.add_argument("--dry-run", action="store_true", help="Generate post & visual without publishing")
     parser.add_argument("--preview", action="store_true", help="Print post & generate image preview")
     parser.add_argument("--assignment", help="Force specific assignment number (e.g. 6, 7, 10, 11, 12)")
     parser.add_argument("--topic", help="Force specific topic name")
@@ -154,20 +154,20 @@ def main():
 
     # 2. Compose humanized copy
     print("\n[2] Composing humanized LinkedIn post with OmniRoute...")
-    post = thesis = None
+    post = thesis = img_prompt = None
     for attempt in range(3):
         angle = "" if attempt == 0 else (
             "Focus deeply on the specific commands and technical hurdles encountered." if attempt == 1 else
-            "Focus on the practical lessons learned and advice for fellow BCA cybersecurity students."
+            "Focus on practical lessons learned and advice for fellow BCA cybersecurity students."
         )
         try:
-            post, thesis = linkedin_copywriter.generate_post(topic_data, angle_modifier=angle)
+            post, thesis, img_prompt = linkedin_copywriter.generate_post(topic_data, angle_modifier=angle)
             ok, why = linkedin_copywriter.validate_post(post)
             if ok:
                 print(f"    Attempt {attempt + 1}: Valid ({len(post.split())} words)")
                 break
             print(f"    Attempt {attempt + 1} rejected ({why}), retrying...")
-            post = thesis = None
+            post = thesis = img_prompt = None
         except Exception as e:
             print(f"    Attempt {attempt + 1} error: {e}")
             time.sleep(2)
@@ -175,12 +175,16 @@ def main():
     if not post:
         sys.exit("Failed to generate a valid post after 3 attempts.")
 
+    topic_data["image_prompt"] = img_prompt or ""
+
     print("\n---------------- GENERATED POST ----------------")
     print(post)
     print("------------------------------------------------")
-    print(f"Thesis Hook: {thesis}")
+    print(f"Thesis Hook : {thesis}")
+    if img_prompt:
+        print(f"AI Prompt   : {img_prompt}")
 
-    # 3. Generate Proof-of-Work Collage
+    # 3. Generate Visual (Proof-of-Work Collage or AI Concept Art)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
     img_path = None
 
@@ -188,14 +192,14 @@ def main():
         img_path = Path(args.image)
         print(f"\n[3] Using explicit user image: {img_path}")
     else:
-        out_collage = ARCHIVE_DIR / f"{timestamp}_collage.png"
-        print(f"\n[3] Generating branded proof-of-work collage...")
+        out_visual = ARCHIVE_DIR / f"{timestamp}_visual.png"
+        print(f"\n[3] Generating visual (Proof Collage / AI 3D Cyber Art)...")
         try:
-            linkedin_collage_generator.render_collage(topic_data, str(out_collage))
-            img_path = out_collage
-            print(f"    Collage generated: {img_path} ({os.path.getsize(img_path)} bytes)")
+            linkedin_collage_generator.render_collage(topic_data, str(out_visual))
+            img_path = out_visual
+            print(f"    Visual generated: {img_path} ({os.path.getsize(img_path)} bytes)")
         except Exception as e:
-            print(f"    Collage generation error: {e}")
+            print(f"    Visual generation error: {e}")
             img_path = None
 
     if args.dry_run or args.preview:

@@ -43,6 +43,7 @@ flowchart TD
   - **Q4 (Bottom-Right)**: Exploitation, flag capture, or system configuration proof.
 - **Mobile Pentesting Layout**: Top header banner with 3 mobile emulator / runtime hooks side-by-side.
 - **Homelab Days**: Live terminal proof card with active systemd status (`omniroute`, `hermes-gateway`, `watchdog`), RAM allocation, and uptime.
+- **Concept & Non-Assignment Days**: High-impact **3D AI Cyber Visuals** generated dynamically via your local OmniRoute AI image endpoint (`antigravity/gemini-3.1-flash-image`) with Pollinations.ai (FLUX) fallback, branded with your custom student title header and topic bar. Zero Wikimedia stock photos.
 
 ---
 
@@ -115,3 +116,4 @@ python3 ~/linkedin_daily_post.py
 - **Attached Skill**: `linkedin-daily-post` (v3.0.0 God-Mode)
 - **Archive Path**: `/home/arush/posts/daily/YYYYMMDD_HHMM.md`
 - **Learnings History**: `/home/arush/.hermes/linkedin_daily/daily_learnings.json`
+

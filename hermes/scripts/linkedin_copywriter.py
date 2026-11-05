@@ -8,6 +8,7 @@ Modeled after high-performing peer benchmarks (Kaushik Choubey formula):
   4. Mentor gratitude (Cyber Secured India, SafeSkillz, Galgotias University)
   5. Interactive community discussion question
   6. Targeted, SEO-friendly hashtags
+  7. Tailored AI visual concept prompt for OmniRoute image generator (when no assignment is due).
 """
 
 import os
@@ -35,13 +36,13 @@ if not API_KEY and (Path.home() / ".hermes" / ".env").exists():
 MODEL = os.environ.get("DAILY_MODEL", "auto/best-chat")
 
 SYSTEM_PROMPT = """You are Arush Sengar, a 1st-year BCA Cyber Security student at Galgotias University and Cyber Security Intern at Cyber Secured India & SafeSkillz.
-You write engaging, authentic, humanized LinkedIn posts documenting your real hands-on lab progress and assignments.
+You write engaging, authentic, humanized LinkedIn posts documenting your real hands-on lab progress, assignments, and cybersecurity engineering insights.
 
 POST STRUCTURE (Modeled after peer top-performer Kaushik Choubey):
 1. HOOK & MILESTONE GREETING:
    - For an assignment: "🚀 Completed Assignment-[X]: [Topic] as part of my cybersecurity internship with Cyber Secured India & SafeSkillz!"
-   - For homelab/project: "🚀 Homelab Update: [Topic] — Building & hardening my 24/7 Raspberry Pi 4 environment!"
-2. HANDS-ON LAB BREAKDOWN:
+   - For homelab/concept: "🚀 Cyber Security Deep Dive: [Topic] — Hands-on thoughts & takeaways!"
+2. HANDS-ON LAB / CONCEPT BREAKDOWN:
    - Tell the story of what was tested, what specific tools or platforms were used (e.g. TryHackMe, OWASP MAS, Frida, Radare2, Nmap, Gobuster, Azure NSGs, Lakera AI).
    - Mention real friction faced and how you solved or understood it.
    - Write in first person ('I'), humble, curious, technical, and enthusiastic.
@@ -50,15 +51,15 @@ POST STRUCTURE (Modeled after peer top-performer Kaushik Choubey):
 4. MENTOR & INSTITUTION GRATITUDE:
    - Include sincere appreciation: "A huge thank you to the mentors and team at Cyber Secured India & SafeSkillz for the guidance and structured curriculum!", and mention studying BCA Cyber Security at Galgotias University.
 5. ENGAGING COMMUNITY QUESTION:
-   - Ask fellow cybersecurity enthusiasts, peers, and professionals an insightful question related to the lab topic to invite comments.
+   - Ask fellow cybersecurity enthusiasts, peers, and professionals an insightful question related to the topic to invite comments.
 6. TARGETED SEO HASHTAGS:
-   - Include 6-8 relevant hashtags, such as #CyberSecurity, #EthicalHacking, #TryHackMe (or relevant platform), #CyberSecuredIndia, #SafeSkillz, #GalgotiasUniversity, #InfoSec, #StudentDev.
+   - Include 6-8 relevant hashtags, such as #CyberSecurity, #EthicalHacking, #TryHackMe, #CyberSecuredIndia, #SafeSkillz, #GalgotiasUniversity, #InfoSec, #StudentDev.
 
 STRICT RULES:
 - NEVER mention filenames or file extensions (no '.docx', no 'Global_Internship...').
 - NEVER sound robotic or like a generic corporate AI.
 - Speak as a passionate student builder learning in public.
-- Keep the length around 180-260 words — crisp, readable, easy to skim on mobile.
+- Keep the post length around 180-260 words.
 """
 
 def generate_post(topic_data: dict, angle_modifier: str = "") -> tuple:
@@ -81,7 +82,10 @@ Hands-on Reflection & Context:
 
 {angle_modifier}
 
-Output ONLY the final LinkedIn post ready to publish. No conversational preambles or notes."""
+Also, on the very last line, provide an AI image generation prompt for OmniRoute that describes a stunning 3D futuristic cyberpunk or SOC visualization matching this topic. Format that line as:
+IMAGE_PROMPT: <detailed 3D visual prompt>
+
+Output format: Return ONLY the post followed by the IMAGE_PROMPT line."""
 
     payload = {
         "model": MODEL,
@@ -104,20 +108,27 @@ Output ONLY the final LinkedIn post ready to publish. No conversational preamble
 
     with urllib.request.urlopen(req, timeout=60) as resp:
         res = json.loads(resp.read().decode("utf-8"))
-        raw_post = res["choices"][0]["message"]["content"].strip()
+        raw_output = res["choices"][0]["message"]["content"].strip()
         
-    # Clean any stray docx references if any leaked
+    # Extract image prompt if present
+    image_prompt = ""
+    lines = raw_output.splitlines()
+    post_lines = []
+    for line in lines:
+        if line.strip().startswith("IMAGE_PROMPT:"):
+            image_prompt = line.split("IMAGE_PROMPT:", 1)[1].strip()
+        else:
+            post_lines.append(line)
+            
+    raw_post = "\n".join(post_lines).strip()
     clean_post = re.sub(r'[\w\-]+\.docx', '', raw_post).strip()
     
-    # Extract first line as thesis
     first_line = clean_post.split("\n")[0].strip()
-    # Remove leading rocket emoji or characters for thesis hook
     thesis = re.sub(r'^[🚀\s\-•]+', '', first_line)[:55].strip()
     
-    return clean_post, thesis
+    return clean_post, thesis, image_prompt
 
 def validate_post(post: str) -> tuple:
-    """Validates word count, banned words, structure."""
     if not post:
         return False, "Post is empty"
         
@@ -133,28 +144,25 @@ def validate_post(post: str) -> tuple:
         if b in lower_post:
             return False, f"Post contains forbidden term: '{b}'"
             
-    # Check for hashtags
     if "#" not in post:
         return False, "Post missing hashtags"
         
-    # Check for greeting/hook
-    if not any(k in lower_post for k in ["completed", "excited", "happy to share", "milestone", "lab", "homelab"]):
+    if not any(k in lower_post for k in ["completed", "excited", "happy to share", "milestone", "lab", "homelab", "deep dive"]):
         return False, "Post lacks celebratory or milestone opening"
         
     return True, "Valid"
 
 if __name__ == "__main__":
     sample_topic = {
-        "assignment_num": "10",
-        "topic": "iOS Pentesting",
-        "platform": "OWASP Mobile Application Security (MAS)",
-        "labs": ["Lab 1: iOS UnCrackable Level 1"],
-        "context": "Learned how apps detect jailbreak environments and runtime tampering using Frida and static decompilation."
+        "assignment_num": "",
+        "topic": "Zero Trust Security Architecture",
+        "platform": "CyberSecurity",
+        "context": "Exploring why perimeter-based security fails and how micro-segmentation, continuous identity verification, and least privilege access models prevent lateral movement."
     }
-    p, th = generate_post(sample_topic)
+    p, th, ip = generate_post(sample_topic)
     print("=== DRAFT ===")
     print(p)
     print("\n=== THESIS ===")
     print(th)
-    ok, why = validate_post(p)
-    print(f"\nValidation: {ok} ({why})")
+    print("\n=== IMAGE PROMPT ===")
+    print(ip)
