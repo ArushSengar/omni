@@ -43,3 +43,4 @@ flowchart TD
      `[SECURITY NOTICE] New device detected on LAN: 192.168.0.145 (MAC: 48:2c:67:... Vendor: Espressif)`
 2. **Homelab Perimeter Check**:
    - Audits UFW firewall rules on the Pi: ensures no external ports are opened accidentally without Cloudflare tunnel protection.
+

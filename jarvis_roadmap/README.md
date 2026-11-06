@@ -39,3 +39,4 @@ Inside this `jarvis_roadmap/` directory, we have researched and documented four 
 **Priority 1: Offline Local Voice Engine (Piper TTS + Faster-Whisper)**
 - Allows Hermes to talk back with an ultra-realistic, low-latency natural human voice directly on the Pi without consuming cloud API credits.
 - Can be triggered directly from CLI or mobile chat.
+

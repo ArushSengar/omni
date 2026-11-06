@@ -272,8 +272,9 @@ def detect_daily_topic(force_assignment: str = None, force_topic: str = None) ->
     
     # 1. Force by assignment number
     if force_assignment:
+        target_str = str(force_assignment).strip().lstrip('0')
         for a in assignments:
-            if a["assignment_num"] == force_assignment:
+            if str(a["assignment_num"]).strip().lstrip('0') == target_str:
                 ref_summary = " ".join(a["reflections"]) if a["reflections"] else a["topic"]
                 return {
                     "source": "assignment",
@@ -361,7 +362,13 @@ def detect_daily_topic(force_assignment: str = None, force_topic: str = None) ->
                 "tags": b["tags"]
             }
 
-    # 6. If all backlog topics have also been used, rotate back through assignments with fresh angles
+    # 6. Autonomous Research Engine: Trigger when backlog runs out!
+    try:
+        import autonomous_researcher
+        print("[Detector] Backlog exhausted. Invoking Autonomous Researcher for fresh topic...")
+        return autonomous_researcher.research_fresh_topic()
+    except Exception as e:
+        print(f"[warn] Autonomous research fallback ({e}), rotating back through assignments...")
     if assignments:
         selected = assignments[0]
         ref_summary = " ".join(selected["reflections"]) if selected["reflections"] else selected["topic"]

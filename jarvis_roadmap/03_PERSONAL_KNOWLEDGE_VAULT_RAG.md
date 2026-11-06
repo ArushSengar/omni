@@ -43,3 +43,4 @@ flowchart TD
    - Command: `python3 ~/academic_vault.py --index ~/academics/`
    - Command: `python3 ~/academic_vault.py --ask "Explain SUID bit permissions"`
 4. Add Hermes skill `academic-vault` to allow natural query answering during study sessions.
+

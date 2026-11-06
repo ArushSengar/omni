@@ -12,12 +12,14 @@ extracted_cookies.json
 
 # SQLite & Databases
 *.sqlite
+*.sqlite3
 *.sqlite-shm
 *.sqlite-wal
 *.db
 *.db-shm
 *.db-wal
 db_backups/
+staticfiles/
 
 # Logs & Runtime
 *.log

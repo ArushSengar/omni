@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
++#!/usr/bin/env python3
 """
 linkedin_collage_generator.py — High-Credibility Visual Engine for Arush Sengar.
 RULES:

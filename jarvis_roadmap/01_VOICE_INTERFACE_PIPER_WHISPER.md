@@ -55,3 +55,4 @@ aplay ~/welcome.wav
 
 ### Step 3: Wire into Hermes Agent
 Create a small helper script `/home/arush/.hermes/scripts/speak.py` so Hermes can speak aloud whenever an important event happens (e.g., successful daily LinkedIn post publication, server health warning, or direct chat response).
+
