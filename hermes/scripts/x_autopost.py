@@ -20,6 +20,13 @@ import os
 import time
 from pathlib import Path
 
+VENV_PYTHON = "/home/arush/.hermes/installs/c4e5f05fc62c46c7/environments/c3eca3e27a664bb2929bbedfcbc483b7/venv/bin/python"
+if sys.executable != VENV_PYTHON and os.path.exists(VENV_PYTHON):
+    try:
+        import playwright
+    except ImportError:
+        os.execv(VENV_PYTHON, [VENV_PYTHON] + sys.argv)
+
 from playwright.sync_api import sync_playwright
 
 PROFILE_DIR = Path.home() / ".twitter-profile"
