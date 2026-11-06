@@ -12,6 +12,8 @@ urlpatterns = [
     path('api/research-topic/', views.api_research_topic, name='api_research_topic'),
     path('api/system-stats/', views.api_system_stats, name='api_system_stats'),
     path('api/services-status/', views.api_services_status, name='api_services_status'),
+    path('api/services/register/', views.api_register_service, name='api_register_service'),
+    path('api/services/delete/', views.api_delete_service, name='api_delete_service'),
     path('api/service-action/', views.api_service_action, name='api_service_action'),
     path('api/run-maintenance/', views.api_run_maintenance, name='api_run_maintenance'),
 ]

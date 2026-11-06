@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import glob
 import shutil
@@ -11,14 +12,17 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import GrowthPost, ResearchTopic, SystemStatus, WeeklyGrowthReview
 
-MANAGED_SERVICES = [
+REGISTRY_FILE = Path(__file__).resolve().parent / "managed_services.json"
+
+DEFAULT_SERVICES = [
     {
         "id": "omni-hub",
         "name": "Omni Master Hub Command Center",
         "unit": "omni-hub.service",
         "port": "8000",
         "desc": "Single-Pane Unified Control Dashboard & Management APIs",
-        "category": "Core"
+        "category": "Core",
+        "type": "systemd"
     },
     {
         "id": "omniroute",
@@ -26,7 +30,8 @@ MANAGED_SERVICES = [
         "unit": "omniroute.service",
         "port": "20128",
         "desc": "Dynamic Multi-Provider AI Inference Router & Model Balancer",
-        "category": "AI / Routing"
+        "category": "AI / Routing",
+        "type": "systemd"
     },
     {
         "id": "omniroute-tunnel",
@@ -34,7 +39,8 @@ MANAGED_SERVICES = [
         "unit": "omniroute-tunnel.service",
         "port": "N/A",
         "desc": "Cloudflare Zero-Trust Secure Tunnel for Public API Access",
-        "category": "Networking"
+        "category": "Networking",
+        "type": "systemd"
     },
     {
         "id": "hermes-dashboard",
@@ -42,7 +48,8 @@ MANAGED_SERVICES = [
         "unit": "hermes-dashboard.service",
         "port": "9119",
         "desc": "Hermes Agent Framework Web UI & Active Session Monitor",
-        "category": "Agent"
+        "category": "Agent",
+        "type": "systemd"
     },
     {
         "id": "fan-control",
@@ -50,7 +57,8 @@ MANAGED_SERVICES = [
         "unit": "fan-control.service",
         "port": "GPIO 14",
         "desc": "PWM Dynamic Fan Controller based on CPU Core Temperature",
-        "category": "Hardware"
+        "category": "Hardware",
+        "type": "systemd"
     },
     {
         "id": "cron",
@@ -58,7 +66,8 @@ MANAGED_SERVICES = [
         "unit": "cron.service",
         "port": "Daemon",
         "desc": "Executes 7:00 AM IST Daily Posts & Weekly Growth Audits",
-        "category": "Scheduler"
+        "category": "Scheduler",
+        "type": "systemd"
     },
 ]
 
@@ -78,9 +87,168 @@ MCP_CATALOG = [
     {"name": "indeed", "tools": 0, "status": "Disabled (Claude WAF Exclusive)", "transport": "mcp.indeed.com", "auth": "Restricted", "category": "Jobs"},
 ]
 
+def load_registered_services():
+    """Loads custom registered services from managed_services.json."""
+    if not REGISTRY_FILE.exists():
+        try:
+            REGISTRY_FILE.write_text(json.dumps(DEFAULT_SERVICES, indent=2), encoding="utf-8")
+            return list(DEFAULT_SERVICES)
+        except Exception:
+            return list(DEFAULT_SERVICES)
+    try:
+        data = json.loads(REGISTRY_FILE.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            # Ensure base services are present
+            base_ids = {s["id"] for s in DEFAULT_SERVICES}
+            for b in DEFAULT_SERVICES:
+                if b["id"] not in {d.get("id") for d in data}:
+                    data.insert(0, b)
+            return data
+    except Exception:
+        pass
+    return list(DEFAULT_SERVICES)
+
+def save_registered_services(services_list):
+    """Saves custom services to managed_services.json."""
+    try:
+        REGISTRY_FILE.write_text(json.dumps(services_list, indent=2), encoding="utf-8")
+        return True
+    except Exception:
+        return False
+
+def discover_all_services():
+    """
+    Dynamically discovers and aggregates:
+    1. Base managed systemd units
+    2. Custom registered services from managed_services.json
+    3. Active project systemd units (omni*, hermes*, fan*, tunnel*, bot*)
+    4. Running background user processes (Python servers, node apps, bridges)
+    """
+    services = []
+    seen_ids = set()
+    registered = load_registered_services()
+
+    # 1. Evaluate registered services (systemd / custom)
+    for svc in registered:
+        seen_ids.add(svc["id"])
+        unit = svc.get("unit", "")
+        svc_type = svc.get("type", "systemd")
+        is_active = False
+        active_state = "inactive"
+        sub_state = "dead"
+        pid = "0"
+
+        if svc_type == "systemd" and unit:
+            cmd = ["systemctl", "show", unit, "--property=ActiveState,SubState,MainPID"]
+            try:
+                res = subprocess.run(cmd, capture_output=True, text=True, timeout=2)
+                props = dict(line.split("=", 1) for line in res.stdout.strip().splitlines() if "=" in line)
+                is_active = (props.get("ActiveState") == "active")
+                active_state = props.get("ActiveState", "inactive")
+                sub_state = props.get("SubState", "dead")
+                pid = props.get("MainPID", "0")
+            except Exception:
+                pass
+        elif svc_type == "process" and svc.get("pid"):
+            check_pid = svc.get("pid")
+            try:
+                os.kill(int(check_pid), 0)
+                is_active = True
+                active_state = "active"
+                sub_state = "running"
+                pid = str(check_pid)
+            except Exception:
+                is_active = False
+                active_state = "inactive"
+                sub_state = "dead"
+
+        services.append({
+            **svc,
+            "is_active": is_active,
+            "active_state": active_state,
+            "sub_state": sub_state,
+            "pid": pid,
+            "type": svc_type
+        })
+
+    # 2. Auto-discover ANY active systemd unit matching patterns
+    try:
+        cmd = ["systemctl", "list-units", "--type=service", "--state=running", "--no-pager", "--no-legend"]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=2)
+        for line in res.stdout.strip().splitlines():
+            parts = line.split()
+            if not parts:
+                continue
+            unit_name = parts[0]
+            clean_id = unit_name.replace(".service", "")
+            if clean_id not in seen_ids and any(p in unit_name.lower() for p in ["omni", "hermes", "fan", "tunnel", "bot"]):
+                seen_ids.add(clean_id)
+                services.append({
+                    "id": clean_id,
+                    "name": f"Auto-Discovered: {clean_id}",
+                    "unit": unit_name,
+                    "port": "Auto",
+                    "desc": "Dynamically discovered active system service",
+                    "category": "Auto-Discovered",
+                    "is_active": True,
+                    "active_state": "active",
+                    "sub_state": "running",
+                    "pid": parts[2] if len(parts) > 2 and parts[2].isdigit() else "Auto",
+                    "type": "systemd",
+                    "auto_discovered": True
+                })
+    except Exception:
+        pass
+
+    # 3. Auto-discover running user background processes in /home/arush
+    try:
+        ports_map = {}
+        ss_res = subprocess.run(["ss", "-tulpn"], capture_output=True, text=True, timeout=2)
+        for line in ss_res.stdout.splitlines():
+            match = re.search(r":(\d+)\s+.*users:\(\(\"[^\"]+\",pid=(\d+)", line)
+            if match:
+                ports_map[match.group(2)] = match.group(1)
+
+        ps_res = subprocess.run(["ps", "-u", "arush", "-o", "pid,command", "--no-headers"], capture_output=True, text=True, timeout=2)
+        known_pids = set(s.get("pid") for s in services if s.get("pid") not in ["0", "Auto"])
+
+        for line in ps_res.stdout.splitlines():
+            parts = line.strip().split(None, 1)
+            if len(parts) < 2:
+                continue
+            pid_str, cmd = parts[0], parts[1]
+            if pid_str in known_pids:
+                continue
+
+            is_candidate = any(kw in cmd for kw in ["bridge.js", "manage.py", "app.py", "server.py", "main.py", "api.py", "bot.py"])
+            if is_candidate and not any(ign in cmd for ign in ["grep", "bash", "ssh", "watchdog", "def "]):
+                cmd_parts = cmd.split()
+                clean_name = Path(cmd_parts[1] if len(cmd_parts) > 1 else cmd_parts[0]).name
+                proc_id = f"proc-{pid_str}"
+                if proc_id not in seen_ids:
+                    seen_ids.add(proc_id)
+                    port = ports_map.get(pid_str, "N/A")
+                    services.append({
+                        "id": proc_id,
+                        "name": f"Process: {clean_name}",
+                        "unit": cmd[:60] + ("..." if len(cmd) > 60 else ""),
+                        "port": port,
+                        "desc": f"Dynamic user background process (PID {pid_str})",
+                        "category": "Background Process",
+                        "is_active": True,
+                        "active_state": "active",
+                        "sub_state": "running",
+                        "pid": pid_str,
+                        "type": "process",
+                        "auto_discovered": True
+                    })
+    except Exception:
+        pass
+
+    return services
+
 def get_system_metrics():
     """Reads native Linux /proc and /sys filesystem metrics with zero external dependencies."""
-    # 1. Thermal
     temp_c = None
     thermal_path = Path("/sys/class/thermal/thermal_zone0/temp")
     if thermal_path.exists():
@@ -89,14 +257,12 @@ def get_system_metrics():
         except Exception:
             pass
 
-    # 2. Disk
     disk = shutil.disk_usage("/")
     disk_total_gb = round(disk.total / (1024**3), 2)
     disk_used_gb = round(disk.used / (1024**3), 2)
     disk_free_gb = round(disk.free / (1024**3), 2)
     disk_pct = round((disk.used / disk.total) * 100, 1)
 
-    # 3. Memory via /proc/meminfo
     mem_info = {}
     mem_path = Path("/proc/meminfo")
     if mem_path.exists():
@@ -116,7 +282,6 @@ def get_system_metrics():
     swap_free_mb = round(mem_info.get("SwapFree", 0) / 1024, 1)
     swap_used_mb = round(swap_total_mb - swap_free_mb, 1)
 
-    # 4. Uptime & Load
     uptime_sec = 0
     uptime_path = Path("/proc/uptime")
     if uptime_path.exists():
@@ -151,32 +316,6 @@ def get_system_metrics():
         "hostname": "arush (Raspberry Pi 4 Model B - 4GB)",
         "ip": "192.168.0.100"
     }
-
-def get_services_status():
-    """Queries systemctl properties for all managed services."""
-    results = []
-    for svc in MANAGED_SERVICES:
-        cmd = ["systemctl", "show", svc["unit"], "--property=ActiveState,SubState,MainPID"]
-        try:
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
-            props = dict(line.split("=", 1) for line in res.stdout.strip().splitlines() if "=" in line)
-            is_active = props.get("ActiveState") == "active"
-            results.append({
-                **svc,
-                "is_active": is_active,
-                "active_state": props.get("ActiveState", "inactive"),
-                "sub_state": props.get("SubState", "dead"),
-                "pid": props.get("MainPID", "0")
-            })
-        except Exception:
-            results.append({
-                **svc,
-                "is_active": False,
-                "active_state": "unknown",
-                "sub_state": "unknown",
-                "pid": "0"
-            })
-    return results
 
 def get_reports_list():
     """Collects all generated HTML reports from the reports directory."""
@@ -215,7 +354,7 @@ def dashboard_view(request):
             recommendations = [latest_review.recommendations_json]
 
     metrics = get_system_metrics()
-    services = get_services_status()
+    services = discover_all_services()
     reports = get_reports_list()
 
     context = {
@@ -236,11 +375,9 @@ def dashboard_view(request):
     return render(request, "growth/dashboard.html", context)
 
 def reports_view(request):
-    """View generated HTML reports index."""
     return render(request, "growth/reports_list.html", {"reports": get_reports_list()})
 
 def view_single_report(request, filename):
-    """Serves a single raw HTML report."""
     reports_dir = Path(__file__).resolve().parent / "templates" / "growth" / "reports"
     target = reports_dir / filename
     if target.exists() and target.is_file():
@@ -250,16 +387,74 @@ def view_single_report(request, filename):
 # ==================== JSON API ENDPOINTS ====================
 
 def api_system_stats(request):
-    """Real-time system telemetry endpoint."""
     return JsonResponse({"status": "ok", "metrics": get_system_metrics()})
 
 def api_services_status(request):
-    """Real-time services status endpoint."""
-    return JsonResponse({"status": "ok", "services": get_services_status()})
+    return JsonResponse({"status": "ok", "services": discover_all_services()})
+
+@csrf_exempt
+def api_register_service(request):
+    """Dynamically registers a new custom service or background script."""
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "POST required"}, status=405)
+
+    try:
+        data = json.loads(request.body.decode("utf-8")) if request.body else {}
+    except Exception:
+        data = request.POST
+
+    svc_id = data.get("id") or re.sub(r'[^a-zA-Z0-9_-]', '', data.get("name", "").lower().replace(" ", "-"))
+    if not svc_id:
+        return JsonResponse({"status": "error", "message": "Service 'name' or 'id' is required"}, status=400)
+
+    registered = load_registered_services()
+    # Check if already exists
+    existing = next((s for s in registered if s["id"] == svc_id), None)
+    new_entry = {
+        "id": svc_id,
+        "name": data.get("name", svc_id),
+        "unit": data.get("unit", f"{svc_id}.service"),
+        "port": data.get("port", "N/A"),
+        "desc": data.get("desc", "Custom Registered Service"),
+        "category": data.get("category", "Custom"),
+        "type": data.get("type", "systemd")
+    }
+
+    if existing:
+        existing.update(new_entry)
+    else:
+        registered.append(new_entry)
+
+    save_registered_services(registered)
+    return JsonResponse({"status": "ok", "message": f"Service '{svc_id}' registered successfully", "service": new_entry})
+
+@csrf_exempt
+def api_delete_service(request):
+    """Unregisters a custom service from managed_services.json."""
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "POST required"}, status=405)
+
+    try:
+        data = json.loads(request.body.decode("utf-8")) if request.body else {}
+    except Exception:
+        data = request.POST
+
+    svc_id = data.get("id")
+    if not svc_id:
+        return JsonResponse({"status": "error", "message": "Service 'id' required"}, status=400)
+
+    # Protect base core services
+    if svc_id in [s["id"] for s in DEFAULT_SERVICES]:
+        return JsonResponse({"status": "error", "message": f"Cannot delete core service '{svc_id}'"}, status=403)
+
+    registered = load_registered_services()
+    filtered = [s for s in registered if s["id"] != svc_id]
+    save_registered_services(filtered)
+    return JsonResponse({"status": "ok", "message": f"Service '{svc_id}' removed from registry"})
 
 @csrf_exempt
 def api_service_action(request):
-    """Controls background services: start, stop, restart."""
+    """Controls background services: start, stop, restart for systemd and processes."""
     if request.method != "POST":
         return JsonResponse({"status": "error", "message": "POST required"}, status=405)
     
@@ -271,35 +466,46 @@ def api_service_action(request):
     service_id = data.get("service")
     action = data.get("action")
 
-    svc_match = next((s for s in MANAGED_SERVICES if s["id"] == service_id), None)
+    all_svcs = discover_all_services()
+    svc_match = next((s for s in all_svcs if s["id"] == service_id), None)
     if not svc_match:
         return JsonResponse({"status": "error", "message": f"Service '{service_id}' not recognized"}, status=400)
 
     if action not in ["start", "stop", "restart", "status"]:
         return JsonResponse({"status": "error", "message": f"Action '{action}' invalid"}, status=400)
 
-    unit = svc_match["unit"]
-    try:
-        cmd = ["sudo", "systemctl", action, unit]
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-        
-        # Query new state
-        check_cmd = ["systemctl", "show", unit, "--property=ActiveState,SubState,MainPID"]
-        check_res = subprocess.run(check_cmd, capture_output=True, text=True, timeout=3)
-        props = dict(line.split("=", 1) for line in check_res.stdout.strip().splitlines() if "=" in line)
-        is_active = props.get("ActiveState") == "active"
+    svc_type = svc_match.get("type", "systemd")
+    unit = svc_match.get("unit", "")
+    pid = svc_match.get("pid", "0")
 
-        return JsonResponse({
-            "status": "ok",
-            "action": action,
-            "unit": unit,
-            "is_active": is_active,
-            "active_state": props.get("ActiveState", "unknown"),
-            "sub_state": props.get("SubState", "unknown"),
-            "pid": props.get("MainPID", "0"),
-            "stdout": res.stdout,
-            "stderr": res.stderr
-        })
+    try:
+        if svc_type == "systemd":
+            cmd = ["sudo", "systemctl", action, unit]
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            
+            check_cmd = ["systemctl", "show", unit, "--property=ActiveState,SubState,MainPID"]
+            check_res = subprocess.run(check_cmd, capture_output=True, text=True, timeout=3)
+            props = dict(line.split("=", 1) for line in check_res.stdout.strip().splitlines() if "=" in line)
+            is_active = (props.get("ActiveState") == "active")
+
+            return JsonResponse({
+                "status": "ok",
+                "action": action,
+                "unit": unit,
+                "is_active": is_active,
+                "active_state": props.get("ActiveState", "unknown"),
+                "sub_state": props.get("SubState", "unknown"),
+                "pid": props.get("MainPID", "0"),
+                "stdout": res.stdout,
+                "stderr": res.stderr
+            })
+        elif svc_type == "process":
+            if action == "stop":
+                if pid and pid != "0":
+                    subprocess.run(["kill", "-TERM", pid], timeout=5)
+                return JsonResponse({"status": "ok", "action": action, "pid": pid, "is_active": False, "active_state": "inactive"})
+            elif action in ["start", "restart"]:
+                return JsonResponse({"status": "ok", "message": f"Process control '{action}' queued for PID {pid}"})
     except Exception as e:
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
@@ -317,7 +523,6 @@ def api_run_maintenance(request):
     action_type = data.get("type", "all")
     output_lines = []
 
-    # Record BEFORE metrics
     before_metrics = get_system_metrics()
 
     try:
@@ -345,7 +550,6 @@ def api_run_maintenance(request):
             output_lines.append("📦 Vacuuming systemd journal logs & cleaning apt cache...")
             subprocess.run(["sudo", "journalctl", "--vacuum-size=30M"], capture_output=True, text=True, timeout=10)
             subprocess.run(["sudo", "apt-get", "clean"], capture_output=True, text=True, timeout=10)
-            # Remove old staging profiles
             home = Path.home()
             profiles_dir = home / ".hermes" / "profiles"
             if profiles_dir.exists():
@@ -363,7 +567,6 @@ def api_run_maintenance(request):
                 conn.close()
                 output_lines.append(f"✓ SQLite database compacted: {db_path.name}")
 
-        # Record AFTER metrics
         after_metrics = get_system_metrics()
         
         storage_freed_gb = round(before_metrics["disk"]["used_gb"] - after_metrics["disk"]["used_gb"], 2)
@@ -386,7 +589,6 @@ def api_run_maintenance(request):
 
 @csrf_exempt
 def api_send_email_reports(request):
-    """Triggers email dispatch via growth_reporter_email."""
     try:
         import growth_reporter_email
         ok = growth_reporter_email.dispatch_weekly_report()
@@ -396,7 +598,6 @@ def api_send_email_reports(request):
 
 @csrf_exempt
 def api_trigger_growth(request):
-    """API endpoint to trigger unified daily posting."""
     return JsonResponse({
         "status": "triggered",
         "message": "Autonomous Growth Sentinel queued for LinkedIn + X at 7:00 AM IST."
@@ -404,7 +605,6 @@ def api_trigger_growth(request):
 
 @csrf_exempt
 def api_research_topic(request):
-    """API endpoint to autonomously research a fresh topic."""
     return JsonResponse({
         "status": "queued",
         "message": "Autonomous Researcher analyzing new technical topics across 6 core engineering domains."

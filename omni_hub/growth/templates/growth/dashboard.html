@@ -40,7 +40,7 @@
             <div class="flex items-center space-x-3">
                 <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse-fast shadow-lg shadow-emerald-500/50"></span>
                 <span class="font-extrabold text-lg tracking-wider text-white">OMNI <span class="text-emerald-400">HUB</span></span>
-                <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-800 font-mono font-semibold">Master Control v4.0</span>
+                <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-800 font-mono font-semibold">Master Control v4.5 Dynamic</span>
             </div>
 
             <!-- Quick Hardware Pills in Header -->
@@ -83,6 +83,7 @@
             </button>
             <button onclick="switchTab('services')" id="tab-btn-services" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center space-x-2 text-slate-400 hover:text-white hover:bg-slate-800/60">
                 <span>⚙️</span><span>Service Switchboard</span>
+                <span id="tab-badge-services" class="text-xs px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-300">{{ services|length }}</span>
             </button>
             <button onclick="switchTab('maintenance')" id="tab-btn-maintenance" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center space-x-2 text-slate-400 hover:text-white hover:bg-slate-800/60">
                 <span>🧹</span><span>Maintenance & Clean</span>
@@ -101,7 +102,6 @@
              TAB 1: GROWTH ENGINE
              ========================================== -->
         <section id="tab-growth" class="tab-content space-y-6">
-            <!-- Growth Welcome Banner -->
             <div class="p-6 rounded-2xl border border-slate-800 bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/40 flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div class="space-y-1">
                     <h1 class="text-2xl font-black text-white">Autonomous Growth Sentinel & Content Engine</h1>
@@ -267,7 +267,6 @@
 
             <!-- Hardware Telemetry Cards -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <!-- Temp Card -->
                 <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/50 space-y-2">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-mono text-slate-400 uppercase tracking-wider">CPU Thermal Zone</span>
@@ -277,7 +276,6 @@
                     <div class="text-xs text-slate-400 font-mono">PWM Fan Active (GPIO 14)</div>
                 </div>
 
-                <!-- RAM Card -->
                 <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/50 space-y-2">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-mono text-slate-400 uppercase tracking-wider">RAM Utilization</span>
@@ -287,7 +285,6 @@
                     <div id="metric-ram-detail" class="text-xs text-slate-400 font-mono">{{ metrics.memory.used_mb }} MB / {{ metrics.memory.total_mb }} MB</div>
                 </div>
 
-                <!-- Disk Card -->
                 <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/50 space-y-2">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-mono text-slate-400 uppercase tracking-wider">Disk Storage (SSD/SD)</span>
@@ -297,7 +294,6 @@
                     <div id="metric-disk-detail" class="text-xs text-emerald-400 font-mono font-semibold">Available (+2.3GB Freed!)</div>
                 </div>
 
-                <!-- Uptime & Load -->
                 <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/50 space-y-2">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-mono text-slate-400 uppercase tracking-wider">System Uptime</span>
@@ -310,7 +306,6 @@
 
             <!-- Deep Memory & Storage Breakdown -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Memory Gauge Box -->
                 <div class="p-6 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-4">
                     <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
                         <span>🧠</span><span>Memory Breakdown (RAM & Swap)</span>
@@ -348,7 +343,6 @@
                     </div>
                 </div>
 
-                <!-- Storage Gauge Box -->
                 <div class="p-6 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-4">
                     <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
                         <span>💾</span><span>Disk Storage Partition (/dev/sda2)</span>
@@ -389,17 +383,22 @@
         </section>
 
         <!-- ==========================================
-             TAB 3: SERVICE SWITCHBOARD / PROCESS CONTROL
+             TAB 3: SERVICE SWITCHBOARD & PROCESS CONTROL
              ========================================== -->
         <section id="tab-services" class="tab-content hidden space-y-6">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                    <h2 class="text-xl font-bold text-white">Central Service Switchboard & Process Manager</h2>
-                    <p class="text-xs text-slate-400">Start, stop, and restart background daemons directly from this panel without opening SSH.</p>
+                    <h2 class="text-xl font-bold text-white">Dynamic Service Switchboard & Process Manager</h2>
+                    <p class="text-xs text-slate-400">Auto-discovers running daemons, user background processes, and custom registered services.</p>
                 </div>
-                <button onclick="refreshServices()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 font-mono flex items-center space-x-1.5 transition self-start sm:self-auto">
-                    <span>🔄 Refresh Services</span>
-                </button>
+                <div class="flex items-center space-x-2">
+                    <button onclick="openRegisterModal()" class="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition flex items-center space-x-1.5 shadow-sm">
+                        <span>➕ Add Service</span>
+                    </button>
+                    <button onclick="refreshServices()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 font-mono flex items-center space-x-1.5 transition">
+                        <span>🔄 Refresh</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Services Grid -->
@@ -408,9 +407,14 @@
                 <div class="p-5 rounded-2xl border {% if svc.is_active %}border-slate-800 bg-slate-900/40{% else %}border-rose-900/40 bg-rose-950/10{% endif %} space-y-4 transition" id="svc-card-{{ svc.id }}">
                     <div class="flex items-start justify-between gap-2">
                         <div>
-                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">{{ svc.category }}</span>
+                            <div class="flex items-center space-x-1.5">
+                                <span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">{{ svc.category }}</span>
+                                {% if svc.auto_discovered %}
+                                <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-950 text-indigo-400 border border-indigo-800">Auto</span>
+                                {% endif %}
+                            </div>
                             <h3 class="text-base font-bold text-white mt-1.5">{{ svc.name }}</h3>
-                            <p class="text-xs text-slate-400 mt-0.5 font-mono">{{ svc.unit }}</p>
+                            <p class="text-xs text-slate-400 mt-0.5 font-mono truncate max-w-[220px]" title="{{ svc.unit }}">{{ svc.unit }}</p>
                         </div>
                         <span id="svc-badge-{{ svc.id }}" class="text-xs px-2.5 py-1 rounded-full font-mono font-bold flex items-center space-x-1.5 {% if svc.is_active %}bg-emerald-950 text-emerald-400 border border-emerald-800{% else %}bg-rose-950 text-rose-400 border border-rose-800{% endif %}">
                             <span class="w-1.5 h-1.5 rounded-full {% if svc.is_active %}bg-emerald-400 animate-pulse{% else %}bg-rose-400{% endif %}"></span>
@@ -455,7 +459,6 @@
 
             <!-- Action Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <!-- RAM Purge -->
                 <div class="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-3 flex flex-col justify-between">
                     <div class="space-y-1">
                         <div class="text-lg">🧠</div>
@@ -467,7 +470,6 @@
                     </button>
                 </div>
 
-                <!-- UV & Pip Cache Clean -->
                 <div class="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-3 flex flex-col justify-between">
                     <div class="space-y-1">
                         <div class="text-lg">🧹</div>
@@ -479,7 +481,6 @@
                     </button>
                 </div>
 
-                <!-- Vacuum Logs & Staging -->
                 <div class="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-3 flex flex-col justify-between">
                     <div class="space-y-1">
                         <div class="text-lg">📦</div>
@@ -491,7 +492,6 @@
                     </button>
                 </div>
 
-                <!-- DB Compaction -->
                 <div class="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-3 flex flex-col justify-between">
                     <div class="space-y-1">
                         <div class="text-lg">🗄️</div>
@@ -597,7 +597,6 @@
                 </div>
             </div>
 
-            <!-- Notice Banner on Claude Exclusive Providers -->
             <div class="p-4 rounded-xl border border-sky-900/60 bg-sky-950/20 text-xs text-sky-300 flex items-start space-x-3">
                 <span class="text-lg">ℹ️</span>
                 <div class="space-y-1">
@@ -641,6 +640,53 @@
 
     </main>
 
+    <!-- Modal: Register New Custom Service -->
+    <div id="register-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                    <span>➕</span><span>Register New Service / Script</span>
+                </h3>
+                <button onclick="closeRegisterModal()" class="text-slate-400 hover:text-white font-bold">✕</button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-slate-400 mb-1">Service Display Name</label>
+                    <input id="reg-name" type="text" placeholder="e.g. Network Vulnerability Scanner" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white font-mono focus:border-emerald-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-slate-400 mb-1">Service Unit or Command</label>
+                    <input id="reg-unit" type="text" placeholder="e.g. netscan.service or python3 scanner.py" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white font-mono focus:border-emerald-500 outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Port (optional)</label>
+                        <input id="reg-port" type="text" placeholder="e.g. 5000 or N/A" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white font-mono focus:border-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Category</label>
+                        <select id="reg-cat" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white font-mono focus:border-emerald-500 outline-none">
+                            <option value="Custom">Custom</option>
+                            <option value="Core">Core</option>
+                            <option value="AI / Agent">AI / Agent</option>
+                            <option value="Networking">Networking</option>
+                            <option value="Security">Security</option>
+                            <option value="Automation">Automation</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-slate-400 mb-1">Brief Description</label>
+                    <textarea id="reg-desc" rows="2" placeholder="Describe the purpose of this service..." class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white font-mono focus:border-emerald-500 outline-none"></textarea>
+                </div>
+            </div>
+            <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-800">
+                <button onclick="closeRegisterModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold">Cancel</button>
+                <button onclick="submitRegisterService()" class="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-sm">Save & Register</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Fullscreen In-App Report Modal Viewer -->
     <div id="report-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
@@ -662,7 +708,6 @@
 
     <!-- Frontend Interactive Logic -->
     <script>
-        // Tab Switching
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -679,7 +724,6 @@
             }
         }
 
-        // Live Service Control via AJAX
         async function controlService(serviceId, action) {
             appendConsole(`Executing: sudo systemctl ${action} ${serviceId}...`);
             try {
@@ -695,15 +739,15 @@
                     const pid = document.getElementById(`svc-pid-${serviceId}`);
                     
                     if (data.is_active) {
-                        badge.className = "text-xs px-2.5 py-1 rounded-full font-mono font-bold flex items-center space-x-1.5 bg-emerald-950 text-emerald-400 border border-emerald-800";
-                        text.innerText = "ACTIVE";
+                        if (badge) badge.className = "text-xs px-2.5 py-1 rounded-full font-mono font-bold flex items-center space-x-1.5 bg-emerald-950 text-emerald-400 border border-emerald-800";
+                        if (text) text.innerText = "ACTIVE";
                     } else {
-                        badge.className = "text-xs px-2.5 py-1 rounded-full font-mono font-bold flex items-center space-x-1.5 bg-rose-950 text-rose-400 border border-rose-800";
-                        text.innerText = "STOPPED";
+                        if (badge) badge.className = "text-xs px-2.5 py-1 rounded-full font-mono font-bold flex items-center space-x-1.5 bg-rose-950 text-rose-400 border border-rose-800";
+                        if (text) text.innerText = "STOPPED";
                     }
                     if (pid) pid.innerText = data.pid || "0";
 
-                    appendConsole(`✓ Service '${serviceId}' ${action.toUpperCase()} completed successfully. State: ${data.active_state} (${data.sub_state})`);
+                    appendConsole(`✓ Service '${serviceId}' ${action.toUpperCase()} completed successfully. State: ${data.active_state || ''}`);
                 } else {
                     appendConsole(`✗ Error: ${data.message}`);
                 }
@@ -712,7 +756,98 @@
             }
         }
 
-        // Run Maintenance Routine
+        async function refreshServices() {
+            try {
+                const res = await fetch('/api/services-status/');
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    renderServicesList(data.services);
+                    appendConsole(`✓ Services list refreshed dynamically (${data.services.length} services active/discovered).`);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function renderServicesList(svcs) {
+            const container = document.getElementById('services-container');
+            const badgeCount = document.getElementById('tab-badge-services');
+            if (badgeCount) badgeCount.innerText = svcs.length;
+            if (!container) return;
+
+            container.innerHTML = svcs.map(svc => `
+                <div class="p-5 rounded-2xl border ${svc.is_active ? 'border-slate-800 bg-slate-900/40' : 'border-rose-900/40 bg-rose-950/10'} space-y-4 transition" id="svc-card-${svc.id}">
+                    <div class="flex items-start justify-between gap-2">
+                        <div>
+                            <div class="flex items-center space-x-1.5">
+                                <span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">${svc.category}</span>
+                                ${svc.auto_discovered ? '<span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-950 text-indigo-400 border border-indigo-800">Auto</span>' : ''}
+                            </div>
+                            <h3 class="text-base font-bold text-white mt-1.5">${svc.name}</h3>
+                            <p class="text-xs text-slate-400 mt-0.5 font-mono truncate max-w-[220px]" title="${svc.unit}">${svc.unit}</p>
+                        </div>
+                        <span id="svc-badge-${svc.id}" class="text-xs px-2.5 py-1 rounded-full font-mono font-bold flex items-center space-x-1.5 ${svc.is_active ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'}">
+                            <span class="w-1.5 h-1.5 rounded-full ${svc.is_active ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}"></span>
+                            <span id="svc-status-text-${svc.id}">${svc.is_active ? 'ACTIVE' : 'STOPPED'}</span>
+                        </span>
+                    </div>
+
+                    <p class="text-xs text-slate-300 leading-relaxed">${svc.desc}</p>
+
+                    <div class="flex items-center justify-between font-mono text-xs text-slate-400 pt-2 border-t border-slate-800/80">
+                        <span>Port: <strong class="text-slate-200">${svc.port}</strong></span>
+                        <span>PID: <strong id="svc-pid-${svc.id}" class="text-slate-200">${svc.pid}</strong></span>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 pt-1">
+                        <button onclick="controlService('${svc.id}', 'start')" class="px-2 py-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-400 border border-emerald-800/80 text-xs font-semibold transition flex items-center justify-center space-x-1">
+                            <span>▶️</span><span>Start</span>
+                        </button>
+                        <button onclick="controlService('${svc.id}', 'stop')" class="px-2 py-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-400 border border-rose-800/80 text-xs font-semibold transition flex items-center justify-center space-x-1">
+                            <span>⏹️</span><span>Stop</span>
+                        </button>
+                        <button onclick="controlService('${svc.id}', 'restart')" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition flex items-center justify-center space-x-1">
+                            <span>🔄</span><span>Restart</span>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Register Service Modal
+        function openRegisterModal() {
+            document.getElementById('register-modal').classList.remove('hidden');
+        }
+        function closeRegisterModal() {
+            document.getElementById('register-modal').classList.add('hidden');
+        }
+        async function submitRegisterService() {
+            const name = document.getElementById('reg-name').value.trim();
+            const unit = document.getElementById('reg-unit').value.trim();
+            const port = document.getElementById('reg-port').value.trim() || 'N/A';
+            const category = document.getElementById('reg-cat').value;
+            const desc = document.getElementById('reg-desc').value.trim();
+
+            if (!name) { alert("Please enter service name"); return; }
+            try {
+                const res = await fetch('/api/services/register/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, unit, port, category, desc })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    alert(`✓ Service '${name}' registered successfully into Omni Hub!`);
+                    closeRegisterModal();
+                    refreshServices();
+                } else {
+                    alert("Error: " + data.message);
+                }
+            } catch (err) {
+                alert("Network error: " + err.message);
+            }
+        }
+
         async function runMaintenance(type) {
             appendConsole(`\n>>> Initiating Maintenance Action: [${type.toUpperCase()}]...`);
             const btn = document.getElementById('btn-master-opt');
@@ -739,13 +874,11 @@
             }
         }
 
-        // Quick Optimize
         function quickOptimize() {
             switchTab('maintenance');
             runMaintenance('all');
         }
 
-        // Refresh Telemetry
         async function refreshHardwareStats() {
             try {
                 const res = await fetch('/api/system-stats/');
@@ -795,7 +928,6 @@
             }
         }
 
-        // Email Dispatch
         async function dispatchEmailReports() {
             appendConsole("Sending generated intelligence reports to arushsengar495@gmail.com...");
             try {
@@ -808,7 +940,6 @@
             }
         }
 
-        // Autonomous Engine Triggers
         async function triggerEngine() {
             const res = await fetch('/api/trigger-growth/', { method: 'POST' });
             const data = await res.json();
@@ -821,7 +952,6 @@
             alert("🔍 " + data.message);
         }
 
-        // Modal Report Viewer
         function openReportModal(filename, title) {
             document.getElementById('modal-report-title').innerText = title;
             document.getElementById('modal-open-new-tab').href = `/reports/${filename}/`;
@@ -834,7 +964,6 @@
             document.getElementById('report-iframe').src = '';
         }
 
-        // Console Helper
         function appendConsole(msg) {
             const el = document.getElementById('console-output');
             if (el) {
@@ -848,7 +977,6 @@
             if (el) el.innerText = 'Console cleared.';
         }
 
-        // Auto refresh hardware metrics every 15s
         setInterval(refreshHardwareStats, 15000);
     </script>
 </body>

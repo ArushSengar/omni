@@ -1,0 +1,56 @@
+[
+  {
+    "id": "omni-hub",
+    "name": "Omni Master Hub Command Center",
+    "unit": "omni-hub.service",
+    "port": "8000",
+    "desc": "Single-Pane Unified Control Dashboard & Management APIs",
+    "category": "Core",
+    "type": "systemd"
+  },
+  {
+    "id": "omniroute",
+    "name": "OmniRoute AI Gateway",
+    "unit": "omniroute.service",
+    "port": "20128",
+    "desc": "Dynamic Multi-Provider AI Inference Router & Model Balancer",
+    "category": "AI / Routing",
+    "type": "systemd"
+  },
+  {
+    "id": "omniroute-tunnel",
+    "name": "OmniRoute Cloudflare Tunnel",
+    "unit": "omniroute-tunnel.service",
+    "port": "N/A",
+    "desc": "Cloudflare Zero-Trust Secure Tunnel for Public API Access",
+    "category": "Networking",
+    "type": "systemd"
+  },
+  {
+    "id": "hermes-dashboard",
+    "name": "Hermes Web Dashboard",
+    "unit": "hermes-dashboard.service",
+    "port": "9119",
+    "desc": "Hermes Agent Framework Web UI & Active Session Monitor",
+    "category": "Agent",
+    "type": "systemd"
+  },
+  {
+    "id": "fan-control",
+    "name": "Raspberry Pi Dynamic Fan Control",
+    "unit": "fan-control.service",
+    "port": "GPIO 14",
+    "desc": "PWM Dynamic Fan Controller based on CPU Core Temperature",
+    "category": "Hardware",
+    "type": "systemd"
+  },
+  {
+    "id": "cron",
+    "name": "System Cron Automation Daemon",
+    "unit": "cron.service",
+    "port": "Daemon",
+    "desc": "Executes 7:00 AM IST Daily Posts & Weekly Growth Audits",
+    "category": "Scheduler",
+    "type": "systemd"
+  }
+]
