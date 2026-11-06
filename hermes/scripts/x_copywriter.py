@@ -2,19 +2,27 @@
 """
 x_copywriter.py — High-Impact, Autonomous X (Twitter) Copywriting Engine for Arush Sengar.
 Generates scroll-stopping, humanized tech content strictly adhering to Twitter limits (< 280 chars):
-  - Format 1: Single Punchy Tweet (Hook + Technical insight + 2 hashtags)
+  - Format 1: Single Punchy Tweet (Hook + Technical insight + Targeted @mentions + 2 hashtags)
   - Format 2: 3-Tweet Mini Thread (Hook/Problem -> 1-2-3 Technical Fix -> Takeaway & Question)
 """
 
 import os
 import sys
-
 import json
 import re
 import urllib.request
 from pathlib import Path
 
-BASE_URL = os.environ.get("OMNIROUTE_URL", "http://localhost:20128/v1")
+# Smart Tagger
+try:
+    import smart_tagger
+except ImportError:
+    from hermes.scripts import smart_tagger
+
+DEFAULT_URLS = [
+    os.environ.get("OMNIROUTE_URL", "http://localhost:20128/v1"),
+    "http://192.168.0.100:20128/v1"
+]
 API_KEY = os.environ.get("HERMES_CUSTOM_LOCALHOST_20128_API_KEY", "")
 
 if not API_KEY and (Path.home() / ".hermes" / ".env").exists():
@@ -30,6 +38,7 @@ if not API_KEY:
     API_KEY = "sk-971230e546e14a3e-23822a-06e1aa8d"
 
 MODEL = os.environ.get("DAILY_MODEL", "auto/best-chat")
+DIRECTIVES_FILE = Path.home() / ".hermes" / "growth_manager_directives.json"
 
 TWITTER_SYSTEM_PROMPT = """You are Arush Sengar, a 1st-year BCA Cyber Security student at Galgotias University, hands-on homelab builder, and cyber security intern at Cyber Secured India & SafeSkillz.
 
@@ -41,12 +50,12 @@ VOICE & TONE FOR X (TWITTER):
 
 FORMAT RULES:
 1. SINGLE TWEET FORMAT:
-   - Output ONE standalone tweet strictly UNDER 270 characters (counting spaces and hashtags).
-   - Structure: [Punchy hook / problem] + [Insight or fix] + [2 clean hashtags like #CyberSecurity #BuildInPublic #Homelab].
+   - Output ONE standalone tweet strictly UNDER 260 characters (counting spaces and hashtags).
+   - Structure: [Punchy hook / problem] + [Insight or fix with exact command] + [2 clean hashtags like #CyberSecurity #BuildInPublic #Linux].
 
 2. THREAD FORMAT (3 Tweets):
    - Output EXACTLY 3 tweets separated by the delimiter: "---TWEET---"
-   - Each individual tweet MUST be strictly UNDER 270 characters.
+   - Each individual tweet MUST be strictly UNDER 260 characters.
    - Tweet 1: Hook, technical challenge, or assignment milestone + indicator (👇 or 🧵).
    - Tweet 2: The concrete 1-2-3 technical breakdown, tools, or commands.
    - Tweet 3: Real learning takeaway + peer discussion question + 2-3 hashtags.
@@ -54,16 +63,38 @@ FORMAT RULES:
 CRITICAL: NEVER mention filenames (.docx) or say "As an AI". Output ONLY the tweet text.
 """
 
-def generate_tweet(topic_data: dict, format_type: str = "single", angle_modifier: str = "") -> dict:
-    """
-    Generate either a single tweet (< 280 chars) or a 3-tweet thread.
-    Returns: {
-        "format": "single" | "thread",
-        "tweets": [str, ...],
-        "character_counts": [int, ...],
-        "thesis": str
+
+def call_llm(messages: list, max_tokens: int = 400, temperature: float = 0.65) -> str:
+    payload = {
+        "model": MODEL,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens
     }
-    """
+    data_bytes = json.dumps(payload).encode("utf-8")
+
+    last_err = None
+    for url in DEFAULT_URLS:
+        try:
+            req = urllib.request.Request(
+                f"{url}/chat/completions",
+                data=data_bytes,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {API_KEY}"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                res = json.loads(resp.read().decode("utf-8"))
+                return res["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            last_err = e
+            continue
+
+    raise RuntimeError(f"Failed to connect to OmniRoute LLM at {DEFAULT_URLS}: {last_err}")
+
+
+def generate_tweet(topic_data: dict, format_type: str = "single", angle_modifier: str = "") -> dict:
     topic = topic_data.get("topic", "Cyber Security & Homelab Engineering")
     category = topic_data.get("category", "")
     assignment_num = topic_data.get("assignment_num", "")
@@ -71,14 +102,14 @@ def generate_tweet(topic_data: dict, format_type: str = "single", angle_modifier
     platform = topic_data.get("platform", "")
     context = topic_data.get("context", "")
     labs = topic_data.get("labs", [])
-    
-    is_assignment = bool(assignment_num) and ("intern" in str(context).lower() or source == "assignment")
+
+    is_assignment = bool(assignment_num) or source == "assignment"
     labs_str = "\n".join(labs) if labs else ""
 
     if format_type == "thread":
-        format_instruction = "Generate a 3-tweet thread. Separate each tweet with '---TWEET---'. Every single tweet must be under 260 characters."
+        format_instruction = "Generate a 3-tweet thread. Separate each tweet with '---TWEET---'. Every single tweet must be under 250 characters."
     else:
-        format_instruction = "Generate a single punchy tweet strictly under 260 characters with 2 hashtags."
+        format_instruction = "Generate a single punchy tweet strictly under 250 characters with 2 hashtags."
 
     if is_assignment:
         user_prompt = f"""Topic: Assignment-{assignment_num}: {topic}
@@ -98,93 +129,41 @@ Technical Context: {labs_str} {context}
 Task: {format_instruction}
 {angle_modifier}"""
 
-    payload = {
-        "model": MODEL,
-        "messages": [
-            {"role": "system", "content": TWITTER_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt}
-        ],
-        "temperature": 0.65,
-        "max_tokens": 500
-    }
+    messages = [
+        {"role": "system", "content": TWITTER_SYSTEM_PROMPT},
+        {"role": "user", "content": user_prompt}
+    ]
 
-    req = urllib.request.Request(
-        f"{BASE_URL}/chat/completions",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {API_KEY}"
-        }
-    )
+    raw_output = call_llm(messages, max_tokens=400, temperature=0.65)
 
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        res = json.loads(resp.read().decode("utf-8"))
-        raw_output = res["choices"][0]["message"]["content"].strip()
-
-    # Parse output
     if format_type == "thread" and "---TWEET---" in raw_output:
-        raw_tweets = [t.strip() for t in raw_output.split("---TWEET---") if t.strip()]
-    elif format_type == "thread":
-        # Fallback split by double newline if model didn't use delimiter
-        paragraphs = [p.strip() for p in raw_output.split("\n\n") if p.strip()]
-        if len(paragraphs) >= 3:
-            raw_tweets = paragraphs[:3]
-        else:
-            raw_tweets = [raw_output]
+        raw_tweets = [t.strip().strip('"') for t in raw_output.split("---TWEET---") if t.strip()]
+        tweets = [smart_tagger.inject_tags_into_tweet(t, topic_data) if i == 0 else t for i, t in enumerate(raw_tweets)]
     else:
-        raw_tweets = [raw_output]
+        cleaned_tweet = raw_output.strip().strip('"')
+        tagged_tweet = smart_tagger.inject_tags_into_tweet(cleaned_tweet, topic_data)
+        tweets = [tagged_tweet]
 
-    # Clean tweets & enforce length
-    cleaned_tweets = []
-    for t in raw_tweets:
-        cleaned = re.sub(r'[\w\-]+\.docx', '', t).strip()
-        cleaned = re.sub(r'^(Tweet \d+:|1\/3|2\/3|3\/3)\s*', '', cleaned, flags=re.IGNORECASE).strip()
-        # Ensure under 280 chars
-        if len(cleaned) > 275:
-            # Trim gracefully at last sentence or word
-            cleaned = cleaned[:272].rsplit(' ', 1)[0] + "..."
-        cleaned_tweets.append(cleaned)
-
-    first_tweet = cleaned_tweets[0] if cleaned_tweets else ""
-    thesis = re.sub(r'^[🚀\s\-•*#]+', '', first_tweet)[:60].strip()
+    counts = [len(t) for t in tweets]
+    thesis = tweets[0][:50] if tweets else topic[:50]
 
     return {
         "format": format_type,
-        "tweets": cleaned_tweets,
-        "character_counts": [len(t) for t in cleaned_tweets],
+        "tweets": tweets,
+        "character_counts": counts,
         "thesis": thesis
     }
 
-def validate_tweets(tweets: list) -> tuple:
-    """Validate character limits and banned words."""
-    if not tweets:
-        return False, "No tweets generated"
-    for i, t in enumerate(tweets, 1):
-        if len(t) < 20:
-            return False, f"Tweet {i} is too short ({len(t)} chars)"
-        if len(t) > 280:
-            return False, f"Tweet {i} exceeds Twitter 280 limit ({len(t)} chars)"
-        banned = [".docx", "as an ai", "chatgpt", "deepseek", "language model"]
-        for b in banned:
-            if b in t.lower():
-                return False, f"Tweet {i} contains banned term '{b}'"
-    return True, "Valid"
 
 if __name__ == "__main__":
-    test_topic = {
-        "topic": "Linux Privilege Escalation & SUID Abuse",
+    sample = {
+        "topic": "Linux Privilege Escalation via SUID",
         "assignment_num": "7",
         "source": "assignment",
         "platform": "TryHackMe",
-        "context": "Basic Pentesting and Linux PrivEsc labs with SUID abuse and password cracking."
+        "context": "Escalated shell using find command SUID bit.",
+        "labs": ["TryHackMe"]
     }
-    print("--- TESTING SINGLE TWEET ---")
-    s_res = generate_tweet(test_topic, "single")
-    for tw in s_res["tweets"]:
-        print(f"[{len(tw)} chars] {tw}")
-
-    print("\n--- TESTING THREAD ---")
-    th_res = generate_tweet(test_topic, "thread")
-    for i, tw in enumerate(th_res["tweets"], 1):
-        print(f"[Tweet {i} | {len(tw)} chars]:\n{tw}\n")
-
+    res = generate_tweet(sample, "single")
+    print("Tweet:", res["tweets"][0])
+    print("Chars:", res["character_counts"][0])

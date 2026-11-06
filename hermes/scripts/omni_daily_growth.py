@@ -2,7 +2,10 @@
 """
 omni_daily_growth.py — Master Unified Autonomous Growth Engine for Arush Sengar.
 Publishes high-engagement, humanized technical content simultaneously to LinkedIn and X (Twitter).
-Powered by Autonomous Daily Research, TryHackMe/OWASP assignment archives, and 1200x1200 dark terminal proofs.
+Powered by Autonomous Daily Research, TryHackMe/OWASP assignment archives, Context-Aware Smart Tagging,
+and 1200x1200 dark terminal proofs.
+
+Scheduled Daily at 7:00 AM IST via Raspberry Pi Cron.
 
 Usage:
   python3 ~/omni_daily_growth.py                   # Full auto daily run (LinkedIn + X)
@@ -18,6 +21,7 @@ sys.path.insert(0, "/home/arush")
 
 import argparse
 import json
+import sqlite3
 import time
 from datetime import datetime
 from pathlib import Path
@@ -30,14 +34,50 @@ import linkedin_daily_post
 import x_copywriter
 import x_daily_post
 import autonomous_researcher
+import smart_tagger
 
 GROWTH_LOG = Path.home() / ".hermes" / "growth_engine_history.json"
 GROWTH_LOG.parent.mkdir(parents=True, exist_ok=True)
 
 
+def record_to_django_db(topic_data, li_post, x_tweets, img_path, published_results):
+    """Syncs published post record into Django SQLite database."""
+    db_paths = [
+        Path.home() / "omni_hub" / "db.sqlite3",
+        Path(__file__).resolve().parent.parent.parent / "omni_hub" / "db.sqlite3"
+    ]
+    for p in db_paths:
+        if p.exists():
+            try:
+                conn = sqlite3.connect(p)
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO growth_growthpost 
+                    (title, domain, source, linkedin_content, twitter_content, image_path, status, linkedin_urn, twitter_url, likes, views, comments, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?)
+                """, (
+                    topic_data.get("topic", "Daily Technical Growth"),
+                    topic_data.get("category", "Systems Engineering"),
+                    topic_data.get("source", "autonomous"),
+                    li_post,
+                    x_tweets[0] if x_tweets else "",
+                    img_path,
+                    "PUBLISHED",
+                    published_results.get("linkedin", ""),
+                    str(published_results.get("x", "")),
+                    datetime.now().isoformat()
+                ))
+                conn.commit()
+                conn.close()
+                print(f"    [Django Hub] Synced published record to {p}")
+                break
+            except Exception as e:
+                print(f"    [warn] Failed to sync to Django DB: {e}")
+
+
 def run_growth_pipeline(force_assignment=None, force_topic=None, force_research=False, dry_run=False, platform="all"):
     print("=" * 65)
-    print("      🚀 OMNI UNIFIED AUTONOMOUS GROWTH ENGINE (GOD-MODE)       ")
+    print("      🚀 OMNI UNIFIED AUTONOMOUS GROWTH ENGINE (7:00 AM IST)     ")
     print("=" * 65)
 
     # 1. Topic Selection / Autonomous Research
@@ -58,13 +98,14 @@ def run_growth_pipeline(force_assignment=None, force_topic=None, force_research=
     print(f"    Assignment #   : {topic_data.get('assignment_num') or 'N/A'}")
     print(f"    Platform/Lab   : {topic_data.get('platform')}")
 
-    # 2. Compose LinkedIn Post
-    print("\n[2.1] Composing LinkedIn Long-Form Post with OmniRoute...")
+    # 2. Compose LinkedIn Long-Form Post with Smart Tagging
+    print("\n[2.1] Composing LinkedIn Long-Form Post (Human Student Builder Voice)...")
     li_post, li_thesis, _ = linkedin_copywriter.generate_post(topic_data)
-    print(f"    LinkedIn Post Generated ({len(li_post.split())} words)")
+    words = len(li_post.split())
+    print(f"    LinkedIn Post Generated ({words} words)")
 
-    # 3. Compose X/Twitter Post
-    print("\n[2.2] Composing X (Twitter) Post with OmniRoute...")
+    # 3. Compose X/Twitter Post with Smart Mentions
+    print("\n[2.2] Composing X (Twitter) Post with Smart Mentions...")
     x_result = x_copywriter.generate_tweet(topic_data, format_type="single")
     x_tweets = x_result["tweets"]
     print(f"    X Tweet Generated ({len(x_tweets[0])} chars): {x_tweets[0][:80]}...")
@@ -122,7 +163,7 @@ def run_growth_pipeline(force_assignment=None, force_topic=None, force_research=
             print(f"    ❌ X (Twitter) Failed: {e}")
             published_results["x"] = f"failed: {e}"
 
-    # 6. Archive & Sync State
+    # 6. Archive & Sync State to JSON & Django DB
     log_record = {
         "timestamp": datetime.now().isoformat(),
         "topic": topic_data.get("topic"),
@@ -142,6 +183,8 @@ def run_growth_pipeline(force_assignment=None, force_topic=None, force_research=
             history = []
     history.append(log_record)
     GROWTH_LOG.write_text(json.dumps(history, indent=2))
+
+    record_to_django_db(topic_data, li_post, x_tweets, img_path, published_results)
 
     print("\n" + "=" * 65)
     print("🎉 OMNI DAILY GROWTH PIPELINE COMPLETED SUCCESSFULLY!")

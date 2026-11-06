@@ -56,3 +56,22 @@ class SystemStatus(models.Model):
 
     def __str__(self):
         return f"Pi Status @ {self.last_sync}"
+
+
+class WeeklyGrowthReview(models.Model):
+    period_label = models.CharField(max_length=100)
+    total_posts = models.IntegerField(default=0)
+    total_views = models.IntegerField(default=0)
+    total_likes = models.IntegerField(default=0)
+    total_comments = models.IntegerField(default=0)
+    avg_views = models.FloatField(default=0.0)
+    engagement_rate = models.FloatField(default=0.0)
+    growth_status = models.CharField(max_length=100, default="Steady Progress")
+    recommendations_json = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Review {self.period_label} - {self.growth_status}"

@@ -23,7 +23,10 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 
-BASE_URL = os.environ.get("OMNIROUTE_URL", "http://localhost:20128/v1")
+DEFAULT_URLS = [
+    os.environ.get("OMNIROUTE_URL", "http://localhost:20128/v1"),
+    "http://192.168.0.100:20128/v1"
+]
 API_KEY = os.environ.get("HERMES_CUSTOM_LOCALHOST_20128_API_KEY", "")
 
 if not API_KEY and (Path.home() / ".hermes" / ".env").exists():
@@ -149,18 +152,29 @@ def research_fresh_topic(preferred_domain: str = None) -> dict:
         "max_tokens": 800
     }
 
-    req = urllib.request.Request(
-        f"{BASE_URL}/chat/completions",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {API_KEY}"
-        }
-    )
+    last_err = None
+    raw_output = None
+    data_bytes = json.dumps(payload).encode("utf-8")
+    for base_url in DEFAULT_URLS:
+        try:
+            req = urllib.request.Request(
+                f"{base_url}/chat/completions",
+                data=data_bytes,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {API_KEY}"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                res = json.loads(resp.read().decode("utf-8"))
+                raw_output = res["choices"][0]["message"]["content"].strip()
+                break
+        except Exception as e:
+            last_err = e
+            continue
 
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        res = json.loads(resp.read().decode("utf-8"))
-        raw_output = res["choices"][0]["message"]["content"].strip()
+    if not raw_output:
+        raise RuntimeError(f"OmniRoute LLM failed across {DEFAULT_URLS}: {last_err}")
 
     # Clean JSON
     clean_json = re.sub(r'^```json\s*', '', raw_output)

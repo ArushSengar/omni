@@ -1,22 +1,33 @@
 #!/usr/bin/env python3
 """
 linkedin_copywriter.py — Generates humanized, high-credibility LinkedIn posts for Arush Sengar.
-Handles two distinct modes:
-  Mode A: Assignment Posts (milestone celebration, TryHackMe/OWASP, Cyber Secured India, SafeSkillz)
-  Mode B: Autonomous / Independent Posts (Homelab, AI Security, Linux, Dev, Architecture — NO internship mention, 100% natural student builder voice)
+Enforces authentic 1st-year student builder voice, context-aware company @tagging,
+and SEO keyword optimization. Zero robotic AI slop.
+
+Content Pillars:
+  Pillar 1: Hands-On Lab / Assignment Breakdown (TryHackMe, OWASP, Pentesting)
+  Pillar 2: Real-World Student Homelab & Hardware (Raspberry Pi 4 4GB, Linux Kernel, Docker)
+  Pillar 3: Breaking AI & Tech Research/News (DeepSeek/Llama architecture, zero-days, CVE analysis)
 """
 
 import os
 import sys
-# Strip stale python3.14 paths
-sys.path = [p for p in sys.path if "python3.14" not in p]
-
 import json
 import re
 import urllib.request
+import urllib.error
 from pathlib import Path
 
-BASE_URL = os.environ.get("OMNIROUTE_URL", "http://localhost:20128/v1")
+# Smart Tagger
+try:
+    import smart_tagger
+except ImportError:
+    from hermes.scripts import smart_tagger
+
+DEFAULT_URLS = [
+    os.environ.get("OMNIROUTE_URL", "http://localhost:20128/v1"),
+    "http://192.168.0.100:20128/v1"
+]
 API_KEY = os.environ.get("HERMES_CUSTOM_LOCALHOST_20128_API_KEY", "")
 
 if not API_KEY and (Path.home() / ".hermes" / ".env").exists():
@@ -32,40 +43,83 @@ if not API_KEY:
     API_KEY = "sk-971230e546e14a3e-23822a-06e1aa8d"
 
 MODEL = os.environ.get("DAILY_MODEL", "auto/best-chat")
+DIRECTIVES_FILE = Path.home() / ".hermes" / "growth_manager_directives.json"
 
-SYSTEM_PROMPT = """You are Arush Sengar, a 1st-year BCA Cyber Security student at Galgotias University, self-taught builder, and authentic hands-on learner.
+SYSTEM_PROMPT = """You are Arush Sengar, a 1st-year BCA Cyber Security student at Galgotias University, homelab tinkerer running a 24/7 Raspberry Pi 4 cluster, and intern at Cyber Secured India & SafeSkillz.
 
-POST STRUCTURE GUIDELINES:
+VOICE & TONE GUIDELINES (MANDATORY 100% HUMAN STUDENT BUILDER):
+- Sound like an actual 19-year-old student builder sharing practical experiments, mistakes, and breakthroughs.
+- Write with candid curiosity: "College lectures teach dry definitions, but running it on actual hardware hits completely different."
+- NEVER sound like an AI marketing bot, corporate PR manager, or textbook.
 
-IF THE TOPIC IS AN INTERNSHIP ASSIGNMENT:
-- Open with: "🚀 Completed Assignment-[X]: [Topic] as part of my cybersecurity internship with Cyber Secured India & SafeSkillz!"
-- Breakdown the specific lab tools and platforms (TryHackMe, OWASP MAS, etc.).
-- 3-4 bullet takeaways.
-- Mentor gratitude to Cyber Secured India, SafeSkillz, and Galgotias University.
-- Engaging question + 6-8 hashtags.
+BANNED AI CLICHÉS (DO NOT USE UNDER ANY CIRCUMSTANCES):
+* NO opening rocket emojis (🚀) or emojis on every bullet point.
+* NO bullet points starting with diamond or flame emojis (🔹, 💡, 🔥).
+* NO ChatGPT filler phrases: "in today's fast-paced digital world", "without breaking a sweat", "rock-solid", "delve", "testament to", "game-changer", "dive deep", "seamlessly", "harnessing", "unlock", "crucial role", "pivotal", "fascinating journey".
 
-IF THE TOPIC IS A NON-INTERNSHIP POST (Homelab, Python Engineering, Databases, Networking, DevOps, AI Security, Student Builder):
-- STRICT: DO NOT MENTION ANY INTERNSHIP OR ASSIGNMENT NUMBERS.
-- STRICT: WRITE IN 100% NATURAL, CANDID, HUMAN BUILDER VOICE.
-- FORBIDDEN AI CLICHÉS:
-  * NO opening rocket emojis (🚀) or emojis at every heading/bullet.
-  * NO bullet points starting with diamond or flame emojis (🔹, 💡, 🔥).
-  * NO ChatGPT buzzwords: "without breaking a sweat", "rock-solid", "delve", "testament to", "game-changer", "dive deep", "seamlessly", "harnessing", "unlock", "wild ride".
-  * NO corporate PR marketing tone.
-- STRUCTURE:
-  1. Real hook: start with the real technical friction or challenge you faced (e.g. database locks, memory leaks, DNS lookup latency, port enumeration deception, OOM kills).
-  2. The diagnosis: what was actually happening under the hood.
-  3. The concrete fix: simple numbered list (1, 2, 3) with real tools, configs, and commands (e.g. WAL mode, tracemalloc, unbound, zram, ufw).
-  4. Real results: numbers or practical impact (latency, throughput, memory saved, stability).
-  5. Practical takeaway: what building and breaking things teaches you as a 1st-year student builder at Galgotias University.
-  6. Natural discussion question for fellow engineers and builders.
-  7. 5-6 clean, targeted hashtags matching the domain.
+POST STRUCTURE:
+1. Scroll-Stopping Hook (Line 1-2):
+   - Start with real technical friction, a surprising failure, or a counter-intuitive observation.
+   - Front-load primary keywords for LinkedIn search SEO (e.g. Linux Privilege Escalation, eBPF Telemetry, Raspberry Pi 4 Homelab).
+2. The Friction / Diagnosis (Why it matters):
+   - What broke or what did the default setup fail to handle under the hood.
+3. The Concrete Fix / Walkthrough:
+   - Formatted as a clean, scannable numbered list (1, 2, 3) with exact commands, configs, or tools.
+4. The Measurable Impact:
+   - What was the actual outcome (e.g., memory saved, latency dropped, root shell obtained, zero false positives).
+5. Student Takeaway:
+   - A candid reflection on what breaking and building taught you.
+6. Engaging Debate Question:
+   - A specific, thought-provoking question for fellow engineers and students (not a generic "What do you think?").
+7. Targeted SEO Hashtags (5-6 tags matching the domain).
 
-STRICT RULES FOR ALL POSTS:
-- NEVER mention filenames or file extensions (no '.docx', no 'Global_Internship...').
-- NEVER sound like an AI marketing bot.
-- Keep length strictly between 150 and 220 words. Be punchy, direct, and zero fluff.
+LENGTH:
+- Strictly between 140 and 210 words. Punchy, clean line breaks, zero fluff.
 """
+
+
+def call_llm(messages: list, max_tokens: int = 850, temperature: float = 0.65) -> str:
+    payload = {
+        "model": MODEL,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens
+    }
+    data_bytes = json.dumps(payload).encode("utf-8")
+
+    last_err = None
+    for url in DEFAULT_URLS:
+        try:
+            req = urllib.request.Request(
+                f"{url}/chat/completions",
+                data=data_bytes,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {API_KEY}"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                res = json.loads(resp.read().decode("utf-8"))
+                return res["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            last_err = e
+            continue
+
+    raise RuntimeError(f"Failed to connect to OmniRoute LLM at {DEFAULT_URLS}: {last_err}")
+
+
+def load_growth_directives() -> str:
+    """Loads active tuning directives from the Growth Manager."""
+    if DIRECTIVES_FILE.exists():
+        try:
+            data = json.loads(DIRECTIVES_FILE.read_text(encoding="utf-8"))
+            recs = data.get("recommendations", [])
+            if recs:
+                return "\nGROWTH MANAGER TUNING DIRECTIVES:\n- " + "\n- ".join(recs)
+        except Exception:
+            pass
+    return ""
+
 
 def generate_post(topic_data: dict, angle_modifier: str = "") -> tuple:
     topic = topic_data.get("topic", "Cyber Security Engineering")
@@ -75,85 +129,68 @@ def generate_post(topic_data: dict, angle_modifier: str = "") -> tuple:
     platform = topic_data.get("platform", "")
     context = topic_data.get("context", "")
     labs = topic_data.get("labs", [])
-    
-    is_assignment = bool(assignment_num) and ("intern" in str(context).lower() or source == "assignment")
+
+    is_assignment = bool(assignment_num) or source == "assignment"
     labs_str = "\n".join(labs) if labs else ""
-    
+    directives = load_growth_directives()
+
     if is_assignment:
-        user_prompt = f"""Write an engaging LinkedIn post for:
+        user_prompt = f"""Write an authentic, human LinkedIn post as Arush Sengar about:
 Topic: {topic}
-Category: {category or 'Cyber Security'}
 Assignment Number: {assignment_num}
-Platform/Environment: {platform}
-Lab Details:
+Lab / Platform: {platform}
+Lab Details & Context:
 {labs_str}
 {context}
 
 {angle_modifier}
+{directives}
 
-Output ONLY the final LinkedIn post."""
+Requirements:
+- Sound like a real student sharing an actual lab milestone.
+- Explain the real escalation or exploit vector clearly.
+- Output ONLY the final LinkedIn post."""
     else:
-        user_prompt = f"""Write a completely natural, human, non-AI LinkedIn post about:
+        user_prompt = f"""Write an authentic, human LinkedIn post as Arush Sengar about:
 Topic: {topic}
 Category: {category or 'Engineering & Homelab'}
-Platform: {platform}
+Platform/Environment: {platform}
 Technical Context:
 {labs_str}
 {context}
 
 {angle_modifier}
+{directives}
 
-Remember:
-- NO rocket emojis, NO diamond bullet points, NO corporate buzzwords ("wild ride", "without breaking a sweat", "game changer").
-- Sound like a real 19-year-old student builder sharing real debugging, tuning, and systems architecture.
-- Always format the fix or solution as a clean numbered list (1, 2, 3) with exact tools/commands so it is scannable and authentic.
+Requirements:
+- Candid student builder voice (Raspberry Pi 4 / homelab / cyber security student).
+- Numbered breakdown (1, 2, 3) of the actual fix or discovery.
 - Output ONLY the final LinkedIn post."""
 
-    payload = {
-        "model": MODEL,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt}
-        ],
-        "temperature": 0.6,
-        "max_tokens": 850
-    }
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_prompt}
+    ]
 
-    req = urllib.request.Request(
-        f"{BASE_URL}/chat/completions",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {API_KEY}"
-        }
-    )
+    raw_output = call_llm(messages, max_tokens=850, temperature=0.65)
 
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        res = json.loads(resp.read().decode("utf-8"))
-        raw_output = res["choices"][0]["message"]["content"].strip()
-        
-    image_prompt = ""
-    lines = raw_output.splitlines()
-    post_lines = []
-    for line in lines:
-        if line.strip().startswith("IMAGE_PROMPT:"):
-            image_prompt = line.split("IMAGE_PROMPT:", 1)[1].strip()
-        else:
-            post_lines.append(line)
-            
-    raw_post = "\n".join(post_lines).strip()
-    clean_post = re.sub(r'[\w\-]+\.docx', '', raw_post).strip()
-    
-    first_line = clean_post.split("\n")[0].strip()
+    # Clean formatting
+    clean_post = re.sub(r'[\w\-]+\.docx', '', raw_output).strip()
+
+    # Apply Context-Aware Smart Tagging
+    tagged_post = smart_tagger.inject_tags_into_linkedin(clean_post, topic_data)
+
+    first_line = tagged_post.split("\n")[0].strip()
     thesis = re.sub(r'^[🚀\s\-•*#]+', '', first_line)[:60].strip()
-    
-    return clean_post, thesis, image_prompt
+
+    return tagged_post, thesis, ""
+
 
 def validate_post(post: str) -> tuple:
     if not post:
         return False, "Post is empty"
     words = post.split()
-    if len(words) < 60:
+    if len(words) < 50:
         return False, f"Post too short ({len(words)} words)"
     if len(words) > 280:
         return False, f"Post too long ({len(words)} words, max 280)"
@@ -166,16 +203,17 @@ def validate_post(post: str) -> tuple:
         return False, "Post missing hashtags"
     return True, "Valid"
 
+
 if __name__ == "__main__":
     test_topic = {
-        "topic": "Running an Autonomous AI Homelab on a 4GB Raspberry Pi 4",
+        "topic": "Tuning Linux Dirty Memory Pages to Stop Raspberry Pi I/O Freezes",
         "assignment_num": "",
-        "source": "backlog",
+        "source": "autonomous_research",
         "platform": "Raspberry Pi 4",
-        "context": "Maintained my 24/7 Raspberry Pi 4 home server running OmniRoute AI proxy, systemd units, and local agents. Faced memory pressure with 4GB RAM under multi-model routing; implemented zram swap, container auto-pruning, and an automated self-healing watchdog daemon."
+        "context": "Pi 4 system frozen during heavy multi-model LLM routing. The page cache accumulated dirty memory up to 20% of system RAM before flusher threads woke up, causing latency spikes of 4500ms. Tuned vm.dirty_background_ratio to 5% and vm.dirty_ratio to 10% in /etc/sysctl.conf.",
+        "labs": ["sysctl", "vmstat", "vmtouch"],
+        "tags": ["Linux", "Kernel", "Homelab", "RaspberryPi"]
     }
-    p, th, ip = generate_post(test_topic)
-    print("=== DRAFT ===")
+    p, th, _ = generate_post(test_topic)
+    print("=== DRAFT WITH SMART TAGS ===")
     print(p)
-    print("\n=== THESIS ===")
-    print(th)

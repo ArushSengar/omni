@@ -12,35 +12,43 @@
 
 ```mermaid
 flowchart TD
-    subgraph Trigger["1. Daily Cron & Triggers"]
-        Cron["Pi Cron (10:00 AM IST)"] --> Engine["omni_daily_growth.py"]
+    subgraph Schedule["1. Daily & Weekly Automation"]
+        DailyCron["Pi Cron: Daily 7:00 AM IST"] --> Engine["omni_daily_growth.py"]
+        WeeklyCron["Pi Cron: Sunday 8:00 PM IST"] --> Manager["growth_manager.py (Weekly Review)"]
         WebUI["Django Hub UI (Port 8000)"] -->|POST /api/trigger-growth| Engine
     end
 
-    subgraph TopicSelection["2. Topic Selection & Research"]
-        Engine --> BacklogCheck{"Unposted Backlog or Assignments Available?"}
-        BacklogCheck -->|Yes| StaticPool["Backlog / TryHackMe Lab Assets"]
-        BacklogCheck -->|No| AutoResearcher["autonomous_researcher.py (Dynamic AI)"]
-        AutoResearcher --> OmniRoute["Local OmniRoute LLM (Port 20128)"]
-        TopicArchive["~/.hermes/research_topics_archive.json (Zero Repeats)"] <--> AutoResearcher
+    subgraph ManagerReview["2. Weekly Manager Review & Self-Tuning"]
+        Manager --> MetricsAudit["Audit Views, Likes, Comments & Engagement Rate"]
+        MetricsAudit --> Diagnosis["Diagnose Low Growth (< 50 views, weak hooks)"]
+        Diagnosis --> Directives["~/.hermes/growth_manager_directives.json"]
+        Directives --> Copywriters["Self-Tune Copywriter Prompts"]
     end
 
-    subgraph ContentGen["3. Synchronized Dual-Copy & Proofs"]
-        StaticPool --> Copywriter["Dual Copywriting Engine"]
-        AutoResearcher --> Copywriter
-        Copywriter --> LI_Copy["LinkedIn Copy (120–180 words, Student Voice)"]
-        Copywriter --> X_Copy["X / Twitter Post (< 280 chars, Real Commands)"]
-        Copywriter --> VisualGen["Collage / 1200x1200 Terminal Proof Generator"]
+    subgraph ContentPillars["3. 3 Dynamic Content Pillars"]
+        Engine --> PillarSelect{"Select Content Pillar"}
+        PillarSelect --> P1["Pillar 1: Hands-on Lab & Assignment (TryHackMe, OWASP, SUID)"]
+        PillarSelect --> P2["Pillar 2: Real-World Student Homelab (Pi 4 4GB, zram, Docker)"]
+        PillarSelect --> P3["Pillar 3: AI & Tech Research/News (Local LLM routing, CVEs, eBPF)"]
     end
 
-    subgraph Publishing["4. Autonomous Multi-Platform Publishing"]
-        LI_Copy --> LI_Publisher["LinkedIn API / Playwright Headless"]
-        X_Copy --> X_Publisher["x_autopost.py (Playwright Headless + Cookies)"]
+    subgraph TaggingEngine["4. Context-Aware Smart Tagging"]
+        P1 --> SmartTagger["smart_tagger.py (Entity Recognition)"]
+        P2 --> SmartTagger
+        P3 --> SmartTagger
+        SmartTagger --> TaggedLI["LinkedIn: cc: @Mentions (CSI, SafeSkillz, Galgotias, THM)"]
+        SmartTagger --> TaggedX["X / Twitter: Targeted Handles (@GalgotiasGU, etc.)"]
+    end
+
+    subgraph Publishing["5. Autonomous Multi-Platform Publishing"]
+        TaggedLI --> LI_Publisher["LinkedIn API / Playwright Headless"]
+        TaggedX --> X_Publisher["x_autopost.py (Playwright Headless + Cookies)"]
+        Engine --> VisualGen["1200x1200 Authentic Terminal / Pure Collage Proof"]
         VisualGen --> LI_Publisher
         VisualGen --> X_Publisher
     end
 
-    subgraph CentralHub["5. Monitoring & Control"]
+    subgraph CentralHub["6. Monitoring & Control"]
         LI_Publisher --> DB[("Django SQLite DB")]
         X_Publisher --> DB
         DB --> Dashboard["Django Control Hub (Tailwind Dark-Mode UI)"]
@@ -53,43 +61,44 @@ flowchart TD
 
 ## 2. Key Components Delivered
 
-### A. Autonomous Daily Research Engine (`autonomous_researcher.py`)
-- **Never Runs Out of Topics**: When unposted assignments finish, the engine queries the local OmniRoute LLM across 6 engineering domains:
-  1. *Cyber Security & Threat Intel* (SUID escalation, eBPF telemetry, memory safety, TLS 1.3 audits)
-  2. *Linux Kernel & Memory Architecture* (zram zstd swap, cgroups v2, page cache eviction, OOM tuning)
-  3. *Python Internals & High-Performance Dev* (tracemalloc profiling, asyncio starvation, GC tuning)
-  4. *Computer Networking & Protocol Internals* (TCP BBR vs Cubic, DNS caching, QUIC migration)
-  5. *Databases & Cloud Architecture* (SQLite WAL concurrency, Postgres connection pooling)
-  6. *AI Security & Autonomous Agents* (Prompt injection defense, tool sandboxing, latency profiling)
-- **Zero Duplicates Guarantee**: Researched topics are logged to `~/.hermes/research_topics_archive.json`. Past topics are automatically injected into the research prompt's exclusion list.
+### A. Context-Aware Smart Tagging Engine (`smart_tagger.py`)
+- **Boosts Recruiter Reach & Corporate Reshares**: Scans post topics, labs, and assignments, automatically injecting verified `@mentions`:
+  - **University**: `@Galgotias University` (LinkedIn) / `@GalgotiasGU` (X)
+  - **Internship Partners**: `@Cyber Secured India` / `@cybersecuredin` & `@SafeSkillz` / `@safeskillz`
+  - **Lab Platforms**: `@TryHackMe` / `@realtryhackme`, `@Hack The Box` / `@hackthebox_`, `@OffSec`
+  - **Open Source & Tech Vendors**: `@The Linux Foundation`, `@Python Software Foundation`, `@Docker, Inc`, `@Cloudflare`, `@Vercel`, `@GitHub`
+- **Natural Formatting**: Injected cleanly into LinkedIn footers (`cc: @Company1 @Company2`) and within the 280-char Twitter limit.
 
 ---
 
-### B. 100% Free X (Twitter) Engine (`x_autopost.py` & `x_daily_post.py`)
-- **Zero Official API Charges ($0.00)**: Operates headless Playwright Chromium with injected session cookies (`~/.twitter-profile/cookies.json`).
-- **Human Voice on #TechTwitter**: Punchy copy under 280 characters with authentic Linux commands, no AI clichés.
-- **Backdrop & Focus Bypass**: Dispatches keystrokes via direct textarea focus (`page.keyboard.press("Control+Enter")`) and DOM-level clicks to eliminate Twitter modal backdrop pointer-interception errors.
-- **Live Proof Verified**: Successfully posted to `@arushcyber` with live high-res TryHackMe lab collage proof.
+### B. Weekly Growth Manager & Optimization Engine (`growth_manager.py`)
+- **Diagnoses Low Impression Bottlenecks**: Automatically audits 7-day post performance.
+  - If posts plateau around ~30–50 views, flags weak hooks, missing company mentions, or textbook language.
+- **Dynamic Self-Tuning Directives**: Saves recommendations to `~/.hermes/growth_manager_directives.json`, which are dynamically loaded by the copywriters to refine Arush's style every week.
+- **Weekly Schedule**: Automated via Pi cron on Sunday at 8:00 PM IST (`0 20 * * 0`).
 
 ---
 
-### C. Django Control Hub (`omni_hub`)
-- **Models**:
-  - `GrowthPost`: Stores post titles, platform content, metrics (views, likes, comments), URNs, and status.
-  - `ResearchTopic`: Dynamic technical topic pool with commands, diagnosis, solution, and tags.
-  - `SystemStatus`: Real-time Pi uptime, RAM stats, and OmniRoute health.
-- **Dark-Mode Tailwind Dashboard**: View live feeds, trigger growth runs, and monitor status at `http://192.168.0.100:8000`.
+### C. 3 Rotating Content Pillars (100% Human Student Builder Tone)
+1. **Hands-On Labs & Assignments**: Real TryHackMe rooms, privilege escalation, SUID analysis, mobile security, and OPSEC.
+2. **Real-World Student Homelab**: Raspberry Pi 4 (4GB RAM limits), zram swap tuning, Docker container auto-pruning, network isolation.
+3. **AI & Systems Research**: Local LLM routing latency, prompt injection defenses, kernel eBPF tracing, breaking zero-days.
+
+---
+
+### D. Daily 7:00 AM IST Synchronized Publishing
+- Master engine [`omni_daily_growth.py`](file:///c:/Users/Arush/OneDrive/Documents/omni/hermes/scripts/omni_daily_growth.py) triggers every morning at **7:00 AM IST** (`0 7 * * *`).
+- Headless Playwright Chromium handles X posting for free ($0.00).
+- Pure assignment screenshot collages or 1200x1200 dark terminal proof cards attached to every post.
+
+---
+
+### E. Django Control Hub (`omni_hub`) & Vercel Readiness
+- **Dashboard URL**: `http://192.168.0.100:8000`
+- **Models**: `GrowthPost`, `ResearchTopic`, `SystemStatus`, `WeeklyGrowthReview`.
 - **Systemd Service**: Running 24/7 on Raspberry Pi under `systemctl --user status omni-hub`.
-
----
-
-### D. Vercel & GitHub Integration
-- **GitHub Repository**: [`https://github.com/ArushSengar/omni`](https://github.com/ArushSengar/omni)
-- **Vercel Serverless WSGI**:
-  - `omni_hub/vercel.json` and `vercel.json` configured with `@vercel/python`.
-  - `wsgi.py` exposes `app = application`.
-  - Whitenoise configured in `settings.py` for instant CDN static asset serving.
-  - Read-only SQLite handling points to `/tmp/db.sqlite3` on Vercel lambda instances.
+- **Vercel Serverless Ready**: `@vercel/python` WSGI configuration with Whitenoise and `/tmp/db.sqlite3` fallback.
+- **GitHub**: Pushed to [`https://github.com/ArushSengar/omni`](https://github.com/ArushSengar/omni).
 
 ---
 
@@ -97,9 +106,10 @@ flowchart TD
 
 | Action | Command (on Raspberry Pi) |
 | :--- | :--- |
-| **Run Unified Growth (Full Auto)** | `python3 /home/arush/omni_daily_growth.py` |
-| **Dry-Run Test with Research** | `python3 /home/arush/omni_daily_growth.py --dry-run --research` |
-| **Post Specific Assignment** | `python3 /home/arush/omni_daily_growth.py --assignment 7` |
-| **Check Dashboard Service** | `systemctl --user status omni-hub` |
+| **Run Daily Growth Pipeline (7:00 AM IST)** | `python3 /home/arush/omni_daily_growth.py` |
+| **Dry-Run Test with Smart Tagging** | `python3 /home/arush/omni_daily_growth.py --dry-run` |
+| **Dry-Run with Fresh Topic Research** | `python3 /home/arush/omni_daily_growth.py --dry-run --research` |
+| **Run Weekly Growth Audit & Directives** | `python3 /home/arush/growth_manager.py` |
+| **Check Dashboard Service Status** | `systemctl --user status omni-hub` |
 | **Restart Dashboard Service** | `systemctl --user restart omni-hub` |
-| **View Dashboard in Browser** | `http://192.168.0.100:8000` |
+| **Open Web Dashboard** | `http://192.168.0.100:8000` |
