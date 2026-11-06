@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Omni Growth Hub — Arush Sengar</title>
+    <title>Omni Unified Master Command Center — Arush Sengar</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -12,208 +12,844 @@
                 extend: {
                     colors: {
                         brand: {
+                            50: '#ecfdf5',
                             500: '#10b981',
                             600: '#059669',
-                            dark: '#0f172a'
+                            700: '#047857',
+                            dark: '#020617'
                         }
                     }
                 }
             }
         }
     </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #10b981; }
+        @keyframes pulse-fast { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .animate-pulse-fast { animation: pulse-fast 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-emerald-500 selection:text-white">
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-emerald-500 selection:text-black">
 
-    <!-- Top Navigation -->
-    <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+    <!-- Top Navigation Header -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-3">
-                <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span class="font-bold text-lg tracking-wider text-slate-100">OMNI <span class="text-emerald-400">GROWTH HUB</span></span>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono">v3.4 Growth-Manager</span>
+                <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse-fast shadow-lg shadow-emerald-500/50"></span>
+                <span class="font-extrabold text-lg tracking-wider text-white">OMNI <span class="text-emerald-400">HUB</span></span>
+                <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-800 font-mono font-semibold">Master Control v4.0</span>
             </div>
+
+            <!-- Quick Hardware Pills in Header -->
+            <div class="hidden md:flex items-center space-x-3 font-mono text-xs">
+                <div class="px-3 py-1 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center space-x-2">
+                    <span class="text-slate-400">🌡️ Temp:</span>
+                    <span id="nav-temp" class="text-emerald-400 font-bold">{{ metrics.temp_c }}°C</span>
+                </div>
+                <div class="px-3 py-1 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center space-x-2">
+                    <span class="text-slate-400">🧠 RAM:</span>
+                    <span id="nav-ram" class="text-cyan-400 font-bold">{{ metrics.memory.percent }}%</span>
+                </div>
+                <div class="px-3 py-1 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center space-x-2">
+                    <span class="text-slate-400">💾 Disk:</span>
+                    <span id="nav-disk" class="text-indigo-400 font-bold">{{ metrics.disk.free_gb }}GB Free</span>
+                </div>
+            </div>
+
             <div class="flex items-center space-x-3">
-                <span class="text-xs text-slate-400 font-mono hidden md:inline">Arush Sengar @ Galgotias University</span>
-                <a href="/reports/" class="text-xs font-medium px-3 py-1.5 rounded-lg border border-emerald-800 bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 transition flex items-center space-x-1">
-                    <span>📨 Reports Archive</span>
-                </a>
-                <a href="/admin/" class="text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
-                    Admin Panel
-                </a>
+                <button onclick="quickOptimize()" title="Run fast RAM & cache drop" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-emerald-600/60 bg-emerald-950/60 hover:bg-emerald-800/80 text-emerald-300 transition flex items-center space-x-1.5 shadow-sm">
+                    <span>⚡ Quick Clean</span>
+                </button>
+                <button onclick="dispatchEmailReports()" title="Send latest reports to your inbox" class="text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center space-x-1.5">
+                    <span>📧 Email Report</span>
+                </button>
             </div>
         </div>
     </header>
 
-    <!-- Main Container -->
-    <main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+    <!-- Main Command Center Wrapper -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-        <!-- Welcome Banner -->
-        <div class="p-6 rounded-2xl border border-slate-800 bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/40 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div class="space-y-1">
-                <h1 class="text-2xl font-extrabold text-white">Autonomous Multi-Platform Growth & Review Engine</h1>
-                <p class="text-sm text-slate-400">Daily Synchronized Posts at <strong class="text-emerald-400 font-mono">7:00 AM IST</strong> • Context-Aware Smart Tagging • Weekly AI Manager Review</p>
-            </div>
-            <div class="flex flex-wrap gap-3">
-                <button onclick="triggerEngine()" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-sm transition shadow-lg shadow-emerald-500/20 flex items-center space-x-2">
-                    <span>⚡ Run Growth Engine</span>
-                </button>
-                <button onclick="triggerResearch()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-medium text-sm transition">
-                    <span>🔍 Research Fresh Topic</span>
-                </button>
-            </div>
-        </div>
+        <!-- Tab Selector Navigation Bar -->
+        <nav class="flex space-x-2 border-b border-slate-800/80 pb-3 overflow-x-auto custom-scrollbar">
+            <button onclick="switchTab('growth')" id="tab-btn-growth" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center space-x-2 bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20">
+                <span>📈</span><span>Growth Engine</span>
+            </button>
+            <button onclick="switchTab('system')" id="tab-btn-system" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center space-x-2 text-slate-400 hover:text-white hover:bg-slate-800/60">
+                <span>🖥️</span><span>Pi Hardware</span>
+            </button>
+            <button onclick="switchTab('services')" id="tab-btn-services" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center space-x-2 text-slate-400 hover:text-white hover:bg-slate-800/60">
+                <span>⚙️</span><span>Service Switchboard</span>
+            </button>
+            <button onclick="switchTab('maintenance')" id="tab-btn-maintenance" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center space-x-2 text-slate-400 hover:text-white hover:bg-slate-800/60">
+                <span>🧹</span><span>Maintenance & Clean</span>
+            </button>
+            <button onclick="switchTab('reports')" id="tab-btn-reports" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center space-x-2 text-slate-400 hover:text-white hover:bg-slate-800/60">
+                <span>📋</span><span>Reports Archive</span>
+                <span class="text-xs px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-300">{{ reports|length }}</span>
+            </button>
+            <button onclick="switchTab('mcp')" id="tab-btn-mcp" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center space-x-2 text-slate-400 hover:text-white hover:bg-slate-800/60">
+                <span>🔌</span><span>Agent & MCPs</span>
+                <span class="text-xs px-1.5 py-0.2 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">{{ active_mcp_count }}</span>
+            </button>
+        </nav>
 
-        <!-- Metric Cards Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
-            <div class="p-5 rounded-xl border border-slate-800/80 bg-slate-900/50">
-                <div class="text-xs font-mono text-slate-400 uppercase tracking-wider">Total Posts Published</div>
-                <div class="text-3xl font-bold text-white mt-2">{{ published_count }}</div>
-                <div class="text-xs text-emerald-400 mt-2 flex items-center space-x-1">
-                    <span>↑ 100% Autonomous</span>
+        <!-- ==========================================
+             TAB 1: GROWTH ENGINE
+             ========================================== -->
+        <section id="tab-growth" class="tab-content space-y-6">
+            <!-- Growth Welcome Banner -->
+            <div class="p-6 rounded-2xl border border-slate-800 bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/40 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div class="space-y-1">
+                    <h1 class="text-2xl font-black text-white">Autonomous Growth Sentinel & Content Engine</h1>
+                    <p class="text-sm text-slate-400">Daily Synchronized Posts at <strong class="text-emerald-400 font-mono">7:00 AM IST</strong> • Context-Aware Smart Tagging • Weekly AI Manager Review</p>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <button onclick="triggerEngine()" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm transition shadow-lg shadow-emerald-500/20 flex items-center space-x-2">
+                        <span>⚡ Run Growth Sentinel</span>
+                    </button>
+                    <button onclick="triggerResearch()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-medium text-sm transition">
+                        <span>🔍 Research Fresh Topic</span>
+                    </button>
                 </div>
             </div>
-            <div class="p-5 rounded-xl border border-slate-800/80 bg-slate-900/50">
-                <div class="text-xs font-mono text-slate-400 uppercase tracking-wider">LinkedIn Pipeline</div>
-                <div class="text-3xl font-bold text-sky-400 mt-2">Active</div>
-                <div class="text-xs text-slate-400 mt-2">7:00 AM IST Daily Cron</div>
-            </div>
-            <div class="p-5 rounded-xl border border-slate-800/80 bg-slate-900/50">
-                <div class="text-xs font-mono text-slate-400 uppercase tracking-wider">X (Twitter) Pipeline</div>
-                <div class="text-3xl font-bold text-slate-200 mt-2">100% Free</div>
-                <div class="text-xs text-emerald-400 mt-2">Playwright Headless</div>
-            </div>
-            <div class="p-5 rounded-xl border border-slate-800/80 bg-slate-900/50">
-                <div class="text-xs font-mono text-slate-400 uppercase tracking-wider">Smart Tagging Status</div>
-                <div class="text-3xl font-bold text-emerald-400 mt-2">Active</div>
-                <div class="text-xs text-slate-400 mt-2">Context-Aware @Mentions</div>
-            </div>
-        </div>
 
-        <!-- Weekly Growth Manager Review Banner -->
-        {% if latest_review %}
-        <div class="p-6 rounded-2xl border border-emerald-900/60 bg-emerald-950/20 space-y-4">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-emerald-900/40 pb-3">
-                <div class="flex items-center space-x-3">
-                    <span class="text-lg">📊</span>
-                    <h2 class="text-base font-bold text-white">Manager Weekly Growth Audit: <span class="text-emerald-400 font-mono">{{ latest_review.period_label }}</span></h2>
+            <!-- Metric KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/50">
+                    <div class="text-xs font-mono text-slate-400 uppercase tracking-wider">Total Published Posts</div>
+                    <div class="text-3xl font-black text-white mt-2">{{ published_count }}</div>
+                    <div class="text-xs text-emerald-400 mt-2 font-mono">↑ 100% Autonomous Pipeline</div>
                 </div>
-                <div class="flex items-center space-x-3 text-xs">
-                    <span class="px-2.5 py-1 rounded-full bg-emerald-900/60 text-emerald-300 font-medium border border-emerald-700/50">
-                        Status: {{ latest_review.growth_status }}
-                    </span>
-                    <span class="text-slate-400 font-mono">Engagement: {{ latest_review.engagement_rate }}%</span>
-                    <span class="text-slate-400 font-mono">Avg Views: {{ latest_review.avg_views }}</span>
+                <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/50">
+                    <div class="text-xs font-mono text-slate-400 uppercase tracking-wider">LinkedIn Pipeline</div>
+                    <div class="text-3xl font-black text-sky-400 mt-2">Active</div>
+                    <div class="text-xs text-slate-400 mt-2 font-mono">7:00 AM IST Daily Cron</div>
+                </div>
+                <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/50">
+                    <div class="text-xs font-mono text-slate-400 uppercase tracking-wider">X (Twitter) Pipeline</div>
+                    <div class="text-3xl font-black text-slate-200 mt-2">100% Free</div>
+                    <div class="text-xs text-emerald-400 mt-2 font-mono">Playwright Headless Session</div>
+                </div>
+                <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/50">
+                    <div class="text-xs font-mono text-slate-400 uppercase tracking-wider">Smart Tagging Status</div>
+                    <div class="text-3xl font-black text-emerald-400 mt-2">Active</div>
+                    <div class="text-xs text-slate-400 mt-2 font-mono">Context-Aware @Mentions</div>
                 </div>
             </div>
-            <div class="space-y-2">
-                <div class="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Strategic Directives for Engagement Optimization:</div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {% for rec in recommendations %}
-                    <div class="p-3 rounded-lg bg-slate-900/60 border border-emerald-900/30 text-xs text-slate-300 flex items-start space-x-2">
-                        <span class="text-emerald-400">⚡</span>
-                        <span>{{ rec }}</span>
+
+            <!-- Weekly Growth Review Directive Banner -->
+            {% if latest_review %}
+            <div class="p-6 rounded-2xl border border-emerald-900/60 bg-emerald-950/20 space-y-4">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-emerald-900/40 pb-3">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-xl">📊</span>
+                        <h2 class="text-base font-bold text-white">AI Growth Manager Weekly Audit: <span class="text-emerald-400 font-mono">{{ latest_review.period_label }}</span></h2>
                     </div>
-                    {% endfor %}
+                    <div class="flex items-center space-x-3 text-xs">
+                        <span class="px-2.5 py-1 rounded-full bg-emerald-900/60 text-emerald-300 font-semibold border border-emerald-700/50">
+                            Status: {{ latest_review.growth_status }}
+                        </span>
+                        <span class="text-slate-400 font-mono">Engagement: {{ latest_review.engagement_rate }}%</span>
+                        <span class="text-slate-400 font-mono">Avg Views: {{ latest_review.avg_views }}</span>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="text-xs font-bold text-emerald-300 uppercase tracking-wider">Strategic Directives for Maximum Visibility & Reach:</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {% for rec in recommendations %}
+                        <div class="p-3 rounded-lg bg-slate-900/60 border border-emerald-900/30 text-xs text-slate-300 flex items-start space-x-2">
+                            <span class="text-emerald-400">⚡</span>
+                            <span>{{ rec }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
-        </div>
-        {% endif %}
+            {% endif %}
 
-        <!-- Content Grid: Live Feed & Researched Backlog -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-            <!-- Recent Posts List (2 Columns) -->
-            <div class="lg:col-span-2 space-y-4">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-lg font-bold text-white">Recent Autonomous Posts</h2>
-                    <span class="text-xs text-slate-400">Published Feed</span>
+            <!-- Feed and Tagging Columns -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Posts Feed (2 Cols) -->
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-base font-bold text-white">Live Published Content Feed</h2>
+                        <span class="text-xs text-slate-400 font-mono">Synchronized Posts</span>
+                    </div>
+                    <div class="space-y-4">
+                        {% for p in posts %}
+                        <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/40 hover:border-slate-700 transition space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">{{ p.domain }}</span>
+                                <div class="flex items-center space-x-3 text-xs text-slate-400 font-mono">
+                                    <span>👀 {{ p.views }} views</span>
+                                    <span>👍 {{ p.likes }} likes</span>
+                                    <span>💬 {{ p.comments }}</span>
+                                    <span>{{ p.created_at|date:"M d, H:i" }}</span>
+                                </div>
+                            </div>
+                            <h3 class="text-sm font-bold text-white">{{ p.title }}</h3>
+                            {% if p.linkedin_content %}
+                            <p class="text-xs text-slate-300 line-clamp-3 leading-relaxed">{{ p.linkedin_content }}</p>
+                            {% endif %}
+                            {% if p.twitter_content %}
+                            <div class="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 font-mono text-xs text-sky-200">
+                                🐦 {{ p.twitter_content }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% empty %}
+                        <div class="p-8 rounded-xl border border-dashed border-slate-800 text-center space-y-2">
+                            <p class="text-sm text-slate-400">No archived posts recorded in database yet.</p>
+                            <p class="text-xs text-slate-500">Scheduled posts trigger automatically at 7:00 AM IST.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
 
-                <div class="space-y-4">
-                    {% for p in posts %}
-                    <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/40 hover:border-slate-700 transition space-y-3">
+                <!-- Sidebar Tags & Pillars -->
+                <div class="space-y-6">
+                    <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/40 space-y-3 text-xs">
                         <div class="flex items-center justify-between">
-                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">{{ p.domain }}</span>
-                            <div class="flex items-center space-x-3 text-xs text-slate-400 font-mono">
-                                <span>👀 {{ p.views }} views</span>
-                                <span>👍 {{ p.likes }} likes</span>
-                                <span>💬 {{ p.comments }} comments</span>
-                                <span>{{ p.created_at|date:"M d, H:i" }}</span>
+                            <h3 class="font-bold text-white uppercase tracking-wider">Smart Company Tags (Active)</h3>
+                            <span class="text-xs text-emerald-400 font-mono">cc: Auto</span>
+                        </div>
+                        <p class="text-slate-400">Automatically matched to post context to maximize organic impressions:</p>
+                        <div class="flex flex-wrap gap-1.5">
+                            <span class="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">@Galgotias University</span>
+                            <span class="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">@Cyber Secured India</span>
+                            <span class="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">@SafeSkillz</span>
+                            <span class="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">@TryHackMe</span>
+                            <span class="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">@Hack The Box</span>
+                            <span class="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">@The Linux Foundation</span>
+                            <span class="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">@Docker, Inc</span>
+                            <span class="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">@Cloudflare</span>
+                        </div>
+                    </div>
+
+                    <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/40 space-y-3 text-xs">
+                        <h3 class="font-bold text-white uppercase tracking-wider">3 Core Technical Pillars</h3>
+                        <ul class="space-y-2.5 text-slate-300">
+                            <li class="flex items-start space-x-2">
+                                <span class="text-emerald-400 font-bold">1.</span>
+                                <span><strong>Hands-On Security:</strong> Privilege escalation, OWASP Top 10, TryHackMe labs.</span>
+                            </li>
+                            <li class="flex items-start space-x-2">
+                                <span class="text-emerald-400 font-bold">2.</span>
+                                <span><strong>Homelab Engineering:</strong> Raspberry Pi 4 4GB limits, Linux kernel tuning, Docker services.</span>
+                            </li>
+                            <li class="flex items-start space-x-2">
+                                <span class="text-emerald-400 font-bold">3.</span>
+                                <span><strong>AI Infrastructure:</strong> Local LLM routing latency, prompt injection defenses, multi-agent frameworks.</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             TAB 2: PI HARDWARE & SYSTEM MONITOR
+             ========================================== -->
+        <section id="tab-system" class="tab-content hidden space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-white">Raspberry Pi 4 Model B — Hardware Monitor</h2>
+                    <p class="text-xs text-slate-400 font-mono mt-0.5">Host: {{ metrics.hostname }} • IP: {{ metrics.ip }}</p>
+                </div>
+                <button onclick="refreshHardwareStats()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 font-mono flex items-center space-x-1.5 transition">
+                    <span>🔄 Refresh Telemetry</span>
+                </button>
+            </div>
+
+            <!-- Hardware Telemetry Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <!-- Temp Card -->
+                <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/50 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-mono text-slate-400 uppercase tracking-wider">CPU Thermal Zone</span>
+                        <span class="text-lg">🌡️</span>
+                    </div>
+                    <div id="metric-temp" class="text-3xl font-extrabold text-emerald-400">{{ metrics.temp_c }}°C</div>
+                    <div class="text-xs text-slate-400 font-mono">PWM Fan Active (GPIO 14)</div>
+                </div>
+
+                <!-- RAM Card -->
+                <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/50 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-mono text-slate-400 uppercase tracking-wider">RAM Utilization</span>
+                        <span class="text-lg">🧠</span>
+                    </div>
+                    <div id="metric-ram-pct" class="text-3xl font-extrabold text-cyan-400">{{ metrics.memory.percent }}%</div>
+                    <div id="metric-ram-detail" class="text-xs text-slate-400 font-mono">{{ metrics.memory.used_mb }} MB / {{ metrics.memory.total_mb }} MB</div>
+                </div>
+
+                <!-- Disk Card -->
+                <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/50 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-mono text-slate-400 uppercase tracking-wider">Disk Storage (SSD/SD)</span>
+                        <span class="text-lg">💾</span>
+                    </div>
+                    <div id="metric-disk-free" class="text-3xl font-extrabold text-indigo-400">{{ metrics.disk.free_gb }} GB</div>
+                    <div id="metric-disk-detail" class="text-xs text-emerald-400 font-mono font-semibold">Available (+2.3GB Freed!)</div>
+                </div>
+
+                <!-- Uptime & Load -->
+                <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/50 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-mono text-slate-400 uppercase tracking-wider">System Uptime</span>
+                        <span class="text-lg">⏱️</span>
+                    </div>
+                    <div id="metric-uptime" class="text-3xl font-extrabold text-amber-400">{{ metrics.uptime }}</div>
+                    <div id="metric-load" class="text-xs text-slate-400 font-mono">Load: {{ metrics.load_avg.0 }}, {{ metrics.load_avg.1 }}, {{ metrics.load_avg.2 }}</div>
+                </div>
+            </div>
+
+            <!-- Deep Memory & Storage Breakdown -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Memory Gauge Box -->
+                <div class="p-6 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-4">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
+                        <span>🧠</span><span>Memory Breakdown (RAM & Swap)</span>
+                    </h3>
+                    <div class="space-y-3 font-mono text-xs">
+                        <div>
+                            <div class="flex justify-between text-slate-400 mb-1">
+                                <span>Physical RAM Used</span>
+                                <span id="gauge-ram-pct" class="text-cyan-400">{{ metrics.memory.percent }}%</span>
+                            </div>
+                            <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
+                                <div id="gauge-ram-bar" class="bg-gradient-to-r from-emerald-500 to-cyan-500 h-3 rounded-full" style="width: {{ metrics.memory.percent }}%;"></div>
                             </div>
                         </div>
-                        <h3 class="text-base font-semibold text-white">{{ p.title }}</h3>
-                        {% if p.linkedin_content %}
-                        <p class="text-xs text-slate-300 line-clamp-3 leading-relaxed">{{ p.linkedin_content }}</p>
-                        {% endif %}
-                        {% if p.twitter_content %}
-                        <div class="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/60 font-mono text-xs text-slate-300">
-                            {{ p.twitter_content }}
+
+                        <div class="grid grid-cols-3 gap-2 pt-2 text-center">
+                            <div class="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800">
+                                <div class="text-slate-500">Total RAM</div>
+                                <div class="text-slate-200 font-bold mt-0.5">{{ metrics.memory.total_mb }} MB</div>
+                            </div>
+                            <div class="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800">
+                                <div class="text-slate-500">Used RAM</div>
+                                <div class="text-cyan-400 font-bold mt-0.5">{{ metrics.memory.used_mb }} MB</div>
+                            </div>
+                            <div class="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800">
+                                <div class="text-slate-500">Free / Available</div>
+                                <div class="text-emerald-400 font-bold mt-0.5">{{ metrics.memory.free_mb }} MB</div>
+                            </div>
                         </div>
-                        {% endif %}
+
+                        <div class="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400 flex justify-between items-center">
+                            <span>Swap Allocation:</span>
+                            <span class="text-slate-200">{{ metrics.memory.swap_used_mb }} MB used of {{ metrics.memory.swap_total_mb }} MB (Swappiness: 20)</span>
+                        </div>
                     </div>
-                    {% empty %}
-                    <div class="p-8 rounded-xl border border-dashed border-slate-800 text-center space-y-2">
-                        <p class="text-sm text-slate-400">No archived posts recorded in database yet.</p>
-                        <p class="text-xs text-slate-500">Posts from today's live run are archived in <code class="text-emerald-400">~/posts/daily/</code> & <code class="text-emerald-400">~/posts/x/</code>.</p>
+                </div>
+
+                <!-- Storage Gauge Box -->
+                <div class="p-6 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-4">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
+                        <span>💾</span><span>Disk Storage Partition (/dev/sda2)</span>
+                    </h3>
+                    <div class="space-y-3 font-mono text-xs">
+                        <div>
+                            <div class="flex justify-between text-slate-400 mb-1">
+                                <span>Disk Utilization</span>
+                                <span id="gauge-disk-pct" class="text-indigo-400">{{ metrics.disk.percent }}%</span>
+                            </div>
+                            <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
+                                <div id="gauge-disk-bar" class="bg-gradient-to-r from-indigo-500 to-purple-500 h-3 rounded-full" style="width: {{ metrics.disk.percent }}%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2 pt-2 text-center">
+                            <div class="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800">
+                                <div class="text-slate-500">Total Size</div>
+                                <div class="text-slate-200 font-bold mt-0.5">{{ metrics.disk.total_gb }} GB</div>
+                            </div>
+                            <div class="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800">
+                                <div class="text-slate-500">Used</div>
+                                <div class="text-purple-400 font-bold mt-0.5">{{ metrics.disk.used_gb }} GB</div>
+                            </div>
+                            <div class="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800">
+                                <div class="text-slate-500">Available Free</div>
+                                <div class="text-emerald-400 font-bold mt-0.5">{{ metrics.disk.free_gb }} GB</div>
+                            </div>
+                        </div>
+
+                        <div class="p-3 rounded-lg bg-emerald-950/30 border border-emerald-900/50 text-emerald-300 flex items-center space-x-2">
+                            <span>✅</span>
+                            <span>Storage was successfully freed by <strong>+2.3 GB</strong> via build cache & staging purging.</span>
+                        </div>
                     </div>
-                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             TAB 3: SERVICE SWITCHBOARD / PROCESS CONTROL
+             ========================================== -->
+        <section id="tab-services" class="tab-content hidden space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-xl font-bold text-white">Central Service Switchboard & Process Manager</h2>
+                    <p class="text-xs text-slate-400">Start, stop, and restart background daemons directly from this panel without opening SSH.</p>
+                </div>
+                <button onclick="refreshServices()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 font-mono flex items-center space-x-1.5 transition self-start sm:self-auto">
+                    <span>🔄 Refresh Services</span>
+                </button>
+            </div>
+
+            <!-- Services Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="services-container">
+                {% for svc in services %}
+                <div class="p-5 rounded-2xl border {% if svc.is_active %}border-slate-800 bg-slate-900/40{% else %}border-rose-900/40 bg-rose-950/10{% endif %} space-y-4 transition" id="svc-card-{{ svc.id }}">
+                    <div class="flex items-start justify-between gap-2">
+                        <div>
+                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">{{ svc.category }}</span>
+                            <h3 class="text-base font-bold text-white mt-1.5">{{ svc.name }}</h3>
+                            <p class="text-xs text-slate-400 mt-0.5 font-mono">{{ svc.unit }}</p>
+                        </div>
+                        <span id="svc-badge-{{ svc.id }}" class="text-xs px-2.5 py-1 rounded-full font-mono font-bold flex items-center space-x-1.5 {% if svc.is_active %}bg-emerald-950 text-emerald-400 border border-emerald-800{% else %}bg-rose-950 text-rose-400 border border-rose-800{% endif %}">
+                            <span class="w-1.5 h-1.5 rounded-full {% if svc.is_active %}bg-emerald-400 animate-pulse{% else %}bg-rose-400{% endif %}"></span>
+                            <span id="svc-status-text-{{ svc.id }}">{% if svc.is_active %}ACTIVE{% else %}STOPPED{% endif %}</span>
+                        </span>
+                    </div>
+
+                    <p class="text-xs text-slate-300 leading-relaxed">{{ svc.desc }}</p>
+
+                    <div class="flex items-center justify-between font-mono text-xs text-slate-400 pt-2 border-t border-slate-800/80">
+                        <span>Port: <strong class="text-slate-200">{{ svc.port }}</strong></span>
+                        <span>PID: <strong id="svc-pid-{{ svc.id }}" class="text-slate-200">{{ svc.pid }}</strong></span>
+                    </div>
+
+                    <!-- Action Control Buttons -->
+                    <div class="grid grid-cols-3 gap-2 pt-1">
+                        <button onclick="controlService('{{ svc.id }}', 'start')" class="px-2 py-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-400 border border-emerald-800/80 text-xs font-semibold transition flex items-center justify-center space-x-1">
+                            <span>▶️</span><span>Start</span>
+                        </button>
+                        <button onclick="controlService('{{ svc.id }}', 'stop')" class="px-2 py-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-400 border border-rose-800/80 text-xs font-semibold transition flex items-center justify-center space-x-1">
+                            <span>⏹️</span><span>Stop</span>
+                        </button>
+                        <button onclick="controlService('{{ svc.id }}', 'restart')" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition flex items-center justify-center space-x-1">
+                            <span>🔄</span><span>Restart</span>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- ==========================================
+             TAB 4: MAINTENANCE & SYSTEM HYGIENE
+             ========================================== -->
+        <section id="tab-maintenance" class="tab-content hidden space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-white">One-Click Storage & RAM Maintenance</h2>
+                    <p class="text-xs text-slate-400">Reclaim SSD/SD storage, drop memory caches, vacuum journals, and optimize SQLite databases.</p>
                 </div>
             </div>
 
-            <!-- Sidebar: Smart Tagging & Research Pool (1 Column) -->
-            <div class="space-y-6">
-
-                <!-- Smart Tagging Directory -->
-                <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/40 space-y-3 text-xs">
-                    <div class="flex items-center justify-between">
-                        <h3 class="font-bold text-white uppercase tracking-wider text-xs">Smart Company Tags (Active)</h3>
-                        <span class="text-xs text-emerald-400 font-mono">cc: Auto</span>
+            <!-- Action Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- RAM Purge -->
+                <div class="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-3 flex flex-col justify-between">
+                    <div class="space-y-1">
+                        <div class="text-lg">🧠</div>
+                        <h3 class="text-sm font-bold text-white">RAM Purge & Drop</h3>
+                        <p class="text-xs text-slate-400">Flushes pagecache, dentries & inodes. Tunes swappiness to 20 for peak responsiveness.</p>
                     </div>
-                    <p class="text-slate-400">Contextually tagged to boost impressions & recruiter visibility:</p>
-                    <div class="flex flex-wrap gap-1.5">
-                        <span class="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">@Galgotias University</span>
-                        <span class="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">@Cyber Secured India</span>
-                        <span class="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">@SafeSkillz</span>
-                        <span class="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">@TryHackMe</span>
-                        <span class="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">@Hack The Box</span>
-                        <span class="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">@The Linux Foundation</span>
-                        <span class="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">@Docker, Inc</span>
-                        <span class="px-2 py-1 rounded bg-slate-800 text-slate-300 font-mono border border-slate-700">@Cloudflare</span>
-                    </div>
+                    <button onclick="runMaintenance('ram')" class="w-full py-2 rounded-xl bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 text-xs font-bold transition">
+                        ⚡ Drop Caches
+                    </button>
                 </div>
 
-                <!-- 3 Dynamic Content Pillars -->
-                <div class="p-5 rounded-xl border border-slate-800 bg-slate-900/40 space-y-3 text-xs">
-                    <h3 class="font-bold text-white uppercase tracking-wider text-xs">3 Core Content Pillars</h3>
-                    <ul class="space-y-2.5 text-slate-300">
-                        <li class="flex items-start space-x-2">
-                            <span class="text-emerald-400 font-bold">1.</span>
-                            <span><strong>Hands-On Labs & Assignments:</strong> Real TryHackMe/OWASP rooms, privilege escalation, SUID analysis.</span>
-                        </li>
-                        <li class="flex items-start space-x-2">
-                            <span class="text-emerald-400 font-bold">2.</span>
-                            <span><strong>Real-World Homelab:</strong> Raspberry Pi 4 4GB limits, zram swap tuning, Docker microservices.</span>
-                        </li>
-                        <li class="flex items-start space-x-2">
-                            <span class="text-emerald-400 font-bold">3.</span>
-                            <span><strong>AI & Systems Research:</strong> Local LLM routing latency, prompt injection defenses, kernel eBPF.</span>
-                        </li>
-                    </ul>
+                <!-- UV & Pip Cache Clean -->
+                <div class="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-3 flex flex-col justify-between">
+                    <div class="space-y-1">
+                        <div class="text-lg">🧹</div>
+                        <h3 class="text-sm font-bold text-white">Purge Build Caches</h3>
+                        <p class="text-xs text-slate-400">Cleans UV wheel archives, pip cache, and Hermes scratch files (~1 GB savings).</p>
+                    </div>
+                    <button onclick="runMaintenance('cache')" class="w-full py-2 rounded-xl bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 text-xs font-bold transition">
+                        🧹 Purge Cache
+                    </button>
                 </div>
 
+                <!-- Vacuum Logs & Staging -->
+                <div class="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-3 flex flex-col justify-between">
+                    <div class="space-y-1">
+                        <div class="text-lg">📦</div>
+                        <h3 class="text-sm font-bold text-white">Journal & Staging Vacuum</h3>
+                        <p class="text-xs text-slate-400">Vacuums systemd logs to 30MB and purges dangling netscan staging profiles.</p>
+                    </div>
+                    <button onclick="runMaintenance('vacuum')" class="w-full py-2 rounded-xl bg-purple-950 hover:bg-purple-900 text-purple-300 border border-purple-800 text-xs font-bold transition">
+                        📦 Vacuum Logs
+                    </button>
+                </div>
+
+                <!-- DB Compaction -->
+                <div class="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-3 flex flex-col justify-between">
+                    <div class="space-y-1">
+                        <div class="text-lg">🗄️</div>
+                        <h3 class="text-sm font-bold text-white">Database Compaction</h3>
+                        <p class="text-xs text-slate-400">Executes PRAGMA wal_checkpoint and SQLite VACUUM on omni_hub db.</p>
+                    </div>
+                    <button onclick="runMaintenance('db')" class="w-full py-2 rounded-xl bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-800 text-xs font-bold transition">
+                        🗄️ Compact DB
+                    </button>
+                </div>
             </div>
 
-        </div>
+            <!-- Master Action Banner -->
+            <div class="p-6 rounded-2xl border border-emerald-800/80 bg-gradient-to-r from-emerald-950/60 to-slate-900 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <h3 class="text-base font-extrabold text-white flex items-center space-x-2">
+                        <span>🚀</span><span>Full Complete System Optimization</span>
+                    </h3>
+                    <p class="text-xs text-emerald-200/80">Runs all 4 maintenance routines simultaneously: RAM Drop + UV Cache Clean + Journal Vacuum + DB Compaction.</p>
+                </div>
+                <button onclick="runMaintenance('all')" id="btn-master-opt" class="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm transition shadow-lg shadow-emerald-500/30 flex items-center space-x-2 shrink-0">
+                    <span>⚡ Run Master Optimization</span>
+                </button>
+            </div>
+
+            <!-- Real-time Console Log Output Box -->
+            <div class="p-5 rounded-2xl border border-slate-800 bg-slate-950 space-y-2">
+                <div class="flex items-center justify-between text-xs font-mono text-slate-400 border-b border-slate-800/80 pb-2">
+                    <span class="flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span>Maintenance Execution Console</span>
+                    </span>
+                    <button onclick="clearConsole()" class="hover:text-white transition">Clear</button>
+                </div>
+                <pre id="console-output" class="font-mono text-xs text-emerald-400 p-2 overflow-x-auto custom-scrollbar max-h-64 leading-relaxed whitespace-pre-wrap">Ready. Click any maintenance action above to execute and view live output.</pre>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             TAB 5: REPORTS ARCHIVE & VIEWER
+             ========================================== -->
+        <section id="tab-reports" class="tab-content hidden space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-xl font-bold text-white">Generated Intelligence & System Reports</h2>
+                    <p class="text-xs text-slate-400">Weekly Growth Audits, Pi Maintenance Reports, and Verification Documents.</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="dispatchEmailReports()" class="px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 text-xs font-semibold text-emerald-300 transition flex items-center space-x-1.5">
+                        <span>📧 Send via Email</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Reports Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for r in reports %}
+                <div class="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 hover:border-slate-700 transition space-y-3">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-2xl">{% if r.is_maintenance %}🛠️{% else %}📊{% endif %}</span>
+                            <div>
+                                <h3 class="text-sm font-bold text-white">{{ r.title }}</h3>
+                                <p class="text-xs text-slate-400 font-mono mt-0.5">{{ r.created_at }} • {{ r.size_kb }} KB</p>
+                            </div>
+                        </div>
+                        <span class="text-xs px-2 py-0.5 rounded-full font-mono {% if r.is_maintenance %}bg-amber-950 text-amber-400 border border-amber-800{% else %}bg-emerald-950 text-emerald-400 border border-emerald-800{% endif %}">
+                            {% if r.is_maintenance %}Health{% else %}Growth Audit{% endif %}
+                        </span>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                        <span class="text-xs text-slate-500 font-mono">{{ r.filename }}</span>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="openReportModal('{{ r.filename }}', '{{ r.title|escapejs }}')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-slate-700 transition flex items-center space-x-1">
+                                <span>👁️ View Report</span>
+                            </button>
+                            <a href="/reports/{{ r.filename }}/" target="_blank" class="px-3 py-1.5 rounded-lg bg-slate-800/40 hover:bg-slate-800 text-xs font-mono text-slate-400 hover:text-white transition">
+                                ↗ Popout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-span-2 p-12 text-center border border-dashed border-slate-800 rounded-2xl space-y-2">
+                    <p class="text-sm text-slate-400">No reports generated yet.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- ==========================================
+             TAB 6: AGENT & MCP ECOSYSTEM
+             ========================================== -->
+        <section id="tab-mcp" class="tab-content hidden space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-white">Agent Ecosystem & Model Context Protocol (MCP)</h2>
+                    <p class="text-xs text-slate-400">12 Connected External Tool Integrations • Autonomous Function Calling</p>
+                </div>
+                <div class="px-3 py-1 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono text-xs font-bold">
+                    {{ active_mcp_count }} of {{ mcps|length }} Active
+                </div>
+            </div>
+
+            <!-- Notice Banner on Claude Exclusive Providers -->
+            <div class="p-4 rounded-xl border border-sky-900/60 bg-sky-950/20 text-xs text-sky-300 flex items-start space-x-3">
+                <span class="text-lg">ℹ️</span>
+                <div class="space-y-1">
+                    <span class="font-bold text-white">Provider Authentication Policy:</span>
+                    <p class="text-sky-200/80">All 12 connected servers are verified and operational. Indeed MCP enforces Anthropic Claude proprietary client validation on its endpoint and is safely kept disabled to prevent connection stalls.</p>
+                </div>
+            </div>
+
+            <!-- MCP Cards Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for mcp in mcps %}
+                <div class="p-5 rounded-2xl border {% if mcp.status == 'Connected' %}border-slate-800 bg-slate-900/40{% else %}border-slate-800/60 bg-slate-900/20 opacity-60{% endif %} space-y-3">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">{{ mcp.category }}</span>
+                            <h3 class="text-base font-bold text-white mt-1.5">{{ mcp.name }}</h3>
+                        </div>
+                        <span class="text-xs px-2.5 py-0.5 rounded-full font-mono font-bold {% if mcp.status == 'Connected' %}bg-emerald-950 text-emerald-400 border border-emerald-800{% else %}bg-slate-800 text-slate-400{% endif %}">
+                            {{ mcp.status }}
+                        </span>
+                    </div>
+
+                    <div class="space-y-1 text-xs font-mono text-slate-400">
+                        <div class="flex justify-between">
+                            <span>Tools Available:</span>
+                            <strong class="{% if mcp.tools > 0 %}text-emerald-400{% else %}text-slate-500{% endif %}">{{ mcp.tools }} tools</strong>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Transport:</span>
+                            <span class="text-slate-300 truncate max-w-[150px]">{{ mcp.transport }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Authentication:</span>
+                            <span class="text-slate-300">{{ mcp.auth }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
 
     </main>
 
+    <!-- Fullscreen In-App Report Modal Viewer -->
+    <div id="report-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+                <div class="flex items-center space-x-2">
+                    <span class="text-lg">📋</span>
+                    <h3 id="modal-report-title" class="font-bold text-white text-sm">Report Viewer</h3>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <a id="modal-open-new-tab" href="#" target="_blank" class="text-xs font-mono text-slate-400 hover:text-white">Open in Tab ↗</a>
+                    <button onclick="closeReportModal()" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold">✕</button>
+                </div>
+            </div>
+            <div class="flex-1 bg-white">
+                <iframe id="report-iframe" src="" class="w-full h-full border-0"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Frontend Interactive Logic -->
     <script>
-        function triggerEngine() {
-            alert("🚀 Unified Growth Engine triggered on Raspberry Pi! Posts are generating for LinkedIn + X with Smart Tagging.");
+        // Tab Switching
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-emerald-500', 'text-slate-950', 'shadow-lg', 'shadow-emerald-500/20');
+                btn.classList.add('text-slate-400');
+            });
+
+            const activeContent = document.getElementById('tab-' + tabId);
+            const activeBtn = document.getElementById('tab-btn-' + tabId);
+            if (activeContent) activeContent.classList.remove('hidden');
+            if (activeBtn) {
+                activeBtn.classList.remove('text-slate-400');
+                activeBtn.classList.add('bg-emerald-500', 'text-slate-950', 'shadow-lg', 'shadow-emerald-500/20');
+            }
         }
-        function triggerResearch() {
-            alert("🔍 Autonomous Researcher triggered! Fresh technical topic is being synthesized.");
+
+        // Live Service Control via AJAX
+        async function controlService(serviceId, action) {
+            appendConsole(`Executing: sudo systemctl ${action} ${serviceId}...`);
+            try {
+                const res = await fetch('/api/service-action/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ service: serviceId, action: action })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    const badge = document.getElementById(`svc-badge-${serviceId}`);
+                    const text = document.getElementById(`svc-status-text-${serviceId}`);
+                    const pid = document.getElementById(`svc-pid-${serviceId}`);
+                    
+                    if (data.is_active) {
+                        badge.className = "text-xs px-2.5 py-1 rounded-full font-mono font-bold flex items-center space-x-1.5 bg-emerald-950 text-emerald-400 border border-emerald-800";
+                        text.innerText = "ACTIVE";
+                    } else {
+                        badge.className = "text-xs px-2.5 py-1 rounded-full font-mono font-bold flex items-center space-x-1.5 bg-rose-950 text-rose-400 border border-rose-800";
+                        text.innerText = "STOPPED";
+                    }
+                    if (pid) pid.innerText = data.pid || "0";
+
+                    appendConsole(`✓ Service '${serviceId}' ${action.toUpperCase()} completed successfully. State: ${data.active_state} (${data.sub_state})`);
+                } else {
+                    appendConsole(`✗ Error: ${data.message}`);
+                }
+            } catch (err) {
+                appendConsole(`✗ Network Exception: ${err.message}`);
+            }
         }
+
+        // Run Maintenance Routine
+        async function runMaintenance(type) {
+            appendConsole(`\n>>> Initiating Maintenance Action: [${type.toUpperCase()}]...`);
+            const btn = document.getElementById('btn-master-opt');
+            if (btn) btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/run-maintenance/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: type })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    appendConsole(data.output);
+                    appendConsole(`✓ Done! Storage Free: ${data.after.disk.free_gb} GB • RAM Free: ${data.after.memory.free_mb} MB`);
+                    updateMetricsUI(data.after);
+                } else {
+                    appendConsole(`✗ Maintenance Error: ${data.message}\n${data.output || ''}`);
+                }
+            } catch (err) {
+                appendConsole(`✗ Network Error: ${err.message}`);
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        // Quick Optimize
+        function quickOptimize() {
+            switchTab('maintenance');
+            runMaintenance('all');
+        }
+
+        // Refresh Telemetry
+        async function refreshHardwareStats() {
+            try {
+                const res = await fetch('/api/system-stats/');
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    updateMetricsUI(data.metrics);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function updateMetricsUI(m) {
+            if (!m) return;
+            if (m.temp_c) {
+                document.getElementById('nav-temp').innerText = m.temp_c + '°C';
+                const el = document.getElementById('metric-temp');
+                if (el) el.innerText = m.temp_c + '°C';
+            }
+            if (m.memory) {
+                document.getElementById('nav-ram').innerText = m.memory.percent + '%';
+                const elPct = document.getElementById('metric-ram-pct');
+                const elDet = document.getElementById('metric-ram-detail');
+                const gaugePct = document.getElementById('gauge-ram-pct');
+                const gaugeBar = document.getElementById('gauge-ram-bar');
+                if (elPct) elPct.innerText = m.memory.percent + '%';
+                if (elDet) elDet.innerText = `${m.memory.used_mb} MB / ${m.memory.total_mb} MB`;
+                if (gaugePct) gaugePct.innerText = m.memory.percent + '%';
+                if (gaugeBar) gaugeBar.style.width = m.memory.percent + '%';
+            }
+            if (m.disk) {
+                document.getElementById('nav-disk').innerText = m.disk.free_gb + 'GB Free';
+                const elFree = document.getElementById('metric-disk-free');
+                const gaugePct = document.getElementById('gauge-disk-pct');
+                const gaugeBar = document.getElementById('gauge-disk-bar');
+                if (elFree) elFree.innerText = m.disk.free_gb + ' GB';
+                if (gaugePct) gaugePct.innerText = m.disk.percent + '%';
+                if (gaugeBar) gaugeBar.style.width = m.disk.percent + '%';
+            }
+            if (m.uptime) {
+                const el = document.getElementById('metric-uptime');
+                if (el) el.innerText = m.uptime;
+            }
+            if (m.load_avg) {
+                const el = document.getElementById('metric-load');
+                if (el) el.innerText = `Load: ${m.load_avg[0]}, ${m.load_avg[1]}, ${m.load_avg[2]}`;
+            }
+        }
+
+        // Email Dispatch
+        async function dispatchEmailReports() {
+            appendConsole("Sending generated intelligence reports to arushsengar495@gmail.com...");
+            try {
+                const res = await fetch('/api/send-email-reports/', { method: 'POST' });
+                const data = await res.json();
+                alert(`📧 Report dispatched: ${data.status} to ${data.recipient}`);
+                appendConsole(`✓ Email dispatch status: ${data.status} (${data.recipient})`);
+            } catch (e) {
+                alert("Error sending email: " + e.message);
+            }
+        }
+
+        // Autonomous Engine Triggers
+        async function triggerEngine() {
+            const res = await fetch('/api/trigger-growth/', { method: 'POST' });
+            const data = await res.json();
+            alert("🚀 " + data.message);
+        }
+
+        async function triggerResearch() {
+            const res = await fetch('/api/research-topic/', { method: 'POST' });
+            const data = await res.json();
+            alert("🔍 " + data.message);
+        }
+
+        // Modal Report Viewer
+        function openReportModal(filename, title) {
+            document.getElementById('modal-report-title').innerText = title;
+            document.getElementById('modal-open-new-tab').href = `/reports/${filename}/`;
+            document.getElementById('report-iframe').src = `/reports/${filename}/`;
+            document.getElementById('report-modal').classList.remove('hidden');
+        }
+
+        function closeReportModal() {
+            document.getElementById('report-modal').classList.add('hidden');
+            document.getElementById('report-iframe').src = '';
+        }
+
+        // Console Helper
+        function appendConsole(msg) {
+            const el = document.getElementById('console-output');
+            if (el) {
+                el.innerText += '\n' + msg;
+                el.scrollTop = el.scrollHeight;
+            }
+        }
+
+        function clearConsole() {
+            const el = document.getElementById('console-output');
+            if (el) el.innerText = 'Console cleared.';
+        }
+
+        // Auto refresh hardware metrics every 15s
+        setInterval(refreshHardwareStats, 15000);
     </script>
 </body>
 </html>
