@@ -270,3 +270,4 @@ if __name__ == "__main__":
         dispatch_maintenance_report()
     else:
         dispatch_weekly_report()
+
