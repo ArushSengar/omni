@@ -1,63 +1,52 @@
-# 🌐 Hermes Master-Worker Mesh Architecture
-**Raspberry Pi 4 (Master Node) ↔ Windows 11 Laptop (Worker Node)**
+# 💻 Hermes Laptop Worker Node & Master Mesh Setup
+
+This document records the architecture and connection between the **Raspberry Pi Master Hub (`192.168.0.100`)** and the **Windows 11 Laptop Worker Node (`192.168.0.101`)**.
 
 ---
 
-## 📌 Architecture Overview
+## 🏗️ Architecture Overview
 
 ```
                       +---------------------------------------+
-                      |       Raspberry Pi 4 (Master)         |
-                      |           192.168.0.100               |
-                      |                                       |
-                      |  - Omni Master Hub (:8000)            |
-                      |  - OmniRoute AI Router (:20128)       |
-                      |  - 24/7 System Cron & Sentinels       |
-                      |  - Master Hermes Agent                |
-                      +-------------------+-------------------+
+                      |   Raspberry Pi 4 (192.168.0.100)      |
+                      |   Master Hub & Autonomous Brain       |
+                      +---------------------------------------+
                                           |
-                        Hermes Bot-to-Bot Peer Protocol
-                           (TCP :8642 + Bearer Auth)
+                +-------------------------+-------------------------+
+                |                                                   |
+      HTTP :8642 (Hermes Peer API)                         HTTP :8643 (Fast Worker Bridge)
+                |                                                   |
+                +-------------------------+-------------------------+
                                           |
-                      +-------------------v-------------------+
-                      |      Windows 11 Laptop (Worker)       |
-                      |           192.168.0.101               |
-                      |                                       |
-                      |  - Hermes Gateway Daemon (:8642)      |
-                      |  - Local Execution Tools & Terminal   |
-                      |  - Computer Use (cua-driver)          |
-                      |  - High-Performance Workload Runner   |
+                                          v
+                      +---------------------------------------+
+                      |   Windows 11 Laptop (192.168.0.101)   |
+                      |   - Hermes Gateway Daemon (:8642)     |
+                      |   - Ultra-Fast Bridge Daemon (:8643)  |
+                      |   - Interactive GUI (WinSta0\Default) |
+                      |   - Chrome & Screen Automation        |
+                      |   - Audio Synthesis (SAPI.SpVoice)    |
                       +---------------------------------------+
 ```
 
 ---
 
-## 🚀 Key Capabilities
+## ⚡ The 5 Core Control Primitives (Raspberry Pi -> Laptop)
 
-1. **24/7 Autonomous Control**:
-   - The Raspberry Pi remains powered on 24/7 as the coordinator, scheduler, and central intelligence gateway.
-   - When heavy tasks, desktop automation, or Windows-specific jobs need to be run, the Pi delegates them to the Laptop Worker Node.
+On the Raspberry Pi, Hermes has 5 first-class workstation tools in `/home/arush/bin/` and skill `laptop-computer-control`:
 
-2. **Native Hermes Peer Protocol (`hermes peer`)**:
-   - Bot-to-Bot DM turns: `hermes peer dm laptop "<instruction>"`
-   - Long-running async execution: `echo "<task>" | hermes peer run laptop`
-   - Real-time status checks: `hermes peer status laptop <run_id>`
-
-3. **Omni Master Hub Dashboard Integration**:
-   - Single-pane view at `http://192.168.0.100:8000`.
-   - **Laptop Worker Node Card**: Real-time status, health ping, and connectivity metrics.
-   - **Command & Task Dispatcher**: 1-click execution console for instant dispatch to the Windows laptop.
-
-4. **Zero-Paid AI Inference Routing**:
-   - Both the Pi Master and Laptop Worker query OmniRoute on `http://192.168.0.100:20128/v1`.
-   - Models: `hermes-brain` (Claude 3.7 Sonnet) and `hermes-fast` (Gemini 2.5 Flash).
-   - Zero API subscription fees.
+1. `laptop-status`: Reads live battery, RAM, CPU, screen resolution, and session state in <400ms.
+2. `laptop-screen "<cmd>" [title]`: Launches any app or document visibly in the foreground on `WinSta0\Default` with TopMost priority.
+3. `laptop-speak "<text>"`: Speaks out loud through the laptop's speakers in real time.
+4. `laptop-browser "<url>"`: Launches Google Chrome on the laptop screen with specific URLs.
+5. `laptop-exec "<cmd>"`: Runs any shell or PowerShell commands on the laptop and streams back output.
 
 ---
 
-## 🔧 Worker Node Service Configuration
+## 🔧 Service Configuration
 
-- **API Server Port**: TCP `8642`
-- **Authentication**: Bearer Token stored in `~/.hermes/.env` (`API_SERVER_KEY`)
+- **Hermes Gateway Port**: TCP `8642`
+- **Fast Bridge Port**: TCP `8643`
+- **Authentication**: Bearer Token `sk-laptop-hermes-token-2026`
 - **Startup Script**: `C:\Users\Arush\AppData\Local\hermes\gateway-service\Hermes_Gateway.cmd`
 - **Auto-Start**: Windows Startup item (`Hermes_Gateway.vbs`) starts automatically on Windows user login.
