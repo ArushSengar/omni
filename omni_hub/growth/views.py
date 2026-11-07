@@ -69,6 +69,16 @@ DEFAULT_SERVICES = [
         "category": "Scheduler",
         "type": "systemd"
     },
+    {
+        "id": "hermes-laptop-worker",
+        "name": "Hermes Laptop Worker Node",
+        "unit": "laptop",
+        "port": "8642",
+        "desc": "Windows 11 (Arush-Sengar) Distributed Compute Worker via Hermes Peer Protocol",
+        "category": "Worker Node",
+        "type": "peer",
+        "host": "192.168.0.101"
+    },
 ]
 
 MCP_CATALOG = [
@@ -161,6 +171,26 @@ def discover_all_services():
                 is_active = False
                 active_state = "inactive"
                 sub_state = "dead"
+        elif svc_type == "peer":
+            host = svc.get("host", "192.168.0.101")
+            port = svc.get("port", "8642")
+            try:
+                import urllib.request
+                req = urllib.request.Request(
+                    f"http://{host}:{port}/health",
+                    headers={"Authorization": "Bearer sk-laptop-hermes-token-2026"}
+                )
+                with urllib.request.urlopen(req, timeout=2) as resp:
+                    if resp.status == 200:
+                        is_active = True
+                        active_state = "active"
+                        sub_state = "mesh-connected"
+                        pid = "Laptop (Windows)"
+            except Exception:
+                is_active = False
+                active_state = "unreachable"
+                sub_state = "offline"
+                pid = "0"
 
         services.append({
             **svc,
@@ -506,6 +536,28 @@ def api_service_action(request):
                 return JsonResponse({"status": "ok", "action": action, "pid": pid, "is_active": False, "active_state": "inactive"})
             elif action in ["start", "restart"]:
                 return JsonResponse({"status": "ok", "message": f"Process control '{action}' queued for PID {pid}"})
+        elif svc_type == "peer":
+            host = svc_match.get("host", "192.168.0.101")
+            port = svc_match.get("port", "8642")
+            try:
+                import urllib.request
+                req = urllib.request.Request(
+                    f"http://{host}:{port}/health",
+                    headers={"Authorization": "Bearer sk-laptop-hermes-token-2026"}
+                )
+                with urllib.request.urlopen(req, timeout=3) as resp:
+                    is_active = (resp.status == 200)
+                return JsonResponse({
+                    "status": "ok",
+                    "action": action,
+                    "unit": unit,
+                    "is_active": is_active,
+                    "active_state": "active" if is_active else "unreachable",
+                    "sub_state": "mesh-connected" if is_active else "offline",
+                    "pid": "Laptop (Windows)"
+                })
+            except Exception as ex:
+                return JsonResponse({"status": "error", "message": f"Peer communication failed: {ex}"})
     except Exception as e:
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
@@ -617,3 +669,46 @@ def api_posts_list(request):
 def api_weekly_review(request):
     reviews = list(WeeklyGrowthReview.objects.values())
     return JsonResponse({"status": "ok", "count": len(reviews), "reviews": reviews})
+
+@csrf_exempt
+def api_dispatch_laptop(request):
+    """Dispatches a task from the Omni Hub to the Laptop Hermes worker node."""
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "POST required"}, status=405)
+    
+    try:
+        data = json.loads(request.body.decode("utf-8")) if request.body else {}
+    except Exception:
+        data = request.POST
+
+    prompt = data.get("prompt", "").strip()
+    if not prompt:
+        return JsonResponse({"status": "error", "message": "Prompt is required"}, status=400)
+
+    mode = data.get("mode", "sync")  # sync (dm) or async (run)
+    hermes_bin = "/home/arush/.local/bin/hermes"
+
+    try:
+        if mode == "async":
+            cmd = f'echo {json.dumps(prompt)} | {hermes_bin} peer run laptop'
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+            return JsonResponse({
+                "status": "ok",
+                "mode": "async",
+                "output": res.stdout.strip(),
+                "error": res.stderr.strip()
+            })
+        else:
+            # Sync turn (dm)
+            import base64
+            b64_prompt = base64.b64encode(prompt.encode("utf-8")).decode("ascii")
+            cmd = f'PROMPT=$(echo "{b64_prompt}" | base64 -d) && {hermes_bin} peer dm laptop "$PROMPT"'
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
+            return JsonResponse({
+                "status": "ok",
+                "mode": "sync",
+                "output": res.stdout.strip(),
+                "error": res.stderr.strip()
+            })
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
