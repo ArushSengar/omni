@@ -1,5 +1,73 @@
 # 📑 Master Architecture Archive & Daily Work Log
 
+> **Date**: Tuesday, November 10, 2026  
+> **Host**: Raspberry Pi 4 Model B (Debian 13 trixie, aarch64, 4GB RAM, IP: `192.168.0.100`)  
+> **Master**: Arush Sengar (`arushsengar495@gmail.com`)  
+> **Session Goal**: Omni Hub Apple iOS 18 Glassmorphism command center, OmniVault multimodal knowledge memory, AI Wallet integration, Local LAN security lock screen, mobile bottom tab bar navigation, zero-touch Hermes image ingestion tool, and deep Raspberry Pi system optimizations (God-Mode v5.0).
+
+---
+
+## 1. God-Mode v5.0 System Upgrades (November 10, 2026)
+
+### A. Omni Hub Apple iOS 18 Glassmorphic Command Center (Port 8000)
+- **Unified Ecosystem Cockpit**: Single-pane command dashboard on `http://192.168.0.100:8000/` uniting OmniVault, Services Switchboard, AI Token Wallet, Pi 4 Hardware Telemetry, Growth Sentinel, and Omni Copilot AI.
+- **Dynamic Island**: Clickable hardware pills (CPU Temp, RAM %, Disk space), `$ saved` AI Wallet pill, Spotlight search palette (`⌘K`), Quick Clean, and Omni Copilot drawer (`⌘J`).
+- **Interactive Switchboard**: Instant toggles for `omni-hub.service`, `omniroute.service`, and `hermes-dashboard.service` with live `journalctl -u <service> -n 100` modal log viewer.
+
+### B. OmniVault Multimodal Knowledge Memory
+- **Dual Ingest Pipeline**:
+  - Web UI: 4 modal dropzones (+Screenshot OCR, +URL Crawler, +PDF Parser, +Quick Note).
+  - Autonomous Hermes CLI: `hermes-omnivault ingest-image <path>` decomposes multi-tool screenshots without opening browser.
+- **Punchy 1-Line Purpose**: Generates a clear Hinglish/English use-case description ("Kis Kaam Aayega") so Arush instantly understands each tool.
+- **Legality & Threat Triage**: Automated triage into `SAFE`, `PENTEST_ONLY`, `CAUTION`, `SUSPICIOUS` flags.
+- **Interactive Favorites**: Clickable star button with zero-reload AJAX toggle and live counter syncing.
+
+### C. AI Provider Wallet & Quota Balancer
+- **11 Connected Providers**: GitHub Copilot, Cloudflare AI, Google AI Studio, Codestral, Cohere, Groq, Amazon Q, Kiro, Veo, AI Horde, DuckDuckGo.
+- **4 Cascading Combos**: Tiered fallback routing (`auto/coding:free`, `auto/best-chat`, `auto/fast:free`, `auto/cheap:free`) with zero latency penalty and automatic failover.
+- **Live Dollar Savings**: Dynamic calculation of token savings compared to commercial OpenAI GPT-4o API rates.
+
+### D. Local LAN Security Shield & Passcode Lock Screen
+- **Security Middleware (`OmniAuthMiddleware`)**: Enforces private access; unauthenticated LAN/Wi-Fi devices are redirected to `/login/?next=` or receive HTTP 401 JSON errors on `/api/` endpoints.
+- **Apple iOS 18 Glassmorphic Lock Screen (`login.html`)**:
+  - Passcode Mode: Master PIN (`arush@omni2026` / `arush`) with single-tap unlock.
+  - User Mode: Username & password credentials (`arush`/`arush`).
+  - 30-Day Session Persistence: "Remember this device" keeps phone & laptop unlocked for a month.
+  - One-Click Lock: Lock Cockpit button in header, sidebar, and mobile menu.
+
+### E. Mobile & Phone Native Optimization
+- **iOS 18 Bottom Tab Bar (`lg:hidden`)**: Fixed frosted navigation bar with Cockpit, Vault, Services, Clean, Copilot, and Tabs buttons.
+- **Mobile Tabs Bottom Sheet**: Access to all 9 workspace sections without vertical layout pushing.
+- **Touch-First Ergonomics**: Safe area insets (`pb-28 lg:pb-8`) and Apple HIG touch target sizing (`min-h-[44px]`).
+
+### F. Hermes Autonomous Integration Engine
+- **Universal Bridge CLI (`hermes-omnivault`)**:
+  - `hermes-omnivault ingest-image <path>`: Auto OCR + AI categorization + 1-line purpose.
+  - `hermes-omnivault ingest-url <url>`: Web metadata crawling & legality triage.
+  - `hermes-omnivault ingest-note <text>`: Quick cheat-sheet and snippet storage.
+  - `hermes-omnivault search <query>`: Fuzzy/keyword search for instant retrieval in chat.
+  - `hermes-omnivault wallet`: Live query of AI provider quotas and cost savings.
+  - `hermes-omnivault status`: Hardware telemetry and uptime.
+- **Hermes Skill**: `omnivault-memory` registered in `/home/arush/.hermes/skills/omnivault-memory/SKILL.md`.
+- **Hermes SOUL.md Directive**: Section 10 embedded directing Hermes to autonomously ingest images and answer tool queries.
+
+### G. Raspberry Pi ("SRIPII") Deep System Optimizations
+- **Kernel Sysctl Tunings (`/etc/sysctl.d/99-omni-pi.conf`)**:
+  - `vm.swappiness = 15` (preserves RAM, reduces swapping)
+  - `vm.vfs_cache_pressure = 50` (keeps dentries & inodes in memory)
+  - `vm.dirty_background_ratio = 5` & `vm.dirty_ratio = 10` (smooth dirty page writeback)
+  - `net.core.somaxconn = 4096` & `net.ipv4.tcp_max_syn_backlog = 4096` (burst network concurrency)
+  - `net.ipv4.tcp_fin_timeout = 15` (fast socket recycling)
+  - `fs.file-max = 2097152`
+- **Systemd Journal Size Limit (`/etc/systemd/journald.conf.d/00-journal-size.conf`)**:
+  - `SystemMaxUse=50M`
+  - `SystemMaxFileSize=10M`
+- **Service Process Limits**:
+  - `LimitNOFILE=65536` on `omni-hub.service`.
+- **Zero-Timeout Sudoers**: `/etc/sudoers.d/010_arush-nopasswd` enables non-blocking administrative sweeps.
+
+---
+
 > **Date**: Thursday, November 5, 2026  
 > **Host**: Raspberry Pi 4 Model B (Debian 13 trixie, aarch64, 4GB RAM, IP: `192.168.0.100`)  
 > **Master**: Arush Sengar (`arushsengar495@gmail.com`)  
@@ -61,4 +129,37 @@ All scripts reside in `/home/arush/` and are synchronized 1:1 with `c:\Users\Aru
 - **Delivery**: `local`
 - **Attached Skill**: `linkedin-daily-post`
 - **Trained Memory**: `~/.hermes/memories/MEMORY.md`
+
+---
+
+## 4. OmniVault & Hermes Autonomous Multimodal Knowledge Bank (God-Mode v5.0)
+
+### Architectural Components Deployed
+1. **OmniVault Ingestion Engine (`omni_hub/growth/omni_vault_engine.py`)**:
+   - Tesseract OCR + OmniRoute AI (`auto/best-chat`) multi-tool semantic synthesis.
+   - 7 Canonical Domains: `AI & LLM Tools`, `Cyber Security & Pentesting`, `Developer & APIs`, `Media, Audio & Design`, `Linux, Homelab & Systems`, `Productivity & Cloud`, `Student & Learning`.
+   - Punchy 1-line Hindi/English student-friendly "Kis Kaam Aayega" purpose synthesis.
+   - Comprehensive SSRF & IP address defense: blocks loopback (`127.0.0.1`), private ranges (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), unspecified addresses (`0.0.0.0`, `::`), IPv6 loopback (`::1`), cloud metadata (`169.254.169.254`), and non-standard scrape ports.
+   - Safe disk unlinking: on deletion of any `VaultResource`, associated media files are safely unlinked from disk if no other resource references them.
+
+2. **Universal Hermes CLI Tool (`hermes-omnivault`)**:
+   - Symlinked to `/usr/local/bin/hermes-omnivault` and `/home/arush/.local/bin/hermes-omnivault`.
+   - Subcommands:
+     - `ingest-image <path>`: OCR + LLM tool decomposition + DB write.
+     - `ingest-url <url>`: SSRF check + metadata crawl + categorization + DB write.
+     - `ingest-note <text>`: Technical snippet analysis + DB write.
+     - `search <query>`: Natural language / keyword lookup across title, category, tags, and OCR text.
+     - `wallet`: Live display of 11 AI model providers, monthly tokens, and cost savings.
+     - `status`: Pi 4 hardware metrics (temperature, RAM, disk, uptime).
+
+3. **Hermes Skill & Soul Integration**:
+   - Skill installed: `/home/arush/.hermes/skills/omnivault-memory/SKILL.md`.
+   - Section 10 added to `/home/arush/.hermes/SOUL.md` directing Hermes to autonomously ingest images and answer tool queries.
+   - Long-term memory persisted in `/home/arush/.hermes/memories/2026-11-10_omnihub_omnivault_upgrade.md`.
+
+4. **Raspberry Pi 4 ("SRIPII") System Hardening**:
+   - `/etc/sysctl.d/99-omni-pi.conf`: `vm.swappiness = 15`, `vm.vfs_cache_pressure = 50`, `vm.dirty_background_ratio = 5`, `vm.dirty_ratio = 10`, `net.core.somaxconn = 4096`, `net.ipv4.tcp_max_syn_backlog = 4096`, `net.ipv4.tcp_fin_timeout = 15`, `fs.file-max = 2097152`.
+   - `/etc/systemd/journald.conf.d/00-journal-size.conf`: `SystemMaxUse=50M`, `SystemMaxFileSize=10M`.
+   - Systemd Service Limits: `LimitNOFILE=65536` applied to `omni-hub.service`.
+
 

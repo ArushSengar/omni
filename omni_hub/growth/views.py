@@ -2,14 +2,22 @@ import os
 import re
 import json
 import glob
+import uuid
 import shutil
+import secrets
 import sqlite3
 import subprocess
+import logging
 from pathlib import Path
 from datetime import datetime
+from django.conf import settings
+from django.db import transaction
+
+logger = logging.getLogger(__name__)
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login as django_login, logout as django_logout
 from django.contrib.auth.models import User
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import GrowthPost, ResearchTopic, SystemStatus, WeeklyGrowthReview, VaultResource
@@ -479,10 +487,15 @@ def safe_cmd_run(cmd_args, timeout=10, shell=False):
 
 
 def ensure_default_superuser():
-    """Guarantees the default admin user exists for Arush."""
+    """Guarantees the default admin user exists with a secure configurable password."""
+    admin_pass = os.environ.get("OMNI_ADMIN_PASSWORD", "arush@omni2026")
     try:
-        if not User.objects.filter(username="arush").exists():
-            User.objects.create_superuser("arush", "arushsengar495@gmail.com", "arush")
+        user = User.objects.filter(username="arush").first()
+        if not user:
+            User.objects.create_superuser("arush", "arushsengar495@gmail.com", admin_pass)
+        elif not user.has_usable_password():
+            user.set_password(admin_pass)
+            user.save()
     except Exception:
         pass
 
@@ -491,7 +504,7 @@ def login_view(request):
     """Renders the Apple iOS 18 frosted glass lock screen."""
     if request.session.get('omni_auth_verified') or request.user.is_authenticated:
         next_url = request.GET.get('next', '/')
-        if not next_url.startswith('/') or next_url.startswith('//'):
+        if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
             next_url = '/'
         return redirect(next_url)
     return render(request, 'growth/login.html', {
@@ -511,7 +524,7 @@ def logout_view(request):
 
 @csrf_exempt
 def api_auth_login(request):
-    """Validates passcode or username/password and establishes session."""
+    """Validates passcode or username/password and establishes session with timing-safe checks."""
     if request.method != "POST":
         return JsonResponse({"status": "error", "message": "POST required"}, status=405)
     
@@ -539,7 +552,7 @@ def api_auth_login(request):
     auth_user = None
 
     if passcode:
-        if passcode in MASTER_PASSCODES:
+        if any(secrets.compare_digest(passcode, mp) for mp in MASTER_PASSCODES if mp):
             authenticated = True
             try:
                 auth_user = User.objects.filter(username="arush").first()
@@ -556,7 +569,7 @@ def api_auth_login(request):
         if user:
             authenticated = True
             auth_user = user
-        elif username == "arush" and password in MASTER_PASSCODES:
+        elif username == "arush" and any(secrets.compare_digest(password, mp) for mp in MASTER_PASSCODES if mp):
             authenticated = True
             try:
                 auth_user = User.objects.filter(username="arush").first()
@@ -577,7 +590,7 @@ def api_auth_login(request):
             request.session.set_expiry(0)
 
         next_url = str(data.get("next") or request.GET.get("next") or "/").strip()
-        if not next_url.startswith('/') or next_url.startswith('//'):
+        if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
             next_url = '/'
         return JsonResponse({"status": "ok", "message": "Access granted", "redirect": next_url})
     else:
@@ -698,13 +711,17 @@ def api_register_service(request):
     if not svc_id:
         return JsonResponse({"status": "error", "message": "Valid alphanumeric 'name' or 'id' is required"}, status=400)
 
+    raw_unit = str(data.get("unit") or f"{svc_id}.service").strip()
+    if not re.match(r'^[a-zA-Z0-9_\-\.]+\.(service|timer|socket)$', raw_unit):
+        return JsonResponse({"status": "error", "message": "Invalid systemd unit format (must end in .service, .timer, or .socket)"}, status=400)
+
     registered = load_registered_services()
     # Check if already exists
     existing = next((s for s in registered if s["id"] == svc_id), None)
     new_entry = {
         "id": svc_id,
         "name": data.get("name", svc_id),
-        "unit": data.get("unit", f"{svc_id}.service"),
+        "unit": raw_unit,
         "port": data.get("port", "N/A"),
         "desc": data.get("desc", "Custom Registered Service"),
         "category": data.get("category", "Custom"),
@@ -792,8 +809,9 @@ def api_service_action(request):
             })
         elif svc_type == "process":
             if action == "stop":
-                if pid and pid != "0":
-                    subprocess.run(["kill", "-TERM", pid], timeout=5)
+                if not str(pid).isdigit() or int(pid) <= 100:
+                    return JsonResponse({"status": "error", "message": "Invalid PID for process termination"}, status=400)
+                subprocess.run(["kill", "-TERM", str(pid)], timeout=5)
                 return JsonResponse({"status": "ok", "action": action, "pid": pid, "is_active": False, "active_state": "inactive"})
             elif action in ["start", "restart"]:
                 return JsonResponse({"status": "ok", "message": f"Process control '{action}' queued for PID {pid}"})
@@ -1144,8 +1162,9 @@ def api_vault_ingest_image(request):
     file_ext = Path(uploaded_file.name).suffix.lower()
     if file_ext not in [".png", ".jpg", ".jpeg", ".webp"]:
         file_ext = ".png"
+    uid = uuid.uuid4().hex[:8]
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    saved_path = save_dir / f"vault_{ts}{file_ext}"
+    saved_path = save_dir / f"vault_{ts}_{uid}{file_ext}"
 
     with open(saved_path, "wb+") as destination:
         for chunk in uploaded_file.chunks():
@@ -1162,30 +1181,35 @@ def api_vault_ingest_image(request):
         tools_data = omni_vault_engine.parse_and_enrich_text(ocr_text, source_context=f"Screenshot: {uploaded_file.name}")
 
         created_items = []
-        for t in tools_data:
-            tags_str = ",".join(t.get("tags", [])) if isinstance(t.get("tags"), list) else str(t.get("tags", ""))
-            res = VaultResource.objects.create(
-                title=t.get("title", "Unknown Tool"),
-                url=t.get("url", ""),
-                one_liner=t.get("one_liner", "Useful tool discovered via screenshot"),
-                category=t.get("category", "General Tech"),
-                subcategory=t.get("subcategory", ""),
-                tags=tags_str,
-                detailed_summary=t.get("detailed_summary", ""),
-                how_to_use=t.get("how_to_use", ""),
-                safety_status=t.get("safety_status", "SAFE"),
-                safety_notes=t.get("safety_notes", ""),
-                source_type="screenshot",
-                raw_ocr_text=ocr_text[:3000],
-                image_path=str(saved_path),
-            )
-            created_items.append({
-                "id": res.id,
-                "title": res.title,
-                "one_liner": res.one_liner,
-                "category": res.category,
-                "safety_status": res.safety_status
-            })
+        with transaction.atomic():
+            for t in tools_data:
+                tags_str = ",".join(t.get("tags", [])) if isinstance(t.get("tags"), list) else str(t.get("tags", ""))
+                raw_url = str(t.get("url", "")).strip()
+                safe_url = raw_url if omni_vault_engine.is_safe_url(raw_url) else ""
+
+                res = VaultResource.objects.create(
+                    title=t.get("title", "Unknown Tool"),
+                    url=safe_url,
+                    one_liner=t.get("one_liner", "Useful tool discovered via screenshot"),
+                    category=t.get("category", "General Tech"),
+                    subcategory=t.get("subcategory", ""),
+                    tags=tags_str,
+                    detailed_summary=t.get("detailed_summary", ""),
+                    how_to_use=t.get("how_to_use", ""),
+                    safety_status=t.get("safety_status", "SAFE"),
+                    safety_notes=t.get("safety_notes", ""),
+                    source_type="screenshot",
+                    raw_ocr_text=ocr_text[:3000],
+                    image_path=str(saved_path),
+                )
+                created_items.append({
+                    "id": res.id,
+                    "title": res.title,
+                    "one_liner": res.one_liner,
+                    "category": res.category,
+                    "url": res.url,
+                    "safety": res.safety_status,
+                })
 
         return JsonResponse({
             "status": "ok",
@@ -1233,23 +1257,27 @@ def api_vault_ingest_url(request):
             }]
 
         created = []
-        for t in tools:
-            tags_str = ",".join(t.get("tags", [])) if isinstance(t.get("tags"), list) else str(t.get("tags", ""))
-            res = VaultResource.objects.create(
-                title=t.get("title", meta.get("title") or "Web Tool"),
-                url=t.get("url") or url,
-                one_liner=t.get("one_liner", "Useful web resource"),
-                category=t.get("category", "Developer & APIs"),
-                subcategory=t.get("subcategory", ""),
-                tags=tags_str,
-                detailed_summary=t.get("detailed_summary", ""),
-                how_to_use=t.get("how_to_use", ""),
-                safety_status=t.get("safety_status", "SAFE"),
-                safety_notes=t.get("safety_notes", ""),
-                source_type="url",
-                raw_ocr_text=combined_text[:3000]
-            )
-            created.append({"id": res.id, "title": res.title, "one_liner": res.one_liner, "category": res.category})
+        with transaction.atomic():
+            for t in tools:
+                tags_str = ",".join(t.get("tags", [])) if isinstance(t.get("tags"), list) else str(t.get("tags", ""))
+                raw_url = str(t.get("url") or url).strip()
+                safe_url = raw_url if omni_vault_engine.is_safe_url(raw_url) else ""
+
+                res = VaultResource.objects.create(
+                    title=t.get("title", meta.get("title") or "Web Tool"),
+                    url=safe_url,
+                    one_liner=t.get("one_liner", "Useful web resource"),
+                    category=t.get("category", "Developer & APIs"),
+                    subcategory=t.get("subcategory", ""),
+                    tags=tags_str,
+                    detailed_summary=t.get("detailed_summary", ""),
+                    how_to_use=t.get("how_to_use", ""),
+                    safety_status=t.get("safety_status", "SAFE"),
+                    safety_notes=t.get("safety_notes", ""),
+                    source_type="url",
+                    raw_ocr_text=combined_text[:3000]
+                )
+                created.append({"id": res.id, "title": res.title, "one_liner": res.one_liner, "category": res.category})
 
         return JsonResponse({
             "status": "ok",
@@ -1278,23 +1306,27 @@ def api_vault_ingest_text(request):
     try:
         tools = omni_vault_engine.parse_and_enrich_text(text, source_context="Direct Notes / List")
         created = []
-        for t in tools:
-            tags_str = ",".join(t.get("tags", [])) if isinstance(t.get("tags"), list) else str(t.get("tags", ""))
-            res = VaultResource.objects.create(
-                title=t.get("title", "Tool"),
-                url=t.get("url", ""),
-                one_liner=t.get("one_liner", "Practical trick or tool"),
-                category=t.get("category", "General Tech"),
-                subcategory=t.get("subcategory", ""),
-                tags=tags_str,
-                detailed_summary=t.get("detailed_summary", ""),
-                how_to_use=t.get("how_to_use", ""),
-                safety_status=t.get("safety_status", "SAFE"),
-                safety_notes=t.get("safety_notes", ""),
-                source_type="manual",
-                raw_ocr_text=text[:3000]
-            )
-            created.append({"id": res.id, "title": res.title, "one_liner": res.one_liner, "category": res.category})
+        with transaction.atomic():
+            for t in tools:
+                tags_str = ",".join(t.get("tags", [])) if isinstance(t.get("tags"), list) else str(t.get("tags", ""))
+                raw_url = str(t.get("url", "")).strip()
+                safe_url = raw_url if omni_vault_engine.is_safe_url(raw_url) else ""
+
+                res = VaultResource.objects.create(
+                    title=t.get("title", "Tool"),
+                    url=safe_url,
+                    one_liner=t.get("one_liner", "Practical trick or tool"),
+                    category=t.get("category", "General Tech"),
+                    subcategory=t.get("subcategory", ""),
+                    tags=tags_str,
+                    detailed_summary=t.get("detailed_summary", ""),
+                    how_to_use=t.get("how_to_use", ""),
+                    safety_status=t.get("safety_status", "SAFE"),
+                    safety_notes=t.get("safety_notes", ""),
+                    source_type="manual",
+                    raw_ocr_text=text[:3000]
+                )
+                created.append({"id": res.id, "title": res.title, "one_liner": res.one_liner, "category": res.category})
 
         return JsonResponse({
             "status": "ok",
@@ -1311,6 +1343,12 @@ def api_vault_ingest_pdf(request):
     if request.method != "POST":
         return JsonResponse({"status": "error", "message": "POST required"}, status=405)
 
+    if not omni_vault_engine.PdfReader:
+        return JsonResponse({
+            "status": "error",
+            "message": "PyPDF dependency missing. Install with 'pip install pypdf'."
+        }, status=503)
+
     uploaded_file = request.FILES.get("file") or request.FILES.get("pdf")
     if not uploaded_file:
         return JsonResponse({"status": "error", "message": "No PDF file provided"}, status=400)
@@ -1321,8 +1359,9 @@ def api_vault_ingest_pdf(request):
     save_dir = Path.home() / "omni_vault_media" / "pdfs"
     save_dir.mkdir(parents=True, exist_ok=True)
     clean_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', Path(uploaded_file.name).name)
+    uid = uuid.uuid4().hex[:8]
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    saved_path = save_dir / f"vault_{ts}_{clean_name}"
+    saved_path = save_dir / f"vault_{ts}_{uid}_{clean_name}"
 
     with open(saved_path, "wb+") as destination:
         for chunk in uploaded_file.chunks():
@@ -1335,23 +1374,27 @@ def api_vault_ingest_pdf(request):
 
         tools = omni_vault_engine.parse_and_enrich_text(pdf_text, source_context=f"PDF Document: {uploaded_file.name}")
         created = []
-        for t in tools:
-            tags_str = ",".join(t.get("tags", [])) if isinstance(t.get("tags"), list) else str(t.get("tags", ""))
-            res = VaultResource.objects.create(
-                title=t.get("title", "PDF Guide Resource"),
-                url=t.get("url", ""),
-                one_liner=t.get("one_liner", "Useful guide or tool"),
-                category=t.get("category", "Student & Learning"),
-                subcategory=t.get("subcategory", ""),
-                tags=tags_str,
-                detailed_summary=t.get("detailed_summary", ""),
-                how_to_use=t.get("how_to_use", ""),
-                safety_status=t.get("safety_status", "SAFE"),
-                safety_notes=t.get("safety_notes", ""),
-                source_type="pdf",
-                raw_ocr_text=pdf_text[:3000]
-            )
-            created.append({"id": res.id, "title": res.title, "one_liner": res.one_liner, "category": res.category})
+        with transaction.atomic():
+            for t in tools:
+                tags_str = ",".join(t.get("tags", [])) if isinstance(t.get("tags"), list) else str(t.get("tags", ""))
+                raw_url = str(t.get("url", "")).strip()
+                safe_url = raw_url if omni_vault_engine.is_safe_url(raw_url) else ""
+
+                res = VaultResource.objects.create(
+                    title=t.get("title", "PDF Guide Resource"),
+                    url=safe_url,
+                    one_liner=t.get("one_liner", "Useful guide or tool"),
+                    category=t.get("category", "Student & Learning"),
+                    subcategory=t.get("subcategory", ""),
+                    tags=tags_str,
+                    detailed_summary=t.get("detailed_summary", ""),
+                    how_to_use=t.get("how_to_use", ""),
+                    safety_status=t.get("safety_status", "SAFE"),
+                    safety_notes=t.get("safety_notes", ""),
+                    source_type="pdf",
+                    raw_ocr_text=pdf_text[:3000]
+                )
+                created.append({"id": res.id, "title": res.title, "one_liner": res.one_liner, "category": res.category})
 
         return JsonResponse({
             "status": "ok",
@@ -1427,7 +1470,22 @@ def api_vault_delete(request):
     try:
         res = VaultResource.objects.get(id=resource_id)
         title = res.title
+        img_path = res.image_path
         res.delete()
+
+        # Clean up image file on disk if no other resource references it and it's within MEDIA_ROOT
+        if img_path:
+            other_refs = VaultResource.objects.filter(image_path=img_path).exists()
+            if not other_refs and os.path.isabs(img_path) and os.path.isfile(img_path):
+                try:
+                    media_root = os.path.abspath(str(settings.MEDIA_ROOT)) if hasattr(settings, 'MEDIA_ROOT') and settings.MEDIA_ROOT else str(Path.home() / "omni_vault_media")
+                    abs_img = os.path.abspath(img_path)
+                    if abs_img.startswith(media_root):
+                        os.remove(abs_img)
+                        logger.info(f"Unlinked vault image from disk: {abs_img}")
+                except Exception as e:
+                    logger.warning(f"Failed to unlink vault image {img_path}: {e}")
+
         return JsonResponse({"status": "ok", "message": f"Deleted '{title}'."})
     except VaultResource.DoesNotExist:
         return JsonResponse({"status": "error", "message": "Resource not found"}, status=404)

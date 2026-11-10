@@ -54,6 +54,19 @@ CACHE_FILE = Path.home() / ".omnivault_llm_cache.json"
 _PROMPT_CACHE = {}
 _CACHE_LOCK = threading.Lock()
 
+ALLOWED_SCRAPE_PORTS = {None, 80, 443, 8080, 8443}
+
+def _is_ip_restricted(ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """Blocks private, loopback, link-local, reserved, multicast, and unspecified (0.0.0.0/::) IPs."""
+    return (
+        ip_obj.is_private or
+        ip_obj.is_loopback or
+        ip_obj.is_link_local or
+        ip_obj.is_reserved or
+        ip_obj.is_multicast or
+        ip_obj.is_unspecified
+    )
+
 def _load_cache():
     global _PROMPT_CACHE
     if CACHE_FILE.exists():
@@ -63,18 +76,22 @@ def _load_cache():
             _PROMPT_CACHE = {}
 
 def _save_cache():
+    global _PROMPT_CACHE
     with _CACHE_LOCK:
         try:
             if len(_PROMPT_CACHE) > 500:
                 keys = list(_PROMPT_CACHE.keys())[-400:]
-                trimmed = {k: _PROMPT_CACHE[k] for k in keys}
-            else:
-                trimmed = _PROMPT_CACHE
+                _PROMPT_CACHE = {k: _PROMPT_CACHE[k] for k in keys}
+            trimmed = dict(_PROMPT_CACHE)
             cache_dir = CACHE_FILE.parent
             cache_dir.mkdir(parents=True, exist_ok=True)
-            with tempfile.NamedTemporaryFile("w", dir=str(cache_dir), delete=False, encoding="utf-8") as tf:
+            tf = tempfile.NamedTemporaryFile("w", dir=str(cache_dir), delete=False, encoding="utf-8")
+            try:
                 json.dump(trimmed, tf)
+                tf.flush()
                 temp_name = tf.name
+            finally:
+                tf.close()
             os.replace(temp_name, CACHE_FILE)
         except Exception as e:
             print(f"[warn] Failed to atomic write cache: {e}")
@@ -82,12 +99,25 @@ def _save_cache():
 _load_cache()
 
 def is_safe_url(url: str) -> bool:
-    """Verifies that a URL starts with http:// or https:// and has a valid hostname."""
+    """Verifies that a URL starts with http:// or https:// and has a valid, non-private hostname."""
     if not url or not isinstance(url, str):
         return False
     try:
         parsed = urllib.parse.urlsplit(url.strip())
-        return parsed.scheme.lower() in ("http", "https") and bool(parsed.hostname)
+        if parsed.scheme.lower() not in ("http", "https") or not parsed.hostname:
+            return False
+        host = parsed.hostname.lower().strip("[]")
+        if host in ("localhost", "0.0.0.0", "127.0.0.1", "::", "::1", "169.254.169.254"):
+            return False
+        if host.endswith(".local") or host.endswith(".internal"):
+            return False
+        try:
+            ip_obj = ipaddress.ip_address(host)
+            if _is_ip_restricted(ip_obj):
+                return False
+        except ValueError:
+            pass
+        return True
     except Exception:
         return False
 
@@ -105,8 +135,9 @@ VALID_CATEGORIES = [
 def call_llm(messages: List[Dict], max_tokens: int = 1500, temperature: float = 0.25) -> str:
     """Invokes OmniRoute LLM with fallback support and MD5 prompt caching."""
     cache_key = hashlib.md5(json.dumps(messages, sort_keys=True).encode("utf-8")).hexdigest()
-    if cache_key in _PROMPT_CACHE:
-        return _PROMPT_CACHE[cache_key]
+    with _CACHE_LOCK:
+        if cache_key in _PROMPT_CACHE:
+            return _PROMPT_CACHE[cache_key]
 
     payload = {
         "model": MODEL_NAME,
@@ -130,7 +161,8 @@ def call_llm(messages: List[Dict], max_tokens: int = 1500, temperature: float = 
             with urllib.request.urlopen(req, timeout=45) as resp:
                 res = json.loads(resp.read().decode("utf-8"))
                 result_text = res["choices"][0]["message"]["content"].strip()
-                _PROMPT_CACHE[cache_key] = result_text
+                with _CACHE_LOCK:
+                    _PROMPT_CACHE[cache_key] = result_text
                 _save_cache()
                 return result_text
         except Exception as e:
@@ -162,18 +194,23 @@ def ocr_image(image_path: str) -> str:
 
 
 class DisallowPrivateRedirectHandler(urllib.request.HTTPRedirectHandler):
-    """Prevents HTTP 301/302 redirects from routing to private, loopback or internal IPs."""
+    """Prevents HTTP 301/302 redirects from routing to private, loopback, or unspecified IPs."""
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         parsed = urllib.parse.urlsplit(newurl)
         if parsed.scheme.lower() not in ("http", "https"):
             raise urllib.error.HTTPError(newurl, code, "Forbidden redirection scheme", headers, fp)
         hostname = parsed.hostname
-        if not hostname:
-            raise urllib.error.HTTPError(newurl, code, "Missing redirection host", headers, fp)
-        for _, _, _, _, sockaddr in socket.getaddrinfo(hostname, None):
-            ip_obj = ipaddress.ip_address(sockaddr[0])
-            if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_reserved or ip_obj.is_multicast:
-                raise urllib.error.HTTPError(newurl, code, f"Forbidden redirect to private IP {ip_obj}", headers, fp)
+        if not hostname or hostname.lower() in ("localhost", "0.0.0.0", "::", "127.0.0.1"):
+            raise urllib.error.HTTPError(newurl, code, "Restricted destination host", headers, fp)
+        if parsed.port not in ALLOWED_SCRAPE_PORTS:
+            raise urllib.error.HTTPError(newurl, code, f"Forbidden destination port: {parsed.port}", headers, fp)
+        try:
+            for _, _, _, _, sockaddr in socket.getaddrinfo(hostname, None):
+                ip_obj = ipaddress.ip_address(sockaddr[0])
+                if _is_ip_restricted(ip_obj):
+                    raise urllib.error.HTTPError(newurl, code, f"Forbidden redirect to restricted IP {ip_obj}", headers, fp)
+        except socket.gaierror:
+            raise urllib.error.HTTPError(newurl, code, "Failed to resolve redirect host", headers, fp)
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
@@ -189,12 +226,19 @@ def crawl_url_metadata(url: str) -> Dict:
     try:
         parsed = urllib.parse.urlsplit(url)
         if parsed.scheme.lower() not in ("http", "https"):
-            meta["description"] = f"Invalid scheme: {parsed.scheme}. Only HTTP/HTTPS allowed."
+            meta["error"] = f"Invalid scheme: {parsed.scheme}. Only HTTP/HTTPS allowed."
+            meta["description"] = meta["error"]
             return meta
 
         hostname = parsed.hostname
-        if not hostname:
-            meta["description"] = "Invalid URL: missing hostname."
+        if not hostname or hostname.lower() in ("localhost", "0.0.0.0", "::", "127.0.0.1", "::1"):
+            meta["error"] = "Invalid URL: restricted destination host."
+            meta["description"] = meta["error"]
+            return meta
+
+        if parsed.port not in ALLOWED_SCRAPE_PORTS:
+            meta["error"] = f"Security block: Port {parsed.port} is not in allowed scrape ports."
+            meta["description"] = meta["error"]
             return meta
 
         # Resolve hostname and block private, loopback, or reserved IP ranges (SSRF defense)
@@ -202,8 +246,9 @@ def crawl_url_metadata(url: str) -> Dict:
         for _, _, _, _, sockaddr in addr_infos:
             ip_str = sockaddr[0]
             ip_obj = ipaddress.ip_address(ip_str)
-            if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_reserved or ip_obj.is_multicast:
-                meta["description"] = f"Security block: IP {ip_str} is within private/restricted range."
+            if _is_ip_restricted(ip_obj):
+                meta["error"] = f"Security block: IP {ip_str} is within private/restricted range."
+                meta["description"] = meta["error"]
                 return meta
 
         opener = urllib.request.build_opener(DisallowPrivateRedirectHandler())
@@ -471,9 +516,11 @@ def query_vault_ai(user_question: str, saved_resources: List[Dict]) -> str:
 
     # Rank resources by score (descending); prioritize matching items
     ranked = sorted(saved_resources, key=score_resource, reverse=True)
+    matching = [r for r in ranked if score_resource(r) > 0]
+    selected_resources = matching[:10] if matching else ranked[:5]
 
     res_summary = []
-    for r in ranked[:30]: # Provide up to 30 most relevant resources
+    for r in selected_resources:
         res_summary.append({
             "title": r.get("title"),
             "url": r.get("url"),
@@ -504,3 +551,34 @@ INSTRUCTIONS:
         return call_llm(messages, max_tokens=600, temperature=0.5)
     except Exception as e:
         return f"Error consulting OmniVault AI: {e}"
+
+
+def search_vault(query: str, limit: int = 10) -> List[Dict]:
+    """Fuzzy and keyword search across saved vault resources."""
+    try:
+        from .models import VaultResource
+        from django.db.models import Q
+        q_clean = query.strip()
+        qs = VaultResource.objects.filter(
+            Q(title__icontains=q_clean) |
+            Q(one_liner__icontains=q_clean) |
+            Q(category__icontains=q_clean) |
+            Q(tags__icontains=q_clean) |
+            Q(detailed_summary__icontains=q_clean) |
+            Q(raw_ocr_text__icontains=q_clean)
+        ).order_by('-favorite', '-created_at')[:limit]
+        return [
+            {
+                "id": r.id,
+                "title": r.title,
+                "url": r.url,
+                "category": r.category,
+                "one_liner": r.one_liner,
+                "safety_status": r.safety_status,
+                "favorite": r.favorite,
+                "tags": r.tags
+            }
+            for r in qs
+        ]
+    except Exception:
+        return []
