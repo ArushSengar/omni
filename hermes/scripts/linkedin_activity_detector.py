@@ -26,8 +26,14 @@ DOCS_DIR = HOME / "assignments_archive" / "documents"
 MEDIA_DIR = HOME / "assignment_media"
 NOTES_FILE = HOME / "posts" / "notes.md"
 TODAY_NOTES_FILE = HOME / "posts" / "today_notes.txt"
-LEARNINGS_FILE = HOME / ".hermes" / "linkedin_daily" / "daily_learnings.json"
-USED_FILE = HOME / ".hermes" / "linkedin_daily" / "used.json"
+# Core Deduplicator
+try:
+    from omni_deduplicator import OmniDeduplicator
+except ImportError:
+    try:
+        from hermes.scripts.omni_deduplicator import OmniDeduplicator
+    except ImportError:
+        OmniDeduplicator = None
 
 # Curated engineering & student projects backlog when no new docx is due
 BACKLOG_TOPICS = [
@@ -270,6 +276,8 @@ def detect_daily_topic(force_assignment: str = None, force_topic: str = None) ->
     """Selects the best topic for today's post."""
     assignments = get_all_assignments()
     
+    dedup = OmniDeduplicator() if OmniDeduplicator else None
+
     # 1. Force by assignment number
     if force_assignment:
         target_str = str(force_assignment).strip().lstrip('0')
@@ -280,6 +288,7 @@ def detect_daily_topic(force_assignment: str = None, force_topic: str = None) ->
                     "source": "assignment",
                     "assignment_num": a["assignment_num"],
                     "topic": a["topic"],
+                    "category": "Cyber Security & Pentesting",
                     "platform": a["platform"],
                     "context": ref_summary,
                     "labs": a["labs"],
@@ -317,85 +326,94 @@ def detect_daily_topic(force_assignment: str = None, force_topic: str = None) ->
         if p.exists():
             txt = p.read_text().strip()
             if txt and not txt.startswith("#"):
-                return {
+                cand = {
                     "source": "manual_notes",
                     "assignment_num": "",
                     "topic": "Student Lab Notes & Observations",
+                    "category": "Homelab Engineering",
                     "platform": "Homelab",
                     "context": txt,
                     "images": [],
                     "tags": ["CyberSecurity", "LearningInPublic", "StudentDev"]
                 }
+                if not dedup or dedup.evaluate_candidate(cand)[0]:
+                    return cand
                 
-    # 4. Check unposted assignments
-    # Notice: To allow cycling through genuine assignments, we look for assignments
-    # where the assignment number or full title isn't in used
-    used = get_used_topics()
+    # 4. Check unposted assignments via OmniDeduplicator
     for a in assignments:
-        key = f"Assignment {a['assignment_num']}: {a['topic']}"
-        # If not posted or fewer than 2 posts on this assignment
-        if key not in used and a["topic"] not in used:
-            ref_summary = " ".join(a["reflections"]) if a["reflections"] else a["topic"]
-            return {
-                "source": "assignment",
-                "assignment_num": a["assignment_num"],
-                "topic": a["topic"],
-                "category": "Cyber Security & Pentesting",
-                "platform": a["platform"],
-                "context": ref_summary,
-                "labs": a["labs"],
-                "images": a["images"],
-                "tags": ["CyberSecurity", "EthicalHacking", "TryHackMe", "CyberSecuredIndia", "SafeSkillz"]
-            }
-            
-    # 5. Check Backlog Topics (Rotate diverse non-internship builder posts)
-    for b in BACKLOG_TOPICS:
-        if b["topic"] not in used:
-            return {
-                "source": "backlog",
-                "assignment_num": b.get("assignment_num", ""),
-                "topic": b["topic"],
-                "category": b.get("category", "General Engineering"),
-                "platform": b["platform"],
-                "context": b["context"],
-                "images": [],
-                "tags": b["tags"]
-            }
-
-    # 6. Autonomous Research Engine: Trigger when backlog runs out!
-    try:
-        import autonomous_researcher
-        print("[Detector] Backlog exhausted. Invoking Autonomous Researcher for fresh topic...")
-        return autonomous_researcher.research_fresh_topic()
-    except Exception as e:
-        print(f"[warn] Autonomous research fallback ({e}), rotating back through assignments...")
-    if assignments:
-        selected = assignments[0]
-        ref_summary = " ".join(selected["reflections"]) if selected["reflections"] else selected["topic"]
-        return {
-            "source": "assignment_rotation",
-            "assignment_num": selected["assignment_num"],
-            "topic": selected["topic"],
+        ref_summary = " ".join(a["reflections"]) if a["reflections"] else a["topic"]
+        cand = {
+            "source": "assignment",
+            "assignment_num": a["assignment_num"],
+            "topic": a["topic"],
             "category": "Cyber Security & Pentesting",
-            "platform": selected["platform"],
+            "platform": a["platform"],
             "context": ref_summary,
-            "labs": selected["labs"],
-            "images": selected["images"],
+            "labs": a["labs"],
+            "images": a["images"],
             "tags": ["CyberSecurity", "EthicalHacking", "TryHackMe", "CyberSecuredIndia", "SafeSkillz"]
         }
-        
-    # 7. Ultimate loop back through BACKLOG
-    selected_b = BACKLOG_TOPICS[0]
-    return {
-        "source": "backlog_rotation",
-        "assignment_num": selected_b.get("assignment_num", ""),
-        "topic": selected_b["topic"],
-        "category": selected_b.get("category", "General Engineering"),
-        "platform": selected_b["platform"],
-        "context": selected_b["context"],
-        "images": [],
-        "tags": selected_b["tags"]
-    }
+        if dedup:
+            valid, reason, _ = dedup.evaluate_candidate(cand)
+            if valid:
+                print(f"[Detector] Selected unposted assignment #{a['assignment_num']}: {a['topic']}")
+                return cand
+            else:
+                print(f"[Detector] Assignment #{a['assignment_num']} rejected ({reason})")
+        else:
+            used = get_used_topics()
+            key = f"Assignment {a['assignment_num']}: {a['topic']}"
+            if key not in used and a["topic"] not in used:
+                return cand
+            
+    # 5. Check Backlog Topics via OmniDeduplicator
+    for b in BACKLOG_TOPICS:
+        cand = {
+            "source": "backlog",
+            "assignment_num": b.get("assignment_num", ""),
+            "topic": b["topic"],
+            "category": b.get("category", "General Engineering"),
+            "platform": b["platform"],
+            "context": b["context"],
+            "images": [],
+            "tags": b["tags"]
+        }
+        if dedup:
+            valid, reason, _ = dedup.evaluate_candidate(cand)
+            if valid:
+                print(f"[Detector] Selected eligible backlog topic: {b['topic']}")
+                return cand
+            else:
+                print(f"[Detector] Backlog topic '{b['topic']}' rejected ({reason})")
+        else:
+            used = get_used_topics()
+            if b["topic"] not in used:
+                return cand
+
+    # 6. Autonomous Research Engine: All local items exhausted/rejected!
+    print("\n[Detector] All local assignments & backlog items are exhausted or in cooldown.")
+    print("[Detector] Invoking Autonomous Researcher with OmniDeduplicator for a guaranteed unique topic...")
+    try:
+        import autonomous_researcher
+        return autonomous_researcher.research_fresh_topic(dedup=dedup)
+    except Exception as e:
+        print(f"[ERROR] Autonomous research invocation failed: {e}")
+        # Deterministic unique synthesis that avoids all cooldowns
+        for domain_name in ["Linux eBPF Telemetry", "AI Agent Guardrails", "High-Performance Free-Threaded Python"]:
+            fallback_cand = {
+                "source": "autonomous_fallback",
+                "assignment_num": "",
+                "topic": f"Benchmarking {domain_name} under Concurrent Homelab Loads",
+                "category": domain_name,
+                "platform": "Raspberry Pi 4 / Linux",
+                "context": f"Hands-on benchmark analyzing memory overhead and latency profiles in {domain_name}.",
+                "labs": ["perf stat", "sysctl", "htop"],
+                "images": [],
+                "tags": ["Linux", "Homelab", "Performance", "StudentDev"]
+            }
+            if not dedup or dedup.evaluate_candidate(fallback_cand)[0]:
+                return fallback_cand
+        raise RuntimeError("CRITICAL: Failed to discover or generate any non-duplicate topic!")
 
 if __name__ == "__main__":
     t = detect_daily_topic()

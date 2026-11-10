@@ -132,7 +132,8 @@ class OmniGrowthSentinel:
             "recommendations": [
                 f"Active Hook Strategy: Use '{self.state['current_hook_archetype']}' for maximum click-through on 'see more'.",
                 "Mandatory cc: @mentions on all posts to trigger corporate reshares.",
-                "Numbered commands (1, 2, 3) with exact flags and zero generic filler."
+                "Numbered commands (1, 2, 3) with exact flags and zero generic filler.",
+                "STRICT ANTI-AI: Zero conversational preambles (never 'Here is your post:'), zero dividers (---), zero markdown bold asterisks (**)."
             ]
         }
         DIRECTIVES_PATH.write_text(json.dumps(directives, indent=2), encoding="utf-8")

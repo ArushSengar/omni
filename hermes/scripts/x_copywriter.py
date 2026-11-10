@@ -60,7 +60,10 @@ FORMAT RULES:
    - Tweet 2: The concrete 1-2-3 technical breakdown, tools, or commands.
    - Tweet 3: Real learning takeaway + peer discussion question + 2-3 hashtags.
 
-CRITICAL: NEVER mention filenames (.docx) or say "As an AI". Output ONLY the tweet text.
+ANTI-AI & CLEANLINESS RULES (MANDATORY):
+- NEVER output conversational preambles ("Here is your tweet:", "Certainly!", "Sure!").
+- DO NOT use markdown bold asterisks (**) or markdown backticks (`). X does not render markdown. Write commands as plain text or in single quotes.
+- NEVER mention filenames (.docx) or say "As an AI". Output ONLY the tweet text.
 """
 
 
@@ -92,6 +95,79 @@ def call_llm(messages: list, max_tokens: int = 400, temperature: float = 0.65) -
             continue
 
     raise RuntimeError(f"Failed to connect to OmniRoute LLM at {DEFAULT_URLS}: {last_err}")
+
+
+def sanitize_tweet_text(text: str) -> str:
+    """Strips conversational preambles, fences, and raw markdown from tweets."""
+    if not text:
+        return ""
+    text = re.sub(r'^```(?:markdown)?\s*\n', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\n```\s*$', '', text)
+
+    # Strip conversational lead-ins
+    lines = text.splitlines()
+    cleaned = []
+    started = False
+    conversational = [
+        r"^here(?:'s|\s+is|\s+are)\b",
+        r"^certainly\b",
+        r"^sure\b",
+        r"^below is\b",
+        r"^tweet\s*\d*:\s*",
+        r"^post\s*:\s*",
+        r"^single tweet\s*:\s*"
+    ]
+    for l in lines:
+        st = l.strip()
+        if not started:
+            if not st:
+                continue
+            if any(re.match(p, st.lower()) for p in conversational):
+                continue
+            started = True
+        cleaned.append(l)
+
+    text = "\n".join(cleaned).strip()
+    # Strip surrounding quotes
+    text = re.sub(r'^["\']|["\']$', '', text).strip()
+    # Strip raw markdown asterisks and backticks
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+    text = re.sub(r'\*(.*?)\*', r'\1', text)
+    text = re.sub(r'`([^`]+)`', r'\1', text)
+    text = re.sub(r'[\w\-]+\.docx', '', text)
+    return text.strip()
+
+
+def validate_tweets(tweets: list) -> tuple:
+    """Validates generated tweet(s) against length and anti-AI constraints."""
+    if not tweets or not isinstance(tweets, list):
+        return False, "No tweets provided"
+
+    banned = [
+        ".docx", "as an ai", "i am an ai", "chatgpt", "deepseek",
+        "language model", "without breaking a sweat", "dive deep",
+        "delve", "game-changer", "here is your", "here's your",
+        "certainly!", "sure!"
+    ]
+
+    for i, tw in enumerate(tweets, 1):
+        clean_tw = tw.strip()
+        if not clean_tw:
+            return False, f"Tweet {i} is empty"
+        if len(clean_tw) > 280:
+            return False, f"Tweet {i} exceeds 280 characters ({len(clean_tw)} chars)"
+        lower_tw = clean_tw.lower()
+        for b in banned:
+            if b in lower_tw:
+                return False, f"Tweet {i} contains forbidden term: '{b}'"
+        if "**" in clean_tw:
+            return False, f"Tweet {i} contains raw markdown asterisks (**)"
+
+    # Verify hashtags present in thread or single tweet
+    if not any("#" in tw for tw in tweets):
+        return False, "Tweets missing hashtags"
+
+    return True, "Valid"
 
 
 def generate_tweet(topic_data: dict, format_type: str = "single", angle_modifier: str = "") -> dict:
@@ -137,12 +213,13 @@ Task: {format_instruction}
     raw_output = call_llm(messages, max_tokens=400, temperature=0.65)
 
     if format_type == "thread" and "---TWEET---" in raw_output:
-        raw_tweets = [t.strip().strip('"') for t in raw_output.split("---TWEET---") if t.strip()]
+        raw_tweets = [sanitize_tweet_text(t) for t in raw_output.split("---TWEET---") if t.strip()]
         tweets = [smart_tagger.inject_tags_into_tweet(t, topic_data) if i == 0 else t for i, t in enumerate(raw_tweets)]
+        tweets = [sanitize_tweet_text(t) for t in tweets]
     else:
-        cleaned_tweet = raw_output.strip().strip('"')
+        cleaned_tweet = sanitize_tweet_text(raw_output)
         tagged_tweet = smart_tagger.inject_tags_into_tweet(cleaned_tweet, topic_data)
-        tweets = [tagged_tweet]
+        tweets = [sanitize_tweet_text(tagged_tweet)]
 
     counts = [len(t) for t in tweets]
     thesis = tweets[0][:50] if tweets else topic[:50]

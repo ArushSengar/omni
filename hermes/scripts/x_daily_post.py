@@ -91,6 +91,7 @@ def publish_composio_fallback(tweets: list, img_path: str = "") -> list:
 
 def publish(tweets: list, img_path: str = "") -> list:
     """Publish to Twitter using the 100% Free Playwright engine first."""
+    tweets = [x_copywriter.sanitize_tweet_text(t) for t in tweets if x_copywriter.sanitize_tweet_text(t)]
     # Check if cookies exist
     if not COOKIE_FILE.exists():
         print("\n" + "=" * 55)

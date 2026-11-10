@@ -72,6 +72,7 @@ def publish_composio(post_text: str, img_path: str = "") -> str:
 
 def publish(post: str, img_path: str) -> str:
     """Publish via Composio with Playwright fallback."""
+    post = linkedin_copywriter.sanitize_human_post(post)
     try:
         print("[4] Publishing via Composio CLI...")
         return publish_composio(post, img_path)

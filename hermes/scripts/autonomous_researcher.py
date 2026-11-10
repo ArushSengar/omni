@@ -23,6 +23,15 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 
+# Core Deduplicator
+try:
+    from omni_deduplicator import OmniDeduplicator
+except ImportError:
+    try:
+        from hermes.scripts.omni_deduplicator import OmniDeduplicator
+    except ImportError:
+        OmniDeduplicator = None
+
 DEFAULT_URLS = [
     os.environ.get("OMNIROUTE_URL", "http://localhost:20128/v1"),
     "http://192.168.0.100:20128/v1"
@@ -114,31 +123,52 @@ OUTPUT REQUIREMENTS (Respond strictly in valid JSON format):
 CRITICAL: Return ONLY valid JSON. Zero conversational markdown around it.
 """
 
-def get_covered_topics() -> list:
-    """Retrieve all previously researched and used topics."""
+def get_covered_topics_and_banned(dedup=None) -> tuple:
+    """Retrieve all previously researched, published, and banned topics/entities."""
     covered = []
-    if RESEARCH_ARCHIVE.exists():
+    banned_entities = []
+    if dedup:
+        for r in dedup.ledger.records:
+            t = r.get("topic")
+            if t and t not in covered:
+                covered.append(t)
+        banned_entities = list(dedup.ledger.used_assignments)
+    elif RESEARCH_ARCHIVE.exists():
         try:
             data = json.loads(RESEARCH_ARCHIVE.read_text())
             covered = [entry.get("topic", "") for entry in data if entry.get("topic")]
         except Exception:
             covered = []
-    return covered
+    return covered, banned_entities
 
-def research_fresh_topic(preferred_domain: str = None) -> dict:
+def research_fresh_topic(preferred_domain: str = None, dedup=None) -> dict:
     """Autonomously research a fresh, non-repeated technical topic."""
-    covered = get_covered_topics()
+    if dedup is None and OmniDeduplicator:
+        dedup = OmniDeduplicator()
+    covered, banned_assignments = get_covered_topics_and_banned(dedup)
     covered_str = "\n".join(f"- {t}" for t in covered[-25:]) if covered else "None yet"
 
+    # Identify pillars in active cooldown
+    cooling_pillars = dedup.ledger.recent_pillars[:3] if dedup else []
+    eligible_domains = []
+    for d in DOMAINS:
+        p = dedup.ledger.classify_pillar(d["domain"]) if dedup else None
+        if not p or p not in cooling_pillars:
+            eligible_domains.append(d)
+    if not eligible_domains:
+        eligible_domains = DOMAINS
+
     if preferred_domain:
-        selected_domain = next((d for d in DOMAINS if preferred_domain.lower() in d["domain"].lower()), random.choice(DOMAINS))
+        selected_domain = next((d for d in DOMAINS if preferred_domain.lower() in d["domain"].lower()), random.choice(eligible_domains))
     else:
-        # Rotate domain based on least recently researched
-        selected_domain = random.choice(DOMAINS)
+        selected_domain = random.choice(eligible_domains)
+
+    banned_assg_str = f"Exhausted Assignment IDs (NEVER REUSE): {banned_assignments}\n" if banned_assignments else ""
+    banned_entities_note = "NEVER repeat past topics: No SQLite WAL, No Modbus/SCADA ICS, No Azure NSGs, No SUID, No Split-Brain Unbound DNS."
 
     prompt = RESEARCH_PROMPT.format(
         domain=selected_domain["domain"],
-        focus=selected_domain["focus"],
+        focus=f"{selected_domain['focus']}\n{banned_assg_str}{banned_entities_note}",
         covered_topics=covered_str
     )
 
@@ -223,6 +253,33 @@ def research_fresh_topic(preferred_domain: str = None) -> dict:
         "research_metadata": data
     }
 
+    # Validate with OmniDeduplicator
+    if dedup:
+        valid, reason, _ = dedup.evaluate_candidate(topic_data)
+        if not valid:
+            print(f"[Research Engine] Candidate rejected by deduplicator ({reason}). Falling back to safe novel synthesis...")
+            safe_topic = "Profiling Linux Kernel eBPF Telemetry with bpftrace on Homelab ARM64"
+            topic_data = {
+                "source": "autonomous_research",
+                "assignment_num": "",
+                "topic": safe_topic,
+                "category": "Linux Kernel & Systems Engineering",
+                "platform": "Raspberry Pi 4 / Linux ARM64",
+                "context": (
+                    "Technical Problem: High I/O latency under concurrent background tasks.\n"
+                    "Diagnosis: Disk queues blocked due to unbuffered writes in kernel buffer.\n"
+                    "Fix & Commands: Attached bpftrace one-liners to trace block I/O latency.\n"
+                    "Key Commands: bpftrace -e 'kprobe:vfs_read { @start[tid] = nsecs; }', iostat -xz 1\n"
+                    "Real Impact: Pinpointed 120ms block delays and tuned kernel page flushing.\n"
+                    "Takeaway: eBPF provides direct kernel observability without application restarts.\n"
+                    "Question: Have you experimented with eBPF for observability in your homelab?"
+                ),
+                "labs": ["bpftrace", "iostat", "sysctl"],
+                "images": [],
+                "tags": ["Linux", "Kernel", "eBPF", "Observability", "Homelab", "StudentDev"],
+                "research_metadata": {}
+            }
+
     # Save to archive
     all_researched = []
     if RESEARCH_ARCHIVE.exists():
@@ -233,13 +290,13 @@ def research_fresh_topic(preferred_domain: str = None) -> dict:
     
     archive_entry = {
         "timestamp": datetime.now().isoformat(),
-        "topic": data.get("topic"),
-        "domain": data.get("category"),
-        "metadata": data
+        "topic": topic_data.get("topic"),
+        "domain": topic_data.get("category"),
+        "metadata": topic_data.get("research_metadata", {})
     }
     all_researched.append(archive_entry)
     RESEARCH_ARCHIVE.write_text(json.dumps(all_researched, indent=2))
-    print(f"[Research Engine] Researched & Archived: '{data.get('topic')}' in {data.get('category')}")
+    print(f"[Research Engine] Researched & Archived: '{topic_data.get('topic')}' in {topic_data.get('category')}")
 
     return topic_data
 

@@ -45,9 +45,37 @@ def take_shot(page, name: str):
         pass
 
 
+def sanitize_tweet(t: str) -> str:
+    import re
+    t = re.sub(r'^```(?:markdown)?\s*\n', '', t, flags=re.IGNORECASE)
+    t = re.sub(r'\n```\s*$', '', t)
+    lines = t.splitlines()
+    cleaned = []
+    started = False
+    for l in lines:
+        st = l.strip()
+        if not started:
+            if not st:
+                continue
+            if any(st.lower().startswith(p) for p in ["here's", "here is", "certainly", "sure", "tweet"]):
+                continue
+            started = True
+        cleaned.append(l)
+    res = "\n".join(cleaned).strip()
+    res = re.sub(r'^["\']|["\']$', '', res).strip()
+    res = re.sub(r'\*\*(.*?)\*\*', r'\1', res)
+    res = re.sub(r'`([^`]+)`', r'\1', res)
+    return res.strip()
+
+
 def post_to_x(tweets: list, image_path: str = "") -> bool:
     if not tweets:
         print("ERROR: No tweets provided.")
+        return False
+
+    tweets = [sanitize_tweet(t) for t in tweets if sanitize_tweet(t)]
+    if not tweets:
+        print("ERROR: All tweets were empty after sanitization.")
         return False
 
     with sync_playwright() as p:

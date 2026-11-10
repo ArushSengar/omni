@@ -36,6 +36,11 @@ import x_daily_post
 import autonomous_researcher
 import smart_tagger
 
+try:
+    import omni_deduplicator
+except ImportError:
+    from hermes.scripts import omni_deduplicator
+
 GROWTH_LOG = Path.home() / ".hermes" / "growth_engine_history.json"
 GROWTH_LOG.parent.mkdir(parents=True, exist_ok=True)
 
@@ -81,10 +86,11 @@ def run_growth_pipeline(force_assignment=None, force_topic=None, force_research=
     print("=" * 65)
 
     # 1. Topic Selection / Autonomous Research
+    dedup = omni_deduplicator.OmniDeduplicator()
     print("\n[1] Detecting Today's Topic & Technical Backlog...")
     if force_research:
         print("    [Autonomous Researcher] Generating cutting-edge research topic...")
-        topic_data = autonomous_researcher.research_fresh_topic()
+        topic_data = autonomous_researcher.research_fresh_topic(dedup=dedup)
     elif force_assignment:
         topic_data = linkedin_activity_detector.detect_daily_topic(force_assignment=force_assignment)
     elif force_topic:
@@ -92,22 +98,50 @@ def run_growth_pipeline(force_assignment=None, force_topic=None, force_research=
     else:
         topic_data = linkedin_activity_detector.detect_daily_topic()
 
+    # Pre-publish deduplication validation
+    if not (force_assignment or force_topic):
+        valid, reason, _ = dedup.evaluate_candidate(topic_data)
+        if not valid:
+            print(f"    [Deduplicator Override] Topic '{topic_data.get('topic')}' rejected: {reason}")
+            print("    [Growth Engine] Autonomously switching to novel research topic...")
+            topic_data = autonomous_researcher.research_fresh_topic(dedup=dedup)
+
     print(f"    Topic Selected : {topic_data.get('topic')}")
     print(f"    Category       : {topic_data.get('category', 'Engineering')}")
     print(f"    Source         : {topic_data.get('source')}")
     print(f"    Assignment #   : {topic_data.get('assignment_num') or 'N/A'}")
     print(f"    Platform/Lab   : {topic_data.get('platform')}")
 
-    # 2. Compose LinkedIn Long-Form Post with Smart Tagging
+    # 2. Compose LinkedIn Long-Form Post with Smart Tagging & Anti-AI Validation
     print("\n[2.1] Composing LinkedIn Long-Form Post (Human Student Builder Voice)...")
-    li_post, li_thesis, _ = linkedin_copywriter.generate_post(topic_data)
+    li_post = None
+    for attempt in range(3):
+        angle = "" if attempt == 0 else "STRICT: Do not include preambles, dividers (---), or markdown asterisks."
+        post_candidate, li_thesis, _ = linkedin_copywriter.generate_post(topic_data, angle_modifier=angle)
+        ok, reason = linkedin_copywriter.validate_post(post_candidate)
+        if ok:
+            li_post = post_candidate
+            break
+        print(f"    [warn] LinkedIn attempt {attempt + 1} rejected ({reason}), retrying...")
+    if not li_post:
+        li_post = linkedin_copywriter.sanitize_human_post(post_candidate)
     words = len(li_post.split())
     print(f"    LinkedIn Post Generated ({words} words)")
 
-    # 3. Compose X/Twitter Post with Smart Mentions
+    # 3. Compose X/Twitter Post with Smart Mentions & Validation
     print("\n[2.2] Composing X (Twitter) Post with Smart Mentions...")
-    x_result = x_copywriter.generate_tweet(topic_data, format_type="single")
-    x_tweets = x_result["tweets"]
+    x_tweets = None
+    for attempt in range(3):
+        angle = "" if attempt == 0 else "STRICT: Under 250 characters, zero filler, no quotes or preambles."
+        x_result = x_copywriter.generate_tweet(topic_data, format_type="single", angle_modifier=angle)
+        candidate_tweets = x_result["tweets"]
+        ok, reason = x_copywriter.validate_tweets(candidate_tweets)
+        if ok:
+            x_tweets = candidate_tweets
+            break
+        print(f"    [warn] X attempt {attempt + 1} rejected ({reason}), retrying...")
+    if not x_tweets:
+        x_tweets = [x_copywriter.sanitize_tweet_text(candidate_tweets[0])]
     print(f"    X Tweet Generated ({len(x_tweets[0])} chars): {x_tweets[0][:80]}...")
 
     # 4. Generate Visual Proof
@@ -163,28 +197,31 @@ def run_growth_pipeline(force_assignment=None, force_topic=None, force_research=
             print(f"    ❌ X (Twitter) Failed: {e}")
             published_results["x"] = f"failed: {e}"
 
-    # 6. Archive & Sync State to JSON & Django DB
-    log_record = {
-        "timestamp": datetime.now().isoformat(),
-        "topic": topic_data.get("topic"),
-        "category": topic_data.get("category"),
-        "source": topic_data.get("source"),
-        "linkedin_post": li_post,
-        "x_tweets": x_tweets,
-        "image_path": img_path,
-        "results": published_results
-    }
-
-    history = []
-    if GROWTH_LOG.exists():
-        try:
-            history = json.loads(GROWTH_LOG.read_text())
-        except Exception:
-            history = []
-    history.append(log_record)
-    GROWTH_LOG.write_text(json.dumps(history, indent=2))
-
-    record_to_django_db(topic_data, li_post, x_tweets, img_path, published_results)
+    # 6. Archive & Sync State to JSON Ledgers & Django DB Atomically
+    print("\n[5] Synchronizing Published Post across Unified Ledgers...")
+    try:
+        omni_deduplicator.commit_published_record(topic_data, li_post, x_tweets, img_path, published_results)
+    except Exception as e:
+        print(f"    [warn] Unified commit failed ({e}), falling back to standard history log.")
+        log_record = {
+            "timestamp": datetime.now().isoformat(),
+            "topic": topic_data.get("topic"),
+            "category": topic_data.get("category"),
+            "source": topic_data.get("source"),
+            "linkedin_post": li_post,
+            "x_tweets": x_tweets,
+            "image_path": img_path,
+            "results": published_results
+        }
+        history = []
+        if GROWTH_LOG.exists():
+            try:
+                history = json.loads(GROWTH_LOG.read_text())
+            except Exception:
+                history = []
+        history.append(log_record)
+        GROWTH_LOG.write_text(json.dumps(history, indent=2))
+        record_to_django_db(topic_data, li_post, x_tweets, img_path, published_results)
 
     print("\n" + "=" * 65)
     print("🎉 OMNI DAILY GROWTH PIPELINE COMPLETED SUCCESSFULLY!")

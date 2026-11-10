@@ -26,6 +26,35 @@ SHOT_DIR.mkdir(exist_ok=True)
 
 assert POST_TEXT.strip(), "Post text required"
 
+def sanitize_post_text(text: str) -> str:
+    if not text:
+        return ""
+    text = re.sub(r'^```(?:markdown)?\s*\n', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\n```\s*$', '', text)
+    lines = text.splitlines()
+    cleaned = []
+    started = False
+    conversational = [r"^here(?:'s|\s+is|\s+are)\b", r"^certainly\b", r"^sure\b", r"^below is\b", r"^draft\s*:", r"^post\s*:"]
+    for l in lines:
+        st = l.strip()
+        if not started:
+            if not st or re.match(r"^[-=_*~]{3,}$", st):
+                continue
+            if any(re.match(p, st.lower()) for p in conversational):
+                continue
+            started = True
+        if re.match(r"^[-=_*~]{3,}$", st):
+            continue
+        cleaned.append(l)
+    t = "\n".join(cleaned).strip()
+    t = re.sub(r'\*\*(.*?)\*\*', r'\1', t)
+    t = re.sub(r'\*(.*?)\*', r'\1', t)
+    t = re.sub(r'`([^`]+)`', r'\1', t)
+    t = re.sub(r'[\w\-]+\.docx', '', t)
+    return t.strip()
+
+POST_TEXT = sanitize_post_text(POST_TEXT)
+
 # If text contains LinkedIn API mention format @[Name](urn:li:organization:123), convert to @Name for browser typing
 POST_TEXT = re.sub(r'@\[([^\]]+)\]\(urn:li:[^\)]+\)', r'@\1', POST_TEXT)
 

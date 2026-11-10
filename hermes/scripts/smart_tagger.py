@@ -207,6 +207,30 @@ def convert_raw_mentions_to_api(text: str) -> str:
     return text
 
 
+def format_linkedin_footer(text: str, cc_block: str) -> str:
+    """Extracts all hashtags, removes them from body, and attaches clean cc_block + hashtags at the very bottom."""
+    # Find all hashtags in text
+    hashtags = re.findall(r'#([A-Za-z0-9_]+)', text)
+    unique_tags = []
+    for h in hashtags:
+        tag = f"#{h}"
+        if tag not in unique_tags:
+            unique_tags.append(tag)
+    tags_line = " ".join(unique_tags)
+
+    # Remove hashtags from body text
+    body = re.sub(r'#([A-Za-z0-9_]+)', '', text)
+    # Clean multiple blank lines
+    body = re.sub(r'\n{3,}', '\n\n', body).strip()
+
+    parts = [body]
+    if cc_block:
+        parts.append(cc_block)
+    if tags_line:
+        parts.append(tags_line)
+    return "\n\n".join(parts).strip()
+
+
 def relocate_cc_line(text: str) -> str:
     """
     Ensures any 'cc: @...' or 'cc: @[...]' line is placed neatly right above hashtags,
@@ -216,7 +240,6 @@ def relocate_cc_line(text: str) -> str:
     cc_pattern = re.compile(r'(?:^|\n)(cc:\s*(?:@(?:\[[^\]]+\]\(urn:li:[^\)]+\)|[A-Za-z0-9_®\s]+)\s*)+)', re.MULTILINE)
     m = cc_pattern.search(text)
     if not m:
-        # Check inline cc:
         inline_m = re.search(r'(cc:\s*(?:@\[[^\]]+\]\(urn:li:[^\)]+\)\s*)+)', text)
         if not inline_m:
             return text
@@ -226,24 +249,7 @@ def relocate_cc_line(text: str) -> str:
         cc_block = m.group(1).strip()
         text = text[:m.start()] + text[m.end():]
 
-    # Clean double spaces or lines
-    text = re.sub(r'\n{3,}', '\n\n', text).strip()
-
-    # Find hashtags to place cc: right above them
-    lines = text.splitlines()
-    h_idx = -1
-    for i in range(len(lines) - 1, -1, -1):
-        if "#" in lines[i]:
-            h_idx = i
-            break
-
-    if h_idx != -1:
-        lines.insert(h_idx, "")
-        lines.insert(h_idx + 1, cc_block)
-        lines.insert(h_idx + 2, "")
-        return "\n".join(lines).strip()
-    else:
-        return text.strip() + "\n\n" + cc_block
+    return format_linkedin_footer(text, cc_block)
 
 
 def generate_smart_tags(topic_data: dict, platform: str = "linkedin", mode: str = "api") -> Tuple[List[str], str]:
@@ -305,20 +311,7 @@ def inject_tags_into_linkedin(post_content: str, topic_data: dict, mode: str = "
     if not tag_footer:
         return post_content
 
-    lines = post_content.strip().splitlines()
-    hashtag_idx = -1
-    for i in range(len(lines) - 1, -1, -1):
-        if "#" in lines[i]:
-            hashtag_idx = i
-            break
-
-    if hashtag_idx != -1:
-        lines.insert(hashtag_idx, "")
-        lines.insert(hashtag_idx + 1, tag_footer)
-        lines.insert(hashtag_idx + 2, "")
-        return "\n".join(lines).strip()
-    else:
-        return post_content.strip() + "\n\n" + tag_footer
+    return format_linkedin_footer(post_content, tag_footer)
 
 
 def inject_tags_into_tweet(tweet_content: str, topic_data: dict) -> str:

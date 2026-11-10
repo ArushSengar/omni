@@ -57,6 +57,11 @@ BANNED AI CLICHÉS (DO NOT USE UNDER ANY CIRCUMSTANCES):
 * NO bullet points starting with diamond or flame emojis (🔹, 💡, 🔥).
 * NO ChatGPT filler phrases: "in today's fast-paced digital world", "without breaking a sweat", "rock-solid", "delve", "testament to", "game-changer", "dive deep", "seamlessly", "harnessing", "unlock", "crucial role", "pivotal", "fascinating journey".
 
+ANTI-AI & FORMATTING RULES (STRICTLY MANDATORY):
+* Output ONLY the raw post content. NEVER include conversational preambles or greetings like "Here's your LinkedIn post as Arush Sengar:", "Here is the post:", "Certainly!", "Sure!", "Draft:", "Title:", "Headline:".
+* NEVER output horizontal divider lines like "---" or "===". Start IMMEDIATELY on line 1 with the opening hook.
+* DO NOT USE MARKDOWN ASTERISKS (**) OR BACKTICKS (`) ANYWHERE. LinkedIn does not render markdown; it displays raw asterisks and backticks as ugly clutter. Write headings and commands cleanly as plain text or standard capitalization (e.g. 'Student Takeaway:' or 'STUDENT TAKEAWAY:').
+
 POST STRUCTURE:
 1. Scroll-Stopping Hook (Line 1-2):
    - Start with real technical friction, a surprising failure, or a counter-intuitive observation.
@@ -121,6 +126,90 @@ def load_growth_directives() -> str:
     return ""
 
 
+def sanitize_human_post(text: str) -> str:
+    """
+    Strips robotic LLM conversational preambles, horizontal separators,
+    raw markdown asterisks/backticks, and trailing conversational sign-offs.
+    Ensures the post appears 100% human-crafted on LinkedIn.
+    """
+    if not text:
+        return ""
+
+    # Strip code block fences if the LLM wrapped the whole response
+    text = re.sub(r'^```(?:markdown)?\s*\n', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\n```\s*$', '', text)
+
+    lines = text.splitlines()
+    cleaned_lines = []
+    post_started = False
+
+    # Regex patterns for conversational opener lines
+    conversational_patterns = [
+        r"^here(?:['’]?s|\s+is|\s+are)\b",
+        r"^certainly\b",
+        r"^sure\b",
+        r"^below is\b",
+        r"^draft\s*:",
+        r"^post\s*:",
+        r"^linkedin post\b",
+        r".*as arush sengar.*",
+        r".*here(?:['’]?s|\s+is)\s+(?:your\s+)?linkedin\s+post.*",
+        r"^as arush sengar\b",
+        r"^here is your post\b",
+        r"^title\s*:",
+        r"^headline\s*:",
+    ]
+
+    for line in lines:
+        stripped = line.strip()
+
+        # If we haven't found the actual post start yet:
+        if not post_started:
+            if not stripped:
+                continue
+            # Skip divider lines like ---, ===, ***, ___
+            if re.match(r"^[-=_*~]{3,}$", stripped):
+                continue
+            # Skip conversational introductions
+            lower = stripped.lower()
+            if any(re.match(p, lower) for p in conversational_patterns):
+                continue
+            # If it passed these, this is the first real line of the post
+            post_started = True
+
+        # If post already started, filter out horizontal rules (e.g. ---)
+        if re.match(r"^[-=_*~]{3,}$", stripped):
+            continue
+
+        # Check for conversational trailing sign-offs
+        lower = stripped.lower()
+        if any(lower.startswith(p) for p in [
+            "hope this helps", "let me know if", "feel free to modify", "feel free to tweak"
+        ]):
+            break
+
+        cleaned_lines.append(line)
+
+    text = "\n".join(cleaned_lines).strip()
+
+    # Clean raw markdown asterisks (LinkedIn does not render **bold**)
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+    text = re.sub(r'\*(.*?)\*', r'\1', text)
+    text = text.replace('**', '')
+
+    # Clean raw backticks (LinkedIn does not render `code`)
+    text = re.sub(r'`([^`]+)`', r'\1', text)
+    text = text.replace('`', '')
+
+    # Clean markdown headers (# Header)
+    text = re.sub(r'^[#]+\s*', '', text, flags=re.MULTILINE)
+
+    # Clean any leftover standalone artifacts or docx references
+    text = re.sub(r'[\w\-]+\.docx', '', text)
+
+    return text.strip()
+
+
 def generate_post(topic_data: dict, angle_modifier: str = "") -> tuple:
     topic = topic_data.get("topic", "Cyber Security Engineering")
     category = topic_data.get("category", "")
@@ -149,7 +238,7 @@ Lab Details & Context:
 Requirements:
 - Sound like a real student sharing an actual lab milestone.
 - Explain the real escalation or exploit vector clearly.
-- Output ONLY the final LinkedIn post."""
+- Output ONLY the final LinkedIn post. Zero preambles, zero dividers (---), zero markdown asterisks."""
     else:
         user_prompt = f"""Write an authentic, human LinkedIn post as Arush Sengar about:
 Topic: {topic}
@@ -165,7 +254,7 @@ Technical Context:
 Requirements:
 - Candid student builder voice (Raspberry Pi 4 / homelab / cyber security student).
 - Numbered breakdown (1, 2, 3) of the actual fix or discovery.
-- Output ONLY the final LinkedIn post."""
+- Output ONLY the final LinkedIn post. Zero preambles, zero dividers (---), zero markdown asterisks."""
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -174,11 +263,14 @@ Requirements:
 
     raw_output = call_llm(messages, max_tokens=850, temperature=0.65)
 
-    # Clean formatting
-    clean_post = re.sub(r'[\w\-]+\.docx', '', raw_output).strip()
+    # Strict anti-AI & anti-preamble sanitization
+    clean_post = sanitize_human_post(raw_output)
 
     # Apply Context-Aware Smart Tagging
     tagged_post = smart_tagger.inject_tags_into_linkedin(clean_post, topic_data)
+
+    # Second pass sanitize to guarantee clean plain text
+    tagged_post = sanitize_human_post(tagged_post)
 
     first_line = tagged_post.split("\n")[0].strip()
     thesis = re.sub(r'^[🚀\s\-•*#]+', '', first_line)[:60].strip()
@@ -194,8 +286,26 @@ def validate_post(post: str) -> tuple:
         return False, f"Post too short ({len(words)} words)"
     if len(words) > 280:
         return False, f"Post too long ({len(words)} words, max 280)"
-    banned = [".docx", "as an ai", "i am an ai", "chatgpt", "deepseek", "language model", "without breaking a sweat"]
+
     lower_post = post.lower()
+    for forbidden in [
+        "here's your", "here is your", "here's a", "here is a",
+        "certainly", "sure,", "sure!", "draft:", "below is",
+        "title:", "as arush sengar", "linkedin post:"
+    ]:
+        if forbidden in lower_post[:120]:
+            return False, f"Post starts with conversational AI preamble: contains '{forbidden}'"
+
+    if "---" in post or "===" in post:
+        return False, "Post contains raw divider lines"
+
+    if "**" in post:
+        return False, "Post contains raw markdown asterisks (**)"
+
+    if "`" in post:
+        return False, "Post contains raw markdown backticks (`)"
+
+    banned = [".docx", "as an ai", "i am an ai", "chatgpt", "deepseek", "language model", "without breaking a sweat", "game-changer"]
     for b in banned:
         if b in lower_post:
             return False, f"Post contains forbidden term: '{b}'"
