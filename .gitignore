@@ -41,3 +41,7 @@ ENV/
 Thumbs.db
 desktop.ini
 
+
+# Agent teamwork cache
+.agents/
+
