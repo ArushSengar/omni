@@ -24,7 +24,8 @@ PROFILE = "/home/arush/.linkedin-profile"
 SHOT_DIR = Path("/home/arush/.linkedin-profile/shots")
 SHOT_DIR.mkdir(exist_ok=True)
 
-assert POST_TEXT.strip(), "Post text required"
+if not POST_TEXT.strip():
+    sys.exit("Error: Post text cannot be empty.")
 
 def sanitize_post_text(text: str) -> str:
     """Strips conversational preambles, fences, and raw markdown from LinkedIn posts."""

@@ -20,6 +20,8 @@ import json
 import hashlib
 import ipaddress
 import socket
+import threading
+import tempfile
 import urllib.parse
 import urllib.request
 import urllib.error
@@ -50,6 +52,7 @@ MODEL_NAME = os.environ.get("DAILY_MODEL", "auto/best-chat")
 # Persistent MD5 In-Memory & Disk Query Cache (0ms latency & 0 API cost for repeat queries)
 CACHE_FILE = Path.home() / ".omnivault_llm_cache.json"
 _PROMPT_CACHE = {}
+_CACHE_LOCK = threading.Lock()
 
 def _load_cache():
     global _PROMPT_CACHE
@@ -60,17 +63,33 @@ def _load_cache():
             _PROMPT_CACHE = {}
 
 def _save_cache():
-    try:
-        if len(_PROMPT_CACHE) > 500:
-            keys = list(_PROMPT_CACHE.keys())[-400:]
-            trimmed = {k: _PROMPT_CACHE[k] for k in keys}
-        else:
-            trimmed = _PROMPT_CACHE
-        CACHE_FILE.write_text(json.dumps(trimmed), encoding="utf-8")
-    except Exception:
-        pass
+    with _CACHE_LOCK:
+        try:
+            if len(_PROMPT_CACHE) > 500:
+                keys = list(_PROMPT_CACHE.keys())[-400:]
+                trimmed = {k: _PROMPT_CACHE[k] for k in keys}
+            else:
+                trimmed = _PROMPT_CACHE
+            cache_dir = CACHE_FILE.parent
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile("w", dir=str(cache_dir), delete=False, encoding="utf-8") as tf:
+                json.dump(trimmed, tf)
+                temp_name = tf.name
+            os.replace(temp_name, CACHE_FILE)
+        except Exception as e:
+            print(f"[warn] Failed to atomic write cache: {e}")
 
 _load_cache()
+
+def is_safe_url(url: str) -> bool:
+    """Verifies that a URL starts with http:// or https:// and has a valid hostname."""
+    if not url or not isinstance(url, str):
+        return False
+    try:
+        parsed = urllib.parse.urlsplit(url.strip())
+        return parsed.scheme.lower() in ("http", "https") and bool(parsed.hostname)
+    except Exception:
+        return False
 
 VALID_CATEGORIES = [
     "AI & LLM Tools",
@@ -142,8 +161,24 @@ def ocr_image(image_path: str) -> str:
         return ""
 
 
+class DisallowPrivateRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Prevents HTTP 301/302 redirects from routing to private, loopback or internal IPs."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        parsed = urllib.parse.urlsplit(newurl)
+        if parsed.scheme.lower() not in ("http", "https"):
+            raise urllib.error.HTTPError(newurl, code, "Forbidden redirection scheme", headers, fp)
+        hostname = parsed.hostname
+        if not hostname:
+            raise urllib.error.HTTPError(newurl, code, "Missing redirection host", headers, fp)
+        for _, _, _, _, sockaddr in socket.getaddrinfo(hostname, None):
+            ip_obj = ipaddress.ip_address(sockaddr[0])
+            if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_reserved or ip_obj.is_multicast:
+                raise urllib.error.HTTPError(newurl, code, f"Forbidden redirect to private IP {ip_obj}", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def crawl_url_metadata(url: str) -> Dict:
-    """Scrapes page title, meta description, and primary content from a URL with SSRF protection."""
+    """Scrapes page title, meta description, and primary content from a URL with SSRF & redirect defense."""
     meta = {
         "url": url,
         "title": "",
@@ -171,14 +206,20 @@ def crawl_url_metadata(url: str) -> Dict:
                 meta["description"] = f"Security block: IP {ip_str} is within private/restricted range."
                 return meta
 
+        opener = urllib.request.build_opener(DisallowPrivateRedirectHandler())
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
         }
         req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=12) as response:
+        with opener.open(req, timeout=12) as response:
             meta["status_code"] = response.getcode()
-            html = response.read().decode("utf-8", errors="replace")
+            content_type = response.headers.get("Content-Type", "").lower()
+            if "text/html" not in content_type and "application/xhtml" not in content_type:
+                meta["description"] = f"Skipped non-HTML Content-Type: {content_type}"
+                return meta
+            raw_bytes = response.read(512 * 1024)  # Cap read at 512KB to protect RAM
+            html = raw_bytes.decode("utf-8", errors="replace")
 
         if BeautifulSoup:
             soup = BeautifulSoup(html, "html.parser")
@@ -324,6 +365,8 @@ Return strictly a valid JSON array."""
             item["category"] = cat
             if not item.get("safety_status"):
                 item["safety_status"] = "SAFE"
+            raw_url = str(item.get("url", "")).strip()
+            item["url"] = raw_url if is_safe_url(raw_url) else ""
             sanitized.append(item)
 
         return sanitized

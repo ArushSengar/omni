@@ -8,12 +8,25 @@ import shutil
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-0m8eu3odnlj$#hxbfi$!3+y6n0*qw-v^#(s@w64$kzt3oc&!0o')
+import secrets
 
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+SECRET_KEY = os.environ.get('SECRET_KEY') or 'django-insecure-0m8eu3odnlj$#hxbfi$!3+y6n0*qw-v^#(s@w64$kzt3oc&!0o'
 
-ALLOWED_HOSTS = ['*']
-CSRF_TRUSTED_ORIGINS = ['https://*.vercel.app']
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1')
+
+ALLOWED_HOSTS = [
+    host.strip() for host in os.environ.get(
+        'DJANGO_ALLOWED_HOSTS',
+        '*,localhost,127.0.0.1,192.168.0.100,192.168.0.101,arush'
+    ).split(',') if host.strip()
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip() for origin in os.environ.get(
+        'CSRF_TRUSTED_ORIGINS',
+        'http://localhost:8000,http://127.0.0.1:8000,http://192.168.0.100:8000,https://*.vercel.app'
+    ).split(',') if origin.strip()
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -69,6 +82,9 @@ if IS_VERCEL:
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': tmp_db if tmp_db.parent.exists() else orig_db,
+            'OPTIONS': {
+                'timeout': 20,
+            }
         }
     }
 else:
@@ -76,6 +92,9 @@ else:
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
+            'OPTIONS': {
+                'timeout': 20,
+            }
         }
     }
 

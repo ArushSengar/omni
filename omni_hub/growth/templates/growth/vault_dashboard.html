@@ -560,6 +560,26 @@
             document.getElementById("stat-favorites").innerText = favCount;
         }
 
+        // Security Sanitizers (XSS & Protocol Protection)
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function sanitizeUrl(url) {
+            if (!url) return '';
+            const clean = String(url).trim();
+            if (/^https?:\/\//i.test(clean)) {
+                return escapeHtml(clean);
+            }
+            return '';
+        }
+
         function renderGrid(items) {
             const grid = document.getElementById("vault-grid");
             if (!items || items.length === 0) {
@@ -604,7 +624,7 @@
                                     <span class="w-6 h-6 rounded-lg bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-slate-400 text-[11px]">
                                         <i class="fa-solid ${sourceIcon}"></i>
                                     </span>
-                                    <h3 class="font-bold text-white text-sm group-hover:text-indigo-300 transition truncate">${item.title}</h3>
+                                    <h3 class="font-bold text-white text-sm group-hover:text-indigo-300 transition truncate">${escapeHtml(item.title)}</h3>
                                 </div>
                                 <div class="flex items-center space-x-1 flex-shrink-0">
                                     <button onclick="toggleFav(${item.id})" class="p-1 text-sm ${favClass} transition active:scale-90" title="Star Favorite">
@@ -619,13 +639,13 @@
                             <!-- Punchy 1-Liner Purpose -->
                             <div class="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3">
                                 <p class="text-xs text-indigo-200/90 font-medium leading-relaxed">
-                                    ${item.one_liner}
+                                    ${escapeHtml(item.one_liner)}
                                 </p>
                             </div>
 
                             <!-- Category & Safety Tier -->
                             <div class="flex items-center justify-between text-[11px]">
-                                <span class="text-slate-400 font-medium truncate">${item.category}</span>
+                                <span class="text-slate-400 font-medium truncate">${escapeHtml(item.category)}</span>
                                 <span class="px-2 py-0.5 rounded-full text-[9.5px] font-mono border ${badgeClass}">
                                     ${item.safety_status}
                                 </span>
@@ -643,8 +663,8 @@
                                 <span>Inspect Details</span>
                                 <i class="fa-solid fa-chevron-right text-[9px] ml-0.5"></i>
                             </button>
-                            ${item.url ? `
-                                <a href="${item.url}" target="_blank" class="text-slate-400 hover:text-white flex items-center space-x-1 transition">
+                            ${sanitizeUrl(item.url) ? `
+                                <a href="${sanitizeUrl(item.url)}" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-white flex items-center space-x-1 transition">
                                     <span class="font-mono text-[11px]">Visit</span>
                                     <i class="fa-solid fa-external-link text-[9px]"></i>
                                 </a>
@@ -774,10 +794,10 @@
                 <div onclick="selectSpotlightItem(${item.id})" class="p-3 rounded-xl hover:bg-white/[0.07] border border-transparent hover:border-white/10 flex items-center justify-between cursor-pointer transition group">
                     <div class="space-y-0.5 truncate">
                         <div class="flex items-center space-x-2">
-                            <span class="font-bold text-white text-xs group-hover:text-indigo-300 transition">${item.title}</span>
+                            <span class="font-bold text-white text-xs group-hover:text-indigo-300 transition">${escapeHtml(item.title)}</span>
                             <span class="text-[9.5px] font-mono text-slate-400 bg-white/[0.05] px-1.5 py-0.2 rounded border border-white/[0.06]">${item.category}</span>
                         </div>
-                        <p class="text-[11px] text-slate-400 truncate">${item.one_liner}</p>
+                        <p class="text-[11px] text-slate-400 truncate">${escapeHtml(item.one_liner)}</p>
                     </div>
                     <i class="fa-solid fa-chevron-right text-[10px] text-slate-600 group-hover:text-white transition ml-3"></i>
                 </div>

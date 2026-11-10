@@ -812,13 +812,23 @@
                 </div>
             </div>
             <div class="flex-1 bg-white">
-                <iframe id="report-iframe" src="" class="w-full h-full border-0"></iframe>
+                <iframe id="report-iframe" src="" sandbox="allow-same-origin" class="w-full h-full border-0"></iframe>
             </div>
         </div>
     </div>
 
     <!-- Frontend Interactive Logic -->
     <script>
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -894,8 +904,8 @@
                                 <span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">${svc.category}</span>
                                 ${svc.auto_discovered ? '<span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-950 text-indigo-400 border border-indigo-800">Auto</span>' : ''}
                             </div>
-                            <h3 class="text-base font-bold text-white mt-1.5">${svc.name}</h3>
-                            <p class="text-xs text-slate-400 mt-0.5 font-mono truncate max-w-[220px]" title="${svc.unit}">${svc.unit}</p>
+                            <h3 class="text-base font-bold text-white mt-1.5">${escapeHtml(svc.name)}</h3>
+                            <p class="text-xs text-slate-400 mt-0.5 font-mono truncate max-w-[220px]" title="${escapeHtml(svc.unit)}">${escapeHtml(svc.unit)}</p>
                         </div>
                         <span id="svc-badge-${svc.id}" class="text-xs px-2.5 py-1 rounded-full font-mono font-bold flex items-center space-x-1.5 ${svc.is_active ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'}">
                             <span class="w-1.5 h-1.5 rounded-full ${svc.is_active ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}"></span>
@@ -903,7 +913,7 @@
                         </span>
                     </div>
 
-                    <p class="text-xs text-slate-300 leading-relaxed">${svc.desc}</p>
+                    <p class="text-xs text-slate-300 leading-relaxed">${escapeHtml(svc.desc)}</p>
 
                     <div class="flex items-center justify-between font-mono text-xs text-slate-400 pt-2 border-t border-slate-800/80">
                         <span>Port: <strong class="text-slate-200">${svc.port}</strong></span>

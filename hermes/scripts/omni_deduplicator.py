@@ -419,8 +419,11 @@ def commit_published_record(topic_data: dict, linkedin_post: str, x_tweets: list
     for db_path in DJANGO_DB_PATHS:
         if db_path.exists():
             try:
-                conn = sqlite3.connect(str(db_path))
+                conn = sqlite3.connect(str(db_path), timeout=20)
                 cur = conn.cursor()
+                cur.execute("PRAGMA journal_mode=WAL;")
+                cur.execute("PRAGMA synchronous=NORMAL;")
+                cur.execute("PRAGMA busy_timeout=5000;")
                 cur.execute("""
                     INSERT INTO growth_growthpost 
                     (title, domain, source, linkedin_content, twitter_content, image_path, status, linkedin_urn, twitter_url, likes, views, comments, created_at)

@@ -43,6 +43,29 @@ except Exception as e:
     print(f"[warn] Django ORM initialization note: {e}")
 
 
+def save_vault_resource(tool_data: dict, source_type: str, raw_text: str = "", image_path: str = "") -> VaultResource:
+    """Helper to persist an enriched tool dictionary into VaultResource ORM with safe URLs."""
+    tags = tool_data.get("tags", [])
+    tags_str = ",".join(tags) if isinstance(tags, list) else str(tags)
+    raw_url = str(tool_data.get("url", "")).strip()
+    safe_url = raw_url if omni_vault_engine.is_safe_url(raw_url) else ""
+    return VaultResource.objects.create(
+        title=tool_data.get("title", "Tool"),
+        url=safe_url,
+        one_liner=tool_data.get("one_liner", "Useful tool or trick"),
+        category=tool_data.get("category", "Developer & APIs"),
+        subcategory=tool_data.get("subcategory", ""),
+        tags=tags_str,
+        detailed_summary=tool_data.get("detailed_summary", ""),
+        how_to_use=tool_data.get("how_to_use", ""),
+        safety_status=tool_data.get("safety_status", "SAFE"),
+        safety_notes=tool_data.get("safety_notes", ""),
+        source_type=source_type,
+        raw_ocr_text=raw_text[:3000],
+        image_path=str(image_path) if image_path else ""
+    )
+
+
 def ingest_image_cli(img_path: str):
     if not os.path.exists(img_path):
         print(f"❌ Error: Image file not found at {img_path}")
@@ -57,22 +80,7 @@ def ingest_image_cli(img_path: str):
     print(f"   Discovered {len(tools)} distinct tool(s)!")
 
     for t in tools:
-        tags_str = ",".join(t.get("tags", [])) if isinstance(t.get("tags"), list) else str(t.get("tags", ""))
-        res = VaultResource.objects.create(
-            title=t.get("title", "Tool"),
-            url=t.get("url", ""),
-            one_liner=t.get("one_liner", "Discovered tool"),
-            category=t.get("category", "General Tech"),
-            subcategory=t.get("subcategory", ""),
-            tags=tags_str,
-            detailed_summary=t.get("detailed_summary", ""),
-            how_to_use=t.get("how_to_use", ""),
-            safety_status=t.get("safety_status", "SAFE"),
-            safety_notes=t.get("safety_notes", ""),
-            source_type="screenshot",
-            raw_ocr_text=ocr_text[:3000],
-            image_path=str(img_path)
-        )
+        res = save_vault_resource(t, source_type="screenshot", raw_text=ocr_text, image_path=str(img_path))
         print(f"\n   ✅ SAVED: {res.title} [{res.category}]")
         print(f"      Target: {res.url or 'N/A'}")
         print(f"      Purpose: {res.one_liner}")
@@ -96,21 +104,7 @@ def ingest_url_cli(url: str):
         }]
 
     for t in tools:
-        tags_str = ",".join(t.get("tags", [])) if isinstance(t.get("tags"), list) else str(t.get("tags", ""))
-        res = VaultResource.objects.create(
-            title=t.get("title", "Web Tool"),
-            url=t.get("url") or url,
-            one_liner=t.get("one_liner", "Useful web resource"),
-            category=t.get("category", "Developer & APIs"),
-            subcategory=t.get("subcategory", ""),
-            tags=tags_str,
-            detailed_summary=t.get("detailed_summary", ""),
-            how_to_use=t.get("how_to_use", ""),
-            safety_status=t.get("safety_status", "SAFE"),
-            safety_notes=t.get("safety_notes", ""),
-            source_type="url",
-            raw_ocr_text=combined[:3000]
-        )
+        res = save_vault_resource(t, source_type="url", raw_text=combined)
         print(f"\n   ✅ SAVED: {res.title} [{res.category}]")
         print(f"      URL: {res.url}")
         print(f"      Purpose: {res.one_liner}")
@@ -120,21 +114,7 @@ def ingest_text_cli(text: str):
     print("📝 Parsing input text and decomposing tools...")
     tools = omni_vault_engine.parse_and_enrich_text(text, source_context="CLI Notes")
     for t in tools:
-        tags_str = ",".join(t.get("tags", [])) if isinstance(t.get("tags"), list) else str(t.get("tags", ""))
-        res = VaultResource.objects.create(
-            title=t.get("title", "Tool"),
-            url=t.get("url", ""),
-            one_liner=t.get("one_liner", "Useful trick or tool"),
-            category=t.get("category", "General Tech"),
-            subcategory=t.get("subcategory", ""),
-            tags=tags_str,
-            detailed_summary=t.get("detailed_summary", ""),
-            how_to_use=t.get("how_to_use", ""),
-            safety_status=t.get("safety_status", "SAFE"),
-            safety_notes=t.get("safety_notes", ""),
-            source_type="manual",
-            raw_ocr_text=text[:3000]
-        )
+        res = save_vault_resource(t, source_type="manual", raw_text=text)
         print(f"\n   ✅ SAVED: {res.title} [{res.category}]")
         print(f"      Purpose: {res.one_liner}")
 
@@ -156,21 +136,7 @@ def ingest_pdf_cli(pdf_path: str):
     print(f"   Discovered {len(tools)} distinct tool(s)!")
 
     for t in tools:
-        tags_str = ",".join(t.get("tags", [])) if isinstance(t.get("tags"), list) else str(t.get("tags", ""))
-        res = VaultResource.objects.create(
-            title=t.get("title", "Tool"),
-            url=t.get("url", ""),
-            one_liner=t.get("one_liner", "Discovered tool"),
-            category=t.get("category", "General Tech"),
-            subcategory=t.get("subcategory", ""),
-            tags=tags_str,
-            detailed_summary=t.get("detailed_summary", ""),
-            how_to_use=t.get("how_to_use", ""),
-            safety_status=t.get("safety_status", "SAFE"),
-            safety_notes=t.get("safety_notes", ""),
-            source_type="pdf",
-            raw_ocr_text=text[:3000]
-        )
+        res = save_vault_resource(t, source_type="pdf", raw_text=text)
         print(f"\n   ✅ SAVED: {res.title} [{res.category}]")
         print(f"      Target: {res.url or 'N/A'}")
         print(f"      Purpose: {res.one_liner}")

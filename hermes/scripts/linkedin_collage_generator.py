@@ -413,12 +413,12 @@ def render_authentic_terminal_card(out_path: str, category: str = "", topic: str
         
         # Query live stats from Pi if possible
         try:
-            uptime_p = subprocess.check_output("uptime -p", shell=True, text=True).strip()
+            uptime_p = subprocess.check_output(["uptime", "-p"], text=True).strip()
         except Exception:
             uptime_p = "up 4 hours, 58 minutes"
             
         try:
-            free_lines = subprocess.check_output("free -h", shell=True, text=True).strip().splitlines()
+            free_lines = subprocess.check_output(["free", "-h"], text=True).strip().splitlines()
         except Exception:
             free_lines = [
                 "               total        used        free      shared  buff/cache   available",

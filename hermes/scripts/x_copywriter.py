@@ -35,7 +35,7 @@ if not API_KEY and (Path.home() / ".hermes" / ".env").exists():
         pass
 
 if not API_KEY:
-    API_KEY = "sk-971230e546e14a3e-23822a-06e1aa8d"
+    API_KEY = os.environ.get("OMNIROUTE_API_KEY", "")
 
 MODEL = os.environ.get("DAILY_MODEL", "auto/best-chat")
 DIRECTIVES_FILE = Path.home() / ".hermes" / "growth_manager_directives.json"
@@ -231,6 +231,12 @@ Task: {format_instruction}
         cleaned_tweet = sanitize_tweet_text(raw_output)
         tagged_tweet = smart_tagger.inject_tags_into_tweet(cleaned_tweet, topic_data)
         tweets = [sanitize_tweet_text(tagged_tweet)]
+
+    valid, reason = validate_tweets(tweets)
+    if not valid:
+        print(f"[warn] Tweet validation notice: {reason}. Applying auto-formatting...")
+        tweets = [t[:275] + "..." if len(t) > 280 else t for t in tweets]
+        tweets = [sanitize_tweet_text(t) for t in tweets]
 
     counts = [len(t) for t in tweets]
     thesis = tweets[0][:50] if tweets else topic[:50]

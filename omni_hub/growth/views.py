@@ -415,10 +415,14 @@ def reports_view(request):
     return render(request, "growth/reports_list.html", {"reports": get_reports_list()})
 
 def view_single_report(request, filename):
+    if not filename.endswith(".html") or "/" in filename or "\\" in filename:
+        return HttpResponse("Invalid report filename", status=400)
     reports_dir = (Path(__file__).resolve().parent / "templates" / "growth" / "reports").resolve()
     target = (reports_dir / filename).resolve()
     if target.is_relative_to(reports_dir) and target.exists() and target.is_file():
-        return HttpResponse(target.read_text(encoding="utf-8"), content_type="text/html")
+        response = HttpResponse(target.read_text(encoding="utf-8"), content_type="text/html")
+        response["Content-Security-Policy"] = "default-src 'self' 'unsafe-inline'; script-src 'none';"
+        return response
     return HttpResponse("Report not found", status=404)
 
 # ==================== JSON API ENDPOINTS ====================
@@ -681,10 +685,10 @@ def api_weekly_review(request):
 
 @csrf_exempt
 def api_dispatch_laptop(request):
-    """Dispatches a task from the Omni Hub to the Laptop Hermes worker node."""
+    """Dispatches a task from the Omni Hub to the Laptop Hermes worker node with input limits."""
     if request.method != "POST":
         return JsonResponse({"status": "error", "message": "POST required"}, status=405)
-    
+
     try:
         data = json.loads(request.body.decode("utf-8")) if request.body else {}
     except Exception:
@@ -693,9 +697,13 @@ def api_dispatch_laptop(request):
     prompt = data.get("prompt", "").strip()
     if not prompt:
         return JsonResponse({"status": "error", "message": "Prompt is required"}, status=400)
+    if len(prompt) > 4000:
+        return JsonResponse({"status": "error", "message": "Prompt exceeds 4000 character maximum limit"}, status=400)
 
-    mode = data.get("mode", "sync")  # sync (dm) or async (run)
-    hermes_bin = "/home/arush/.local/bin/hermes"
+    mode = "async" if data.get("mode") == "async" else "sync"
+    hermes_bin = shutil.which("hermes") or str(Path.home() / ".local" / "bin" / "hermes")
+    if not Path(hermes_bin).exists() and not shutil.which("hermes"):
+        return JsonResponse({"status": "error", "message": "Hermes binary not found on host"}, status=503)
 
     try:
         if mode == "async":
@@ -812,6 +820,9 @@ def api_vault_ingest_image(request):
     uploaded_file = request.FILES.get("file") or request.FILES.get("image")
     if not uploaded_file:
         return JsonResponse({"status": "error", "message": "No image file provided"}, status=400)
+
+    if uploaded_file.size > 15 * 1024 * 1024:
+        return JsonResponse({"status": "error", "message": "Image exceeds 15MB size limit"}, status=413)
 
     # Save to upload dir
     save_dir = Path.home() / "omni_vault_media" / "uploads"
@@ -989,6 +1000,9 @@ def api_vault_ingest_pdf(request):
     uploaded_file = request.FILES.get("file") or request.FILES.get("pdf")
     if not uploaded_file:
         return JsonResponse({"status": "error", "message": "No PDF file provided"}, status=400)
+
+    if uploaded_file.size > 25 * 1024 * 1024:
+        return JsonResponse({"status": "error", "message": "PDF exceeds 25MB size limit"}, status=413)
 
     save_dir = Path.home() / "omni_vault_media" / "pdfs"
     save_dir.mkdir(parents=True, exist_ok=True)
