@@ -2,6 +2,12 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    # Authentication & Lock Screen
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
+    path('api/auth/login/', views.api_auth_login, name='api_auth_login'),
+    path('api/auth/logout/', views.api_auth_logout, name='api_auth_logout'),
+
     path('', views.dashboard_view, name='dashboard'),
     path('reports/', views.reports_view, name='reports_list'),
     path('reports/<str:filename>/', views.view_single_report, name='view_single_report'),

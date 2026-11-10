@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Unlock Cockpit — Omni Hub</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --apple-blur: blur(28px);
+            --apple-glass-bg: rgba(13, 17, 28, 0.75);
+            --apple-border: rgba(255, 255, 255, 0.12);
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            background-color: #03050c;
+            color: #f1f5f9;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .ambient-mesh {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .ambient-glow-1 {
+            position: absolute;
+            top: 15%;
+            left: 20%;
+            width: 32rem;
+            height: 32rem;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.18) 0%, rgba(59, 130, 246, 0) 70%);
+            filter: blur(60px);
+            border-radius: 50%;
+        }
+
+        .ambient-glow-2 {
+            position: absolute;
+            bottom: 20%;
+            right: 25%;
+            width: 36rem;
+            height: 36rem;
+            background: radial-gradient(circle, rgba(147, 51, 234, 0.16) 0%, rgba(147, 51, 234, 0) 70%);
+            filter: blur(70px);
+            border-radius: 50%;
+        }
+
+        .ambient-glow-3 {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 28rem;
+            height: 28rem;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0) 70%);
+            filter: blur(80px);
+            border-radius: 50%;
+        }
+
+        .apple-glass {
+            background: var(--apple-glass-bg);
+            backdrop-filter: var(--apple-blur);
+            -webkit-backdrop-filter: var(--apple-blur);
+            border: 1px solid var(--apple-border);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+
+        .shake {
+            animation: shake 0.4s ease-in-out;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-6">
+    <div class="ambient-mesh">
+        <div class="ambient-glow-1"></div>
+        <div class="ambient-glow-2"></div>
+        <div class="ambient-glow-3"></div>
+    </div>
+
+    <main class="w-full max-w-md relative z-10">
+        <div id="login-card" class="apple-glass rounded-3xl p-6 sm:p-8 space-y-6">
+            
+            <!-- Top Apple Lock Icon & Title -->
+            <div class="text-center space-y-3">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600/30 to-indigo-500/20 border border-blue-500/30 shadow-xl shadow-blue-500/20 mb-1">
+                    <i id="lock-icon" class="fa-solid fa-lock text-2xl text-blue-400 transition-transform duration-300"></i>
+                </div>
+                <div class="space-y-1">
+                    <h1 class="text-2xl font-black text-white tracking-tight flex items-center justify-center space-x-2">
+                        <span>Omni Hub</span>
+                        <span class="text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">iOS 18</span>
+                    </h1>
+                    <p class="text-xs text-slate-400 font-medium">Secured Private Command Center • Raspberry Pi 4</p>
+                </div>
+            </div>
+
+            <!-- Mode Selector: Passcode vs Credentials -->
+            <div class="grid grid-cols-2 p-1 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-xs font-semibold">
+                <button type="button" onclick="setMode('passcode')" id="btn-mode-passcode" class="py-2 rounded-xl bg-blue-600 text-white transition-all shadow-md shadow-blue-600/30 flex items-center justify-center space-x-1.5">
+                    <i class="fa-solid fa-key text-[11px]"></i>
+                    <span>Passcode</span>
+                </button>
+                <button type="button" onclick="setMode('credentials')" id="btn-mode-credentials" class="py-2 rounded-xl text-slate-400 hover:text-white transition-all flex items-center justify-center space-x-1.5">
+                    <i class="fa-solid fa-user-shield text-[11px]"></i>
+                    <span>User Login</span>
+                </button>
+            </div>
+
+            <!-- Form -->
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                <input type="hidden" id="login-next" value="{{ next }}">
+
+                <!-- Passcode Container -->
+                <div id="container-passcode" class="space-y-1.5">
+                    <label class="text-xs font-mono text-slate-400 uppercase tracking-wider block">Master Passcode</label>
+                    <div class="relative">
+                        <input type="password" id="input-passcode" autofocus autocomplete="current-password" placeholder="Enter master passcode or PIN"
+                               class="w-full pl-4 pr-11 py-3.5 rounded-2xl bg-white/[0.05] border border-white/[0.12] text-white text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition placeholder-slate-500">
+                        <button type="button" onclick="togglePasscodeVisibility('input-passcode', 'eye-passcode')" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition p-1">
+                            <i id="eye-passcode" class="fa-solid fa-eye-slash text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Credentials Container -->
+                <div id="container-credentials" class="hidden space-y-3">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-mono text-slate-400 uppercase tracking-wider block">Username</label>
+                        <input type="text" id="input-username" autocomplete="username" value="arush" placeholder="Username"
+                               class="w-full px-4 py-3.5 rounded-2xl bg-white/[0.05] border border-white/[0.12] text-white text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition placeholder-slate-500">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-mono text-slate-400 uppercase tracking-wider block">Password</label>
+                        <div class="relative">
+                            <input type="password" id="input-password" autocomplete="current-password" placeholder="Account password"
+                                   class="w-full pl-4 pr-11 py-3.5 rounded-2xl bg-white/[0.05] border border-white/[0.12] text-white text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition placeholder-slate-500">
+                            <button type="button" onclick="togglePasscodeVisibility('input-password', 'eye-cred')" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition p-1">
+                                <i id="eye-cred" class="fa-solid fa-eye-slash text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Remember Me Checkbox -->
+                <div class="flex items-center justify-between text-xs pt-1">
+                    <label class="flex items-center space-x-2 text-slate-300 cursor-pointer select-none">
+                        <input type="checkbox" id="input-remember" checked class="w-4 h-4 rounded border-slate-700 bg-white/[0.05] text-blue-600 focus:ring-blue-500/40">
+                        <span>Remember device (30 days)</span>
+                    </label>
+                    <span class="text-slate-500 font-mono text-[11px]">LAN Guard</span>
+                </div>
+
+                <!-- Error Alert Box -->
+                <div id="error-box" class="hidden p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2">
+                    <i class="fa-solid fa-circle-exclamation text-rose-400"></i>
+                    <span id="error-message">Invalid passcode or credentials</span>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="btn-submit" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm transition-all shadow-lg shadow-blue-500/30 active:scale-95 flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                    <span id="btn-submit-text">Unlock Cockpit</span>
+                </button>
+            </form>
+
+            <!-- Bottom Privacy / Host Badge -->
+            <div class="pt-2 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                <span class="flex items-center space-x-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>192.168.0.100:8000</span>
+                </span>
+                <span>Zero Public Exposure</span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentMode = 'passcode';
+
+        function setMode(mode) {
+            currentMode = mode;
+            const btnPasscode = document.getElementById('btn-mode-passcode');
+            const btnCreds = document.getElementById('btn-mode-credentials');
+            const contPasscode = document.getElementById('container-passcode');
+            const contCreds = document.getElementById('container-credentials');
+            const errorBox = document.getElementById('error-box');
+            errorBox.classList.add('hidden');
+
+            if (mode === 'passcode') {
+                btnPasscode.className = 'py-2 rounded-xl bg-blue-600 text-white transition-all shadow-md shadow-blue-600/30 flex items-center justify-center space-x-1.5';
+                btnCreds.className = 'py-2 rounded-xl text-slate-400 hover:text-white transition-all flex items-center justify-center space-x-1.5';
+                contPasscode.classList.remove('hidden');
+                contCreds.classList.add('hidden');
+                document.getElementById('input-passcode').focus();
+            } else {
+                btnCreds.className = 'py-2 rounded-xl bg-blue-600 text-white transition-all shadow-md shadow-blue-600/30 flex items-center justify-center space-x-1.5';
+                btnPasscode.className = 'py-2 rounded-xl text-slate-400 hover:text-white transition-all flex items-center justify-center space-x-1.5';
+                contPasscode.classList.add('hidden');
+                contCreds.classList.remove('hidden');
+                document.getElementById('input-username').focus();
+            }
+        }
+
+        function togglePasscodeVisibility(inputId, eyeId) {
+            const input = document.getElementById(inputId);
+            const eye = document.getElementById(eyeId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                eye.classList.remove('fa-eye-slash');
+                eye.classList.add('fa-eye');
+            } else {
+                input.type = 'password';
+                eye.classList.remove('fa-eye');
+                eye.classList.add('fa-eye-slash');
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const errorBox = document.getElementById('error-box');
+            const errorMessage = document.getElementById('error-message');
+            const submitBtn = document.getElementById('btn-submit');
+            const submitText = document.getElementById('btn-submit-text');
+            const lockCard = document.getElementById('login-card');
+            const lockIcon = document.getElementById('lock-icon');
+            const nextUrl = document.getElementById('login-next').value || '/';
+
+            errorBox.classList.add('hidden');
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-75');
+            submitText.innerText = 'Verifying...';
+
+            let payload = {
+                remember_me: document.getElementById('input-remember').checked,
+                next: nextUrl
+            };
+
+            if (currentMode === 'passcode') {
+                payload.passcode = document.getElementById('input-passcode').value;
+            } else {
+                payload.username = document.getElementById('input-username').value;
+                payload.password = document.getElementById('input-password').value;
+            }
+
+            try {
+                const res = await fetch('/api/auth/login/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (res.ok && data.status === 'ok') {
+                    lockIcon.className = 'fa-solid fa-lock-open text-2xl text-emerald-400';
+                    submitText.innerText = 'Access Granted!';
+                    submitBtn.classList.remove('from-blue-600', 'to-indigo-600');
+                    submitBtn.classList.add('from-emerald-600', 'to-teal-600');
+                    setTimeout(() => {
+                        window.location.href = data.redirect || nextUrl;
+                    }, 400);
+                } else {
+                    throw new Error(data.message || 'Invalid credentials');
+                }
+            } catch (err) {
+                errorMessage.innerText = err.message || 'Authentication failed';
+                errorBox.classList.remove('hidden');
+                lockCard.classList.remove('shake');
+                void lockCard.offsetWidth; // Trigger reflow
+                lockCard.classList.add('shake');
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-75');
+                submitText.innerText = 'Unlock Cockpit';
+            }
+        }
+    </script>
+</body>
+</html>
+

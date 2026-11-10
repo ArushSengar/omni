@@ -218,6 +218,12 @@
                     <i class="fa-solid fa-wand-magic-sparkles text-cyan-200"></i>
                     <span class="hidden sm:inline">Copilot</span>
                 </button>
+
+                <!-- Lock Cockpit Action -->
+                <button onclick="lockCockpit()" title="Lock Cockpit & Logout" class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center space-x-1.5 transition active:scale-95 shadow-sm">
+                    <i class="fa-solid fa-lock text-rose-400"></i>
+                    <span class="hidden md:inline">Lock</span>
+                </button>
             </div>
         </div>
     </header>
@@ -225,10 +231,10 @@
     <!-- =========================================================================
          MAIN APPLICATION SHELL: SIDEBAR RAIL + ACTIVE WORKSPACE
          ========================================================================= -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col lg:flex-row gap-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 lg:pb-8 flex flex-col lg:flex-row gap-6">
 
-        <!-- Left iOS Glass Navigation Rail -->
-        <aside class="w-full lg:w-64 flex-shrink-0 space-y-4">
+        <!-- Left iOS Glass Navigation Rail (Desktop) -->
+        <aside class="hidden lg:block w-64 flex-shrink-0 space-y-4">
             <nav class="apple-glass rounded-3xl p-3 space-y-1.5 sticky top-24">
                 <div class="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold flex items-center justify-between">
                     <span>Navigation</span>
@@ -308,7 +314,7 @@
                 </button>
 
                 <!-- System Metadata Footer -->
-                <div class="pt-3 border-t border-white/[0.08] px-3 space-y-1.5 font-mono text-[11px] text-slate-400">
+                <div class="pt-3 border-t border-white/[0.08] px-3 space-y-2 font-mono text-[11px] text-slate-400">
                     <div class="flex items-center justify-between">
                         <span>Host:</span>
                         <span class="text-slate-200">arush@pi4</span>
@@ -321,6 +327,10 @@
                         <span>Uptime:</span>
                         <span class="text-emerald-400">{{ metrics.uptime }}</span>
                     </div>
+                    <button onclick="lockCockpit()" class="w-full mt-2 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 font-sans font-semibold text-xs flex items-center justify-center space-x-2 transition active:scale-95">
+                        <i class="fa-solid fa-lock text-xs"></i>
+                        <span>Lock Cockpit</span>
+                    </button>
                 </div>
             </nav>
         </aside>
@@ -1342,6 +1352,99 @@
     </div>
 
     <!-- =========================================================================
+         MOBILE iOS 18 BOTTOM TAB BAR (VISIBLE ON PHONES / TABLETS)
+         ========================================================================= -->
+    <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#070a14]/92 backdrop-blur-2xl border-t border-white/[0.08] px-2 py-2 flex items-center justify-around shadow-2xl safe-area-pb">
+        <button onclick="switchTab('cockpit')" id="mobile-tab-cockpit" class="mobile-nav-btn flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-blue-400 transition active:scale-90">
+            <i class="fa-solid fa-layer-group text-lg"></i>
+            <span class="text-[10px] font-semibold mt-0.5">Cockpit</span>
+        </button>
+        <button onclick="switchTab('vault')" id="mobile-tab-vault" class="mobile-nav-btn flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-slate-400 hover:text-white transition active:scale-90">
+            <i class="fa-solid fa-vault text-lg"></i>
+            <span class="text-[10px] font-semibold mt-0.5">Vault</span>
+        </button>
+        <button onclick="switchTab('services')" id="mobile-tab-services" class="mobile-nav-btn flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-slate-400 hover:text-white transition active:scale-90">
+            <i class="fa-solid fa-toggle-on text-lg"></i>
+            <span class="text-[10px] font-semibold mt-0.5">Services</span>
+        </button>
+        <button onclick="switchTab('maintenance')" id="mobile-tab-maintenance" class="mobile-nav-btn flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-slate-400 hover:text-white transition active:scale-90">
+            <i class="fa-solid fa-broom text-lg"></i>
+            <span class="text-[10px] font-semibold mt-0.5">Clean</span>
+        </button>
+        <button onclick="toggleCopilotDrawer()" class="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-purple-400 hover:text-purple-300 transition active:scale-90">
+            <i class="fa-solid fa-wand-magic-sparkles text-lg"></i>
+            <span class="text-[10px] font-semibold mt-0.5">Copilot</span>
+        </button>
+        <button onclick="openMobileNavModal()" class="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-slate-400 hover:text-white transition active:scale-90">
+            <i class="fa-solid fa-bars-staggered text-lg"></i>
+            <span class="text-[10px] font-semibold mt-0.5">Tabs</span>
+        </button>
+    </nav>
+
+    <!-- =========================================================================
+         MOBILE ALL TABS SHEET MODAL
+         ========================================================================= -->
+    <div id="mobile-nav-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl hidden flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all">
+        <div class="apple-glass rounded-t-3xl sm:rounded-3xl p-6 w-full max-w-md space-y-4 max-h-[85vh] overflow-y-auto border border-white/[0.12] shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+                <div class="flex items-center space-x-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
+                    <span class="text-sm font-bold text-white">Omni Hub Navigation</span>
+                </div>
+                <button onclick="closeMobileNavModal()" class="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-slate-400 hover:text-white flex items-center justify-center">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2 text-xs font-semibold">
+                <button onclick="switchTab('cockpit'); closeMobileNavModal()" class="p-3 rounded-2xl bg-white/[0.04] hover:bg-blue-600/20 hover:text-blue-300 border border-white/[0.06] flex items-center space-x-2.5 text-left">
+                    <i class="fa-solid fa-layer-group text-blue-400"></i>
+                    <span>Master Cockpit</span>
+                </button>
+                <button onclick="switchTab('vault'); closeMobileNavModal()" class="p-3 rounded-2xl bg-white/[0.04] hover:bg-indigo-600/20 hover:text-indigo-300 border border-white/[0.06] flex items-center space-x-2.5 text-left">
+                    <i class="fa-solid fa-vault text-indigo-400"></i>
+                    <span>OmniVault</span>
+                </button>
+                <button onclick="switchTab('services'); closeMobileNavModal()" class="p-3 rounded-2xl bg-white/[0.04] hover:bg-emerald-600/20 hover:text-emerald-300 border border-white/[0.06] flex items-center space-x-2.5 text-left">
+                    <i class="fa-solid fa-toggle-on text-emerald-400"></i>
+                    <span>Services Switch</span>
+                </button>
+                <button onclick="switchTab('wallet'); closeMobileNavModal()" class="p-3 rounded-2xl bg-white/[0.04] hover:bg-amber-600/20 hover:text-amber-300 border border-white/[0.06] flex items-center space-x-2.5 text-left">
+                    <i class="fa-solid fa-wallet text-amber-400"></i>
+                    <span>AI Quotas</span>
+                </button>
+                <button onclick="switchTab('growth'); closeMobileNavModal()" class="p-3 rounded-2xl bg-white/[0.04] hover:bg-cyan-600/20 hover:text-cyan-300 border border-white/[0.06] flex items-center space-x-2.5 text-left">
+                    <i class="fa-solid fa-chart-line text-cyan-400"></i>
+                    <span>Growth Sentinel</span>
+                </button>
+                <button onclick="switchTab('system'); closeMobileNavModal()" class="p-3 rounded-2xl bg-white/[0.04] hover:bg-purple-600/20 hover:text-purple-300 border border-white/[0.06] flex items-center space-x-2.5 text-left">
+                    <i class="fa-solid fa-microchip text-purple-400"></i>
+                    <span>Pi Telemetry</span>
+                </button>
+                <button onclick="switchTab('maintenance'); closeMobileNavModal()" class="p-3 rounded-2xl bg-white/[0.04] hover:bg-rose-600/20 hover:text-rose-300 border border-white/[0.06] flex items-center space-x-2.5 text-left">
+                    <i class="fa-solid fa-broom text-rose-400"></i>
+                    <span>Self-Healing</span>
+                </button>
+                <button onclick="switchTab('reports'); closeMobileNavModal()" class="p-3 rounded-2xl bg-white/[0.04] hover:bg-teal-600/20 hover:text-teal-300 border border-white/[0.06] flex items-center space-x-2.5 text-left">
+                    <i class="fa-solid fa-file-waveform text-teal-400"></i>
+                    <span>Intel Reports</span>
+                </button>
+                <button onclick="switchTab('laptop'); closeMobileNavModal()" class="p-3 rounded-2xl bg-white/[0.04] hover:bg-emerald-600/20 hover:text-emerald-300 border border-white/[0.06] flex items-center space-x-2.5 text-left col-span-2">
+                    <i class="fa-solid fa-laptop-code text-emerald-400"></i>
+                    <span>Laptop Worker Mesh</span>
+                </button>
+            </div>
+
+            <div class="pt-2 border-t border-white/[0.08] flex items-center justify-between">
+                <button onclick="lockCockpit()" class="w-full py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 font-semibold text-xs flex items-center justify-center space-x-2 transition active:scale-95">
+                    <i class="fa-solid fa-lock"></i>
+                    <span>Lock Cockpit (Logout)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================================
          SERVICE LIVE LOGS MODAL
          ========================================================================= -->
     <div id="service-logs-modal" class="fixed inset-0 bg-black/60 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
@@ -1632,6 +1735,18 @@
             if (activeNavBtn) {
                 activeNavBtn.className = 'nav-tab-btn w-full px-3.5 py-2.5 rounded-2xl text-xs font-semibold flex items-center space-x-3 transition-all bg-blue-600 text-white shadow-lg shadow-blue-600/30';
             }
+
+            // Sync mobile bottom tab bar active status
+            document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
+                btn.classList.remove('text-blue-400');
+                btn.classList.add('text-slate-400');
+            });
+            const activeMobileBtn = document.getElementById('mobile-tab-' + tabId);
+            if (activeMobileBtn) {
+                activeMobileBtn.classList.remove('text-slate-400');
+                activeMobileBtn.classList.add('text-blue-400');
+            }
+
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -2021,6 +2136,27 @@
             document.getElementById('wallet-modal').classList.add('hidden');
         }
 
+        function openMobileNavModal() {
+            const m = document.getElementById('mobile-nav-modal');
+            if (m) m.classList.remove('hidden');
+        }
+
+        function closeMobileNavModal() {
+            const m = document.getElementById('mobile-nav-modal');
+            if (m) m.classList.add('hidden');
+        }
+
+        async function lockCockpit() {
+            showToast('Locking Cockpit...');
+            try {
+                await fetch('/api/auth/logout/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCSRFToken() }
+                });
+            } catch (e) {}
+            window.location.href = '/login/';
+        }
+
         function openThermalModal() {
             switchTab('system');
         }
@@ -2033,7 +2169,8 @@
         async function runMaintenance(type) {
             const consoleBox = document.getElementById('maintenance-console');
             if (consoleBox) {
-                consoleBox.innerHTML += `<div>[${new Date().toLocaleTimeString()}] Executing ${type} maintenance sweep...</div>`;
+                consoleBox.innerHTML += `<div>[${new Date().toLocaleTimeString()}] Executing ${escapeHtml(type)} maintenance sweep...</div>`;
+                consoleBox.scrollTop = consoleBox.scrollHeight;
             }
             try {
                 const res = await fetch('/api/run-maintenance/', {
@@ -2041,20 +2178,39 @@
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
                     body: JSON.stringify({ type: type })
                 });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+                    throw new Error(errData.message || `Server returned HTTP ${res.status}`);
+                }
+
                 const data = await res.json();
                 if (data.status === 'ok') {
                     showToast('Maintenance executed successfully!');
-                    if (consoleBox && data.output) {
-                        data.output.forEach(line => {
-                            consoleBox.innerHTML += `<div class="text-white">${escapeHtml(line)}</div>`;
+                    if (consoleBox) {
+                        const rawLines = data.output_lines || (typeof data.output === 'string' ? data.output.split('\n') : (Array.isArray(data.output) ? data.output : []));
+                        rawLines.forEach(line => {
+                            if (line && line.trim()) {
+                                consoleBox.innerHTML += `<div class="text-white">${escapeHtml(line)}</div>`;
+                            }
                         });
+                        consoleBox.scrollTop = consoleBox.scrollHeight;
                     }
                     setTimeout(refreshHardwareStats, 1500);
                 } else {
-                    showToast('Maintenance error', false);
+                    showToast(`Maintenance: ${data.message || 'Action failed'}`, false);
+                    if (consoleBox) {
+                        consoleBox.innerHTML += `<div class="text-rose-400">[error] ${escapeHtml(data.message || 'Execution error')}</div>`;
+                        consoleBox.scrollTop = consoleBox.scrollHeight;
+                    }
                 }
             } catch (err) {
-                showToast('Maintenance network error', false);
+                console.error('Maintenance error:', err);
+                showToast(`Maintenance error: ${err.message || 'Connection failed'}`, false);
+                if (consoleBox) {
+                    consoleBox.innerHTML += `<div class="text-rose-400">[error] ${escapeHtml(err.message || 'Network error occurred')}</div>`;
+                    consoleBox.scrollTop = consoleBox.scrollHeight;
+                }
             }
         }
 
