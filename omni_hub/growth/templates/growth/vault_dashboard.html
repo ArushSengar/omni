@@ -130,6 +130,25 @@
                 </div>
             </div>
 
+            <!-- Center Dynamic Island Hardware & Wallet Pills -->
+            <div class="hidden lg:flex items-center space-x-2 font-mono text-xs">
+                <a href="/" title="CPU Core Temperature" class="px-3 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] flex items-center space-x-1.5 transition">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    <span class="text-slate-400">Temp:</span>
+                    <span class="text-emerald-400 font-bold">{{ metrics.temp_c }}°C</span>
+                </a>
+                <a href="/" title="Virtual RAM Distribution" class="px-3 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] flex items-center space-x-1.5 transition">
+                    <i class="fa-solid fa-memory text-cyan-400 text-[10px]"></i>
+                    <span class="text-slate-400">RAM:</span>
+                    <span class="text-cyan-400 font-bold">{{ metrics.memory.percent }}%</span>
+                </a>
+                <a href="/" title="OmniRoute AI Wallet Quotas" class="px-3 py-1 rounded-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 flex items-center space-x-1.5 transition">
+                    <i class="fa-solid fa-wallet text-amber-400 text-[10px]"></i>
+                    <span class="text-slate-300">Wallet:</span>
+                    <span class="text-amber-300 font-bold">${{ wallet.cost_saved_usd }}</span>
+                </a>
+            </div>
+
             <!-- Spotlight Search Trigger (Cmd + K) & Quick Actions -->
             <div class="flex items-center space-x-2.5">
                 <!-- Spotlight Trigger Button -->
@@ -864,12 +883,13 @@
 
             const urlEl = document.getElementById("modal-url");
             const visitBtn = document.getElementById("modal-visit-link");
-            if (item.url) {
+            const safeUrl = sanitizeUrl(item.url);
+            if (safeUrl) {
                 urlEl.innerText = item.url;
-                visitBtn.href = item.url;
+                visitBtn.href = safeUrl;
                 visitBtn.classList.remove("hidden");
             } else {
-                urlEl.innerText = "No external URL specified";
+                urlEl.innerText = item.url ? "Invalid or non-HTTP URL" : "No external URL specified";
                 visitBtn.classList.add("hidden");
             }
 
@@ -1068,7 +1088,7 @@
             const chatMessages = document.getElementById("chat-messages");
             chatMessages.innerHTML += `
                 <div class="bg-indigo-600 text-white rounded-2xl p-3.5 ml-8 text-right font-medium shadow-md shadow-indigo-600/20">
-                    ${q}
+                    ${escapeHtml(q)}
                 </div>
                 <div id="ai-loading" class="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-3 mr-8 text-slate-400 font-mono flex items-center space-x-2">
                     <i class="fa-solid fa-circle-notch fa-spin text-cyan-400"></i>

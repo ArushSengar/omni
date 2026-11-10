@@ -12,6 +12,8 @@ urlpatterns = [
     path('api/research-topic/', views.api_research_topic, name='api_research_topic'),
     path('api/system-stats/', views.api_system_stats, name='api_system_stats'),
     path('api/health/', views.api_system_health, name='api_system_health'),
+    path('api/wallet/stats/', views.api_wallet_stats, name='api_wallet_stats'),
+    path('api/service-logs/<str:service_id>/', views.api_service_logs, name='api_service_logs'),
     path('api/services-status/', views.api_services_status, name='api_services_status'),
     path('api/services/register/', views.api_register_service, name='api_register_service'),
     path('api/services/delete/', views.api_delete_service, name='api_delete_service'),
@@ -22,6 +24,7 @@ urlpatterns = [
     # OmniVault UI & Multimodal APIs
     path('vault/', views.vault_dashboard_view, name='vault_dashboard'),
     path('api/vault/list/', views.api_vault_list, name='api_vault_list'),
+    path('api/vault/<int:resource_id>/', views.api_vault_detail, name='api_vault_detail'),
     path('api/vault/ingest/image/', views.api_vault_ingest_image, name='api_vault_ingest_image'),
     path('api/vault/ingest/url/', views.api_vault_ingest_url, name='api_vault_ingest_url'),
     path('api/vault/ingest/text/', views.api_vault_ingest_text, name='api_vault_ingest_text'),
