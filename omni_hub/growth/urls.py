@@ -11,6 +11,7 @@ urlpatterns = [
     path('api/trigger-growth/', views.api_trigger_growth, name='api_trigger_growth'),
     path('api/research-topic/', views.api_research_topic, name='api_research_topic'),
     path('api/system-stats/', views.api_system_stats, name='api_system_stats'),
+    path('api/health/', views.api_system_health, name='api_system_health'),
     path('api/services-status/', views.api_services_status, name='api_services_status'),
     path('api/services/register/', views.api_register_service, name='api_register_service'),
     path('api/services/delete/', views.api_delete_service, name='api_delete_service'),

@@ -11,9 +11,9 @@ from pathlib import Path
 
 DISK_THRESHOLD_PCT = 10
 MEM_THRESHOLD_PCT = 90
-CRITICAL_PORTS = [20128, 9119, 8644]
+CRITICAL_PORTS = [8000, 20128, 9119, 8644]
 SYSTEMD_USER_SERVICES = ["hermes-gateway"]
-SYSTEM_SERVICES = ["omniroute", "omniroute-tunnel", "hermes-dashboard", "fan-control"]
+SYSTEM_SERVICES = ["omni-hub", "omniroute", "omniroute-tunnel", "hermes-dashboard", "fan-control"]
 LOG_FILE = Path("/home/arush/.hermes/logs/watchdog.log")
 SKILLS_DIR = Path("/home/arush/.hermes/skills")
 PUBLIC_URL_FILE = Path("/home/arush/.omniroute/public_url.txt")
@@ -73,7 +73,12 @@ def check_services():
 
 def check_ports():
     issues = []
-    port_map = {20128: ("system", "omniroute"), 9119: ("system", "hermes-dashboard"), 8644: ("user", "hermes-gateway")}
+    port_map = {
+        8000: ("system", "omni-hub"),
+        20128: ("system", "omniroute"),
+        9119: ("system", "hermes-dashboard"),
+        8644: ("user", "hermes-gateway")
+    }
     for port in CRITICAL_PORTS:
         if not port_alive(port):
             scope, svc = port_map[port]
@@ -125,7 +130,8 @@ def main():
     return 0
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGALRM, lambda *_: sys.exit(1))
-    signal.alarm(RUN_TIMEOUT_SEC)
+    if hasattr(signal, "SIGALRM"):
+        signal.signal(signal.SIGALRM, lambda *_: sys.exit(1))
+        signal.alarm(RUN_TIMEOUT_SEC)
     sys.exit(main())
 

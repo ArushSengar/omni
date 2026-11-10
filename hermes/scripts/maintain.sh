@@ -17,8 +17,9 @@ sudo apt-get autoremove -y >/dev/null 2>&1 || true
 sudo apt-get clean -y >/dev/null 2>&1 || true
 echo "  [ok] Packages & security libraries verified" | tee -a "$LOG_FILE"
 
-# 2. Verify OmniRoute & Tunnel
-echo "--- [2/8] Verifying OmniRoute & Public Cloudflare Tunnel ---" | tee -a "$LOG_FILE"
+# 2. Verify OmniHub, OmniRoute & Tunnel
+echo "--- [2/8] Verifying OmniHub, OmniRoute & Public Cloudflare Tunnel ---" | tee -a "$LOG_FILE"
+sudo systemctl is-active --quiet omni-hub || sudo systemctl restart omni-hub || true
 sudo systemctl is-active --quiet omniroute || sudo systemctl restart omniroute || true
 sudo systemctl is-active --quiet omniroute-tunnel || sudo systemctl restart omniroute-tunnel || true
 

@@ -327,6 +327,14 @@
 
         <!-- Chat Input Bar -->
         <div class="p-3.5 border-t border-white/[0.08] bg-white/[0.02]">
+            <!-- Quick Chips -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-2.5 mb-1 no-scrollbar text-[10.5px]">
+                <button onclick="askPromptChip('Linux privilege escalation aur GTFOBins tools')" class="whitespace-nowrap px-2.5 py-1 rounded-full bg-white/[0.04] hover:bg-cyan-500/15 border border-white/[0.08] hover:border-cyan-500/40 text-slate-300 hover:text-cyan-300 transition">🛡️ PrivEsc</button>
+                <button onclick="askPromptChip('Audio vocal aur background music separation website')" class="whitespace-nowrap px-2.5 py-1 rounded-full bg-white/[0.04] hover:bg-cyan-500/15 border border-white/[0.08] hover:border-cyan-500/40 text-slate-300 hover:text-cyan-300 transition">🎵 Audio Stem</button>
+                <button onclick="askPromptChip('Aesthetic syntax highlighted code screenshots tool')" class="whitespace-nowrap px-2.5 py-1 rounded-full bg-white/[0.04] hover:bg-cyan-500/15 border border-white/[0.08] hover:border-cyan-500/40 text-slate-300 hover:text-cyan-300 transition">📸 Code Cards</button>
+                <button onclick="askPromptChip('Linux bash terminal command flags visual breakdown')" class="whitespace-nowrap px-2.5 py-1 rounded-full bg-white/[0.04] hover:bg-cyan-500/15 border border-white/[0.08] hover:border-cyan-500/40 text-slate-300 hover:text-cyan-300 transition">⚡ Command Flags</button>
+                <button onclick="askPromptChip('Email aur username se OSINT profiling tool')" class="whitespace-nowrap px-2.5 py-1 rounded-full bg-white/[0.04] hover:bg-cyan-500/15 border border-white/[0.08] hover:border-cyan-500/40 text-slate-300 hover:text-cyan-300 transition">🔍 OSINT Search</button>
+            </div>
             <div class="relative">
                 <textarea id="chat-input" rows="2" 
                           onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendChatMessage(); }"
@@ -578,6 +586,41 @@
                 return escapeHtml(clean);
             }
             return '';
+        }
+
+        function formatMarkdown(text) {
+            if (!text) return "";
+            let safe = escapeHtml(text);
+            safe = safe.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
+            safe = safe.replace(/\*(.*?)\*/g, '<em class="text-slate-200">$1</em>');
+            safe = safe.replace(/`([^`]+)`/g, '<code class="bg-black/50 text-cyan-300 px-1.5 py-0.5 rounded font-mono text-[11px] border border-white/[0.08]">$1</code>');
+            safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 font-medium">$1 <i class="fa-solid fa-external-link text-[9px]"></i></a>');
+            safe = safe.replace(/\n/g, '<br>');
+            return safe;
+        }
+
+        function copyAnswerText(btn) {
+            const container = btn.closest(".ai-response-box");
+            const textEl = container.querySelector(".ai-response-content");
+            const textToCopy = textEl.innerText || textEl.textContent;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const orig = btn.innerHTML;
+                btn.innerHTML = `<i class="fa-solid fa-check text-emerald-400"></i> Copied!`;
+                setTimeout(() => { btn.innerHTML = orig; }, 2000);
+            });
+        }
+
+        function askPromptChip(q) {
+            document.getElementById("chat-input").value = q;
+            sendChatMessage();
+        }
+
+        function copyToClipboard(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                const orig = btn.innerHTML;
+                btn.innerHTML = `<i class="fa-solid fa-check text-emerald-400 text-[11px]"></i>`;
+                setTimeout(() => { btn.innerHTML = orig; }, 1500);
+            });
         }
 
         function renderGrid(items) {
@@ -1046,12 +1089,18 @@
                 if (loader) loader.remove();
                 if (data.status === "ok") {
                     chatMessages.innerHTML += `
-                        <div class="apple-glass rounded-2xl p-3.5 mr-6 text-slate-200 leading-relaxed shadow-lg">
-                            <div class="flex items-center space-x-1.5 text-cyan-400 text-[10px] font-bold font-mono uppercase mb-1.5">
-                                <i class="fa-solid fa-sparkles"></i>
-                                <span>Vault Recommendation</span>
+                        <div class="apple-glass ai-response-box rounded-2xl p-3.5 mr-6 text-slate-200 leading-relaxed shadow-lg border border-white/15">
+                            <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-white/[0.06]">
+                                <div class="flex items-center space-x-1.5 text-cyan-400 text-[10px] font-bold font-mono uppercase">
+                                    <i class="fa-solid fa-sparkles"></i>
+                                    <span>Vault Recommendation</span>
+                                </div>
+                                <button onclick="copyAnswerText(this)" class="text-[10px] text-slate-400 hover:text-white px-2 py-0.5 rounded bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] flex items-center space-x-1 transition">
+                                    <i class="fa-regular fa-copy"></i>
+                                    <span>Copy</span>
+                                </button>
                             </div>
-                            <div class="whitespace-pre-line text-xs">${data.answer}</div>
+                            <div class="ai-response-content text-xs leading-relaxed space-y-1.5">${formatMarkdown(data.answer)}</div>
                         </div>
                     `;
                 } else {

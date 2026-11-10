@@ -1118,3 +1118,40 @@ def api_vault_delete(request):
     except VaultResource.DoesNotExist:
         return JsonResponse({"status": "error", "message": "Resource not found"}, status=404)
 
+
+def api_system_health(request):
+    """Production health & diagnostics endpoint for monitoring, watchdog, and external probes."""
+    metrics = get_system_metrics()
+
+    # Check DB
+    db_status = "connected"
+    journal_mode = "unknown"
+    try:
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("PRAGMA journal_mode;")
+            res = cursor.fetchone()
+            if res:
+                journal_mode = res[0]
+    except Exception as e:
+        db_status = f"error: {e}"
+
+    services = discover_all_services()
+    active_services = sum(1 for s in services if s.get("is_active"))
+
+    return JsonResponse({
+        "status": "ok" if db_status == "connected" else "degraded",
+        "timestamp": datetime.now().isoformat(),
+        "system": metrics,
+        "database": {
+            "status": db_status,
+            "journal_mode": journal_mode,
+            "vault_count": VaultResource.objects.count(),
+            "posts_count": GrowthPost.objects.count()
+        },
+        "services": {
+            "total": len(services),
+            "active": active_services
+        }
+    })
+
