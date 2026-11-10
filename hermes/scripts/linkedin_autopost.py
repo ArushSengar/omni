@@ -27,14 +27,35 @@ SHOT_DIR.mkdir(exist_ok=True)
 assert POST_TEXT.strip(), "Post text required"
 
 def sanitize_post_text(text: str) -> str:
+    """Strips conversational preambles, fences, and raw markdown from LinkedIn posts."""
     if not text:
         return ""
+    try:
+        import linkedin_copywriter
+        return linkedin_copywriter.sanitize_human_post(text)
+    except Exception:
+        pass
+
     text = re.sub(r'^```(?:markdown)?\s*\n', '', text, flags=re.IGNORECASE)
     text = re.sub(r'\n```\s*$', '', text)
     lines = text.splitlines()
     cleaned = []
     started = False
-    conversational = [r"^here(?:'s|\s+is|\s+are)\b", r"^certainly\b", r"^sure\b", r"^below is\b", r"^draft\s*:", r"^post\s*:"]
+    conversational = [
+        r"^here(?:['’]?s|\s+is|\s+are)\b",
+        r"^certainly\b",
+        r"^sure\b",
+        r"^below is\b",
+        r"^draft\s*:",
+        r"^post\s*:",
+        r"^linkedin post\b",
+        r".*as arush sengar.*",
+        r".*here(?:['’]?s|\s+is)\s+(?:your\s+)?linkedin\s+post.*",
+        r"^as arush sengar\b",
+        r"^here is your post\b",
+        r"^title\s*:",
+        r"^headline\s*:",
+    ]
     for l in lines:
         st = l.strip()
         if not started:
@@ -49,7 +70,10 @@ def sanitize_post_text(text: str) -> str:
     t = "\n".join(cleaned).strip()
     t = re.sub(r'\*\*(.*?)\*\*', r'\1', t)
     t = re.sub(r'\*(.*?)\*', r'\1', t)
+    t = t.replace('**', '')
     t = re.sub(r'`([^`]+)`', r'\1', t)
+    t = t.replace('`', '')
+    t = re.sub(r'^[#]+\s*', '', t, flags=re.MULTILINE)
     t = re.sub(r'[\w\-]+\.docx', '', t)
     return t.strip()
 
@@ -70,96 +94,127 @@ with sync_playwright() as p:
         headless=True,
         args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
     )
-    page = ctx.pages[0] if ctx.pages else ctx.new_page()
+    try:
+        page = ctx.pages[0] if ctx.pages else ctx.new_page()
 
-    page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=60000)
-    page.wait_for_timeout(5000)
+        page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=60000)
+        page.wait_for_timeout(5000)
 
-    # Session check: if redirected to login, abort.
-    if "/uas/login" in page.url or "authwall" in page.url:
-        print("ERROR: session expired — not logged in. Re-login needed.")
-        ctx.close()
-        sys.exit(1)
-    print(f"[ok] logged in, at {page.url}")
-    shot(page, "01_feed")
+        # Session check: if redirected to login, abort.
+        if "/uas/login" in page.url or "authwall" in page.url:
+            print("ERROR: session expired — not logged in. Re-login needed.")
+            sys.exit(1)
+        print(f"[ok] logged in, at {page.url}")
+        shot(page, "01_feed")
 
-    # Open the composer
-    page.goto("https://www.linkedin.com/post/new/", wait_until="domcontentloaded", timeout=60000)
-    page.wait_for_timeout(5000)
-    print("[ok] composer page loaded:", page.url)
-    shot(page, "02_sharebox")
+        # Open the composer
+        page.goto("https://www.linkedin.com/post/new/", wait_until="domcontentloaded", timeout=60000)
+        page.wait_for_timeout(5000)
+        print("[ok] composer page loaded:", page.url)
+        shot(page, "02_sharebox")
 
-    # Fill editor
-    editor = None
-    for sel in [
-        'div[role="textbox"][contenteditable="true"]',
-        'div[contenteditable="true"][aria-label*="post"]',
-        'div[contenteditable="true"]',
-        'p[data-placeholder*="What do you want"]',
-        'div[role="textbox"]',
-    ]:
-        try:
-            el = page.locator(sel).first
-            if el.is_visible(timeout=3000):
-                editor = el
-                break
-        except Exception:
-            continue
-    if not editor:
-        print("ERROR: editor not found")
-        shot(page, "02b_nofind")
-        ctx.close()
-        sys.exit(1)
-    editor.click()
-    page.keyboard.type(POST_TEXT, delay=15)
-    page.wait_for_timeout(1500)
-    print("[ok] text typed")
-    shot(page, "03_text")
-
-    # Attach image
-    if IMAGE:
-        attached = False
-        for sel in ['input[type="file"]', 'input[accept*="image"]', 'input[type=file][multiple]']:
+        # Fill editor
+        editor = None
+        for sel in [
+            'div[role="textbox"][contenteditable="true"]',
+            'div[contenteditable="true"][aria-label*="post"]',
+            'div[contenteditable="true"]',
+            'p[data-placeholder*="What do you want"]',
+            'div[role="textbox"]',
+        ]:
             try:
-                f = page.locator(sel).first
-                if f.count() > 0:
-                    f.set_input_files(IMAGE, timeout=10000)
-                    attached = True
+                el = page.locator(sel).first
+                if el.is_visible(timeout=3000):
+                    editor = el
                     break
             except Exception:
                 continue
-        if not attached:
-            print("WARN: no file input found — maybe image button needed")
-        page.wait_for_timeout(6000)
-        print("[ok] image attached" if attached else "[warn] image attach skipped")
-        shot(page, "04_image")
-
-    # Click Post
-    posted = False
-    for sel in [
-        'button[aria-label*="Post"][aria-label*="now"]',
-        'button.share-actions__primary-action',
-        'button:has-text("Post")',
-        'div.share-actions__primary-action button',
-    ]:
+        if not editor:
+            print("ERROR: editor not found")
+            shot(page, "02b_nofind")
+            sys.exit(1)
+        editor.click()
         try:
-            btn = page.locator(sel).first
-            if btn.is_visible(timeout=3000):
-                btn.click(timeout=8000)
-                posted = True
-                break
+            page.keyboard.insert_text(POST_TEXT)
         except Exception:
-            continue
-    if not posted:
-        print("ERROR: Post button not found")
-        shot(page, "05_nopost")
-        ctx.close()
-        sys.exit(1)
+            page.keyboard.type(POST_TEXT, delay=10)
+        page.wait_for_timeout(1500)
+        print("[ok] text typed")
+        shot(page, "03_text")
 
-    # Wait for post to go through (share box closes / toast)
-    page.wait_for_timeout(8000)
-    shot(page, "06_afterpost")
-    print("[ok] Post button clicked — waiting for confirmation")
-    ctx.close()
-    print("DONE")
+        # Attach image
+        if IMAGE and os.path.exists(IMAGE):
+            attached = False
+            for sel in ['input[type="file"]', 'input[accept*="image"]', 'input[type=file][multiple]']:
+                try:
+                    f = page.locator(sel).first
+                    if f.count() > 0:
+                        f.set_input_files(IMAGE, timeout=8000)
+                        attached = True
+                        break
+                except Exception:
+                    continue
+            if not attached:
+                # Click media button to trigger file input
+                for btn_sel in [
+                    'button[aria-label*="Add media"]',
+                    'button[aria-label*="photo"]',
+                    'button[aria-label*="image"]',
+                    '.share-promoted-detour-button',
+                    'button:has(svg[data-test-icon="image-medium"])'
+                ]:
+                    try:
+                        btn = page.locator(btn_sel).first
+                        if btn.is_visible(timeout=2000):
+                            btn.click()
+                            page.wait_for_timeout(1500)
+                            break
+                    except Exception:
+                        continue
+                for sel in ['input[type="file"]', 'input[accept*="image"]']:
+                    try:
+                        f = page.locator(sel).first
+                        if f.count() > 0:
+                            f.set_input_files(IMAGE, timeout=8000)
+                            attached = True
+                            break
+                    except Exception:
+                        continue
+            if not attached:
+                print("WARN: no file input found — maybe image button needed")
+            page.wait_for_timeout(6000)
+            print("[ok] image attached" if attached else "[warn] image attach skipped")
+            shot(page, "04_image")
+
+        # Click Post
+        posted = False
+        for sel in [
+            'button[aria-label*="Post"][aria-label*="now"]',
+            'button.share-actions__primary-action',
+            'button:has-text("Post")',
+            'div.share-actions__primary-action button',
+        ]:
+            try:
+                btn = page.locator(sel).first
+                if btn.is_visible(timeout=3000):
+                    btn.click(timeout=8000)
+                    posted = True
+                    break
+            except Exception:
+                continue
+        if not posted:
+            print("ERROR: Post button not found")
+            shot(page, "05_nopost")
+            sys.exit(1)
+
+        # Wait for post to go through (share box closes / toast)
+        page.wait_for_timeout(8000)
+        shot(page, "06_afterpost")
+        print("[ok] Post button clicked — waiting for confirmation")
+        print("DONE")
+    finally:
+        try:
+            ctx.close()
+        except Exception:
+            pass
 

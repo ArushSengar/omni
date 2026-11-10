@@ -1,0 +1,463 @@
+#!/usr/bin/env python3
+"""
+omni_vault_engine.py — Core Multimodal Extraction, AI Synthesis & Query Engine for OmniVault.
+Author: Arush Sengar (Omni Knowledge & Resource Vault)
+
+Capabilities:
+  1. Image / Screenshot OCR & Vision extraction (multi-tool detection from single photo).
+  2. Web URL live scraping & metadata extraction.
+  3. PDF / Cheatsheet text extraction via PyPDF.
+  4. Auto-categorization into 7 primary technical domains.
+  5. Punchy 1-line "Kis Kaam Aayega" purpose synthesis.
+  6. Legality & Threat Triage (SAFE vs PENTEST_ONLY vs CAUTION vs SUSPICIOUS).
+  7. Conversational AI Assistant ("Ask Vault") for natural language tool retrieval.
+"""
+
+import os
+import sys
+import re
+import json
+import hashlib
+import ipaddress
+import socket
+import urllib.parse
+import urllib.request
+import urllib.error
+import subprocess
+from pathlib import Path
+from typing import List, Dict, Optional
+
+# Dependencies
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None
+
+try:
+    from pypdf import PdfReader
+except ImportError:
+    PdfReader = None
+
+# OmniRoute Configuration
+OMNIROUTE_URLS = [
+    os.environ.get("OMNIROUTE_URL", "http://localhost:20128/v1"),
+    "http://192.168.0.100:20128/v1",
+    "http://127.0.0.1:20128/v1"
+]
+OMNIROUTE_KEY = os.environ.get("HERMES_CUSTOM_LOCALHOST_20128_API_KEY", "sk-971230e546e14a3e-23822a-06e1aa8d")
+MODEL_NAME = os.environ.get("DAILY_MODEL", "auto/best-chat")
+
+# Persistent MD5 In-Memory & Disk Query Cache (0ms latency & 0 API cost for repeat queries)
+CACHE_FILE = Path.home() / ".omnivault_llm_cache.json"
+_PROMPT_CACHE = {}
+
+def _load_cache():
+    global _PROMPT_CACHE
+    if CACHE_FILE.exists():
+        try:
+            _PROMPT_CACHE = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            _PROMPT_CACHE = {}
+
+def _save_cache():
+    try:
+        if len(_PROMPT_CACHE) > 500:
+            keys = list(_PROMPT_CACHE.keys())[-400:]
+            trimmed = {k: _PROMPT_CACHE[k] for k in keys}
+        else:
+            trimmed = _PROMPT_CACHE
+        CACHE_FILE.write_text(json.dumps(trimmed), encoding="utf-8")
+    except Exception:
+        pass
+
+_load_cache()
+
+VALID_CATEGORIES = [
+    "AI & LLM Tools",
+    "Cyber Security & Pentesting",
+    "Developer & APIs",
+    "Media, Audio & Design",
+    "Linux, Homelab & Systems",
+    "Productivity & Automation",
+    "Student & Learning"
+]
+
+
+def call_llm(messages: List[Dict], max_tokens: int = 1500, temperature: float = 0.25) -> str:
+    """Invokes OmniRoute LLM with fallback support and MD5 prompt caching."""
+    cache_key = hashlib.md5(json.dumps(messages, sort_keys=True).encode("utf-8")).hexdigest()
+    if cache_key in _PROMPT_CACHE:
+        return _PROMPT_CACHE[cache_key]
+
+    payload = {
+        "model": MODEL_NAME,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature
+    }
+    data_bytes = json.dumps(payload).encode("utf-8")
+    last_err = None
+
+    for base_url in OMNIROUTE_URLS:
+        try:
+            req = urllib.request.Request(
+                f"{base_url}/chat/completions",
+                data=data_bytes,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {OMNIROUTE_KEY}"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                res = json.loads(resp.read().decode("utf-8"))
+                result_text = res["choices"][0]["message"]["content"].strip()
+                _PROMPT_CACHE[cache_key] = result_text
+                _save_cache()
+                return result_text
+        except Exception as e:
+            last_err = e
+            continue
+
+    raise RuntimeError(f"OmniRoute LLM failed across endpoints {OMNIROUTE_URLS}: {last_err}")
+
+
+# =====================================================================
+# INGESTION PREREQUISITES: OCR, WEB & PDF
+# =====================================================================
+
+def ocr_image(image_path: str) -> str:
+    """Extracts raw text from an image or screenshot using Tesseract OCR."""
+    if not os.path.exists(image_path):
+        return ""
+    try:
+        res = subprocess.run(
+            ["tesseract", image_path, "stdout", "--oem", "1", "-l", "eng"],
+            capture_output=True,
+            text=True,
+            timeout=25
+        )
+        return res.stdout.strip()
+    except Exception as e:
+        print(f"[warn] Tesseract OCR error: {e}")
+        return ""
+
+
+def crawl_url_metadata(url: str) -> Dict:
+    """Scrapes page title, meta description, and primary content from a URL with SSRF protection."""
+    meta = {
+        "url": url,
+        "title": "",
+        "description": "",
+        "body_snippet": "",
+        "status_code": 0
+    }
+    try:
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.scheme.lower() not in ("http", "https"):
+            meta["description"] = f"Invalid scheme: {parsed.scheme}. Only HTTP/HTTPS allowed."
+            return meta
+
+        hostname = parsed.hostname
+        if not hostname:
+            meta["description"] = "Invalid URL: missing hostname."
+            return meta
+
+        # Resolve hostname and block private, loopback, or reserved IP ranges (SSRF defense)
+        addr_infos = socket.getaddrinfo(hostname, None)
+        for _, _, _, _, sockaddr in addr_infos:
+            ip_str = sockaddr[0]
+            ip_obj = ipaddress.ip_address(ip_str)
+            if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_reserved or ip_obj.is_multicast:
+                meta["description"] = f"Security block: IP {ip_str} is within private/restricted range."
+                return meta
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        }
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=12) as response:
+            meta["status_code"] = response.getcode()
+            html = response.read().decode("utf-8", errors="replace")
+
+        if BeautifulSoup:
+            soup = BeautifulSoup(html, "html.parser")
+            meta["title"] = soup.title.string.strip() if soup.title and soup.title.string else ""
+
+            # Check meta description
+            desc_tag = soup.find("meta", attrs={"name": re.compile(r"description", re.I)}) or \
+                       soup.find("meta", attrs={"property": "og:description"})
+            if desc_tag and desc_tag.get("content"):
+                meta["description"] = desc_tag["content"].strip()
+
+            # Clean body snippet
+            for s in soup(["script", "style", "nav", "footer", "header"]):
+                s.decompose()
+            text = " ".join(soup.stripped_strings)
+            meta["body_snippet"] = text[:2500]
+        else:
+            meta["body_snippet"] = html[:1500]
+
+    except Exception as e:
+        meta["description"] = f"Fetch note: {e}"
+
+    return meta
+
+
+def extract_text_from_pdf(pdf_path: str) -> str:
+    """Extracts text content from a PDF document."""
+    if not os.path.exists(pdf_path) or not PdfReader:
+        return ""
+    try:
+        reader = PdfReader(pdf_path)
+        pages_text = []
+        for p in reader.pages[:20]: # Up to 20 pages
+            txt = p.extract_text()
+            if txt:
+                pages_text.append(txt)
+        return "\n\n".join(pages_text)
+    except Exception as e:
+        print(f"[warn] PyPDF extraction error: {e}")
+        return ""
+
+
+# =====================================================================
+# AI EXTRACTION & ENRICHMENT
+# =====================================================================
+
+SYSTEM_PROMPT = """You are OmniVault Intelligence, an expert digital knowledge extractor and research librarian built for Arush Sengar (Cyber Security student, builder, and homelab tinkerer).
+
+Your job is to analyze raw input (OCR text from screenshots, web scrapes, PDF text, or user notes) and identify EVERY distinct website, utility, digital trick, or software tool mentioned.
+
+FOR EACH TOOL / WEBSITE DETECTED, RETURN A STRICT JSON OBJECT WITH:
+- "title": Clean canonical name (e.g. "CyberChef", "v0.dev", "LALAL.AI", "Explainshell").
+- "url": Real canonical URL (e.g. "https://gchq.github.io/CyberChef/"). If not explicit, deduce the official domain.
+- "one_liner": A punchy, crystal-clear 1-sentence explanation in simple Hindi/English student-friendly language explaining EXACTLY what this tool does and what it is used for (e.g. "1 click mein audio se vocal aur background music alag karne ke liye" or "Linux terminal commands ke flags ko visual breakdown ke saath explain karne ke liye"). NEVER use generic corporate fluff.
+- "category": MUST be one of:
+    * "AI & LLM Tools"
+    * "Cyber Security & Pentesting"
+    * "Developer & APIs"
+    * "Media, Audio & Design"
+    * "Linux, Homelab & Systems"
+    * "Productivity & Automation"
+    * "Student & Learning"
+- "subcategory": Specific domain (e.g. "Audio Separation", "Linux Hardening", "UI Mockup").
+- "tags": Array of 3-5 lowercase hashtags (e.g. ["audio", "ai", "free", "stem-separation"]).
+- "detailed_summary": 2-3 sentences explaining core capabilities, free vs paid tier, and notable features.
+- "how_to_use": Actionable tips or exact commands on how to use it immediately.
+- "safety_status": One of:
+    * "SAFE" (Official platform, trusted open-source, or standard SaaS).
+    * "PENTEST_ONLY" (Dual-use offensive security tool or scanner - only legal on authorized infrastructure).
+    * "CAUTION" (Freemium with data privacy caveats or aggressive tracking).
+    * "SUSPICIOUS" (Adware, piracy, or phishing risk).
+- "safety_notes": 1 clear sentence explaining legality, compliance, or safety caution.
+
+OUTPUT FORMAT:
+Respond with a RAW JSON array of objects `[ {...}, {...} ]`. Output ZERO markdown fences, ZERO conversational intro."""
+
+
+def parse_and_enrich_text(raw_text: str, source_context: str = "Screenshot OCR") -> List[Dict]:
+    """Uses LLM to identify, categorize, and enrich all websites/tricks in text."""
+    if not raw_text or len(raw_text.strip()) < 5:
+        return []
+
+    user_prompt = f"""SOURCE CONTEXT: {source_context}
+EXTRACTED CONTENT:
+{raw_text[:4000]}
+
+Extract all distinct websites, software tools, or practical tricks. If multiple tools are listed (e.g. '5 websites you must know'), return an entry for EACH ONE.
+Return strictly a valid JSON array."""
+
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_prompt}
+    ]
+
+    try:
+        raw_output = call_llm(messages, max_tokens=1800, temperature=0.2)
+        clean_json = re.sub(r'^```(?:json)?\s*', '', raw_output.strip())
+        clean_json = re.sub(r'\s*```$', '', clean_json).strip()
+
+        data = None
+        # Attempt 1: direct parse
+        try:
+            data = json.loads(clean_json)
+        except Exception:
+            # Attempt 2: isolate array
+            m = re.search(r'\[\s*\{.*\}\s*\]', clean_json, re.DOTALL)
+            if m:
+                try:
+                    data = json.loads(m.group(0))
+                except Exception:
+                    pass
+
+        # Attempt 3: parse individual JSON objects with regex
+        if not data:
+            objects = []
+            for obj_str in re.findall(r'\{[^{}]*"title"[^{}]*\}', clean_json, re.DOTALL):
+                try:
+                    parsed_obj = json.loads(obj_str)
+                    if isinstance(parsed_obj, dict) and parsed_obj.get("title"):
+                        objects.append(parsed_obj)
+                except Exception:
+                    continue
+            if objects:
+                data = objects
+
+        if not data:
+            raise ValueError(f"No valid JSON structure found in LLM response: {raw_output[:120]}")
+
+        if isinstance(data, dict):
+            data = [data]
+        elif not isinstance(data, list):
+            data = []
+
+
+        # Validate and sanitize categories
+        sanitized = []
+        for item in data:
+            if not item.get("title"):
+                continue
+            cat = item.get("category", "Developer & APIs")
+            if cat not in VALID_CATEGORIES:
+                cat = "Developer & APIs"
+            item["category"] = cat
+            if not item.get("safety_status"):
+                item["safety_status"] = "SAFE"
+            sanitized.append(item)
+
+        return sanitized
+    except Exception as e:
+        print(f"[warn] JSON parsing error in LLM extraction ({e})")
+        # Fallback single item
+        return [{
+            "title": "Extracted Note & Trick",
+            "url": "",
+            "one_liner": raw_text[:120].strip(),
+            "category": "Developer & APIs",
+            "subcategory": "General Utilities",
+            "tags": ["notes", "tricks", "reference"],
+            "detailed_summary": raw_text[:500],
+            "how_to_use": "Refer to raw note.",
+            "safety_status": "SAFE",
+            "safety_notes": "User saved note."
+        }]
+
+
+# =====================================================================
+# HIGH-LEVEL INGESTION ENTRYPOINTS
+# =====================================================================
+
+def process_image_upload(image_path: str) -> List[Dict]:
+    """Ingests an image/screenshot, runs OCR, and enriches all detected tools."""
+    print(f"[OmniVault] Processing image: {image_path}")
+    ocr_text = ocr_image(image_path)
+    if not ocr_text:
+        ocr_text = Path(image_path).stem.replace("_", " ")
+
+    results = parse_and_enrich_text(ocr_text, source_context="Screenshot / Photo OCR")
+    for r in results:
+        r["source_type"] = "IMAGE"
+        r["image_path"] = image_path
+    return results
+
+
+def process_url_input(url: str) -> List[Dict]:
+    """Crawls a URL and enriches it into a structured Vault record."""
+    print(f"[OmniVault] Crawling URL: {url}")
+    meta = crawl_url_metadata(url)
+    combined = f"URL: {url}\nTitle: {meta.get('title')}\nDescription: {meta.get('description')}\nContent: {meta.get('body_snippet')}"
+    results = parse_and_enrich_text(combined, source_context=f"Live Web Crawl of {url}")
+    for r in results:
+        r["source_type"] = "URL"
+        if not r.get("url"):
+            r["url"] = url
+    return results
+
+
+def process_pdf_upload(pdf_path: str) -> List[Dict]:
+    """Extracts text from PDF cheatsheets/guides and parses all tools."""
+    print(f"[OmniVault] Extracting PDF: {pdf_path}")
+    text = extract_text_from_pdf(pdf_path)
+    results = parse_and_enrich_text(text, source_context=f"PDF Document: {Path(pdf_path).name}")
+    for r in results:
+        r["source_type"] = "PDF"
+    return results
+
+
+def process_raw_text(text: str) -> List[Dict]:
+    """Processes freeform user text, lists, or prompt notes."""
+    results = parse_and_enrich_text(text, source_context="User Note / List")
+    for r in results:
+        r["source_type"] = "MANUAL"
+    return results
+
+
+# =====================================================================
+# CONVERSATIONAL ASSISTANT ("ASK VAULT")
+# =====================================================================
+
+def query_vault_ai(user_question: str, saved_resources: List[Dict]) -> str:
+    """
+    Answers Arush's natural language queries using relevance-ranked stored database items.
+    Example: 'Mujhe video editing ya audio clean karne ke liye kaun si site thi?'
+    """
+    # Extract meaningful query tokens for relevance ranking
+    tokens = [t.lower() for t in re.findall(r'\b\w{3,}\b', user_question)]
+
+    def score_resource(r: Dict) -> int:
+        score = 0
+        title_lower = (r.get("title") or "").lower()
+        one_liner_lower = (r.get("one_liner") or "").lower()
+        tags_lower = (str(r.get("tags")) or "").lower()
+        category_lower = (r.get("category") or "").lower()
+        summary_lower = (r.get("detailed_summary") or "").lower()
+
+        for tok in tokens:
+            if tok in title_lower:
+                score += 5
+            if tok in one_liner_lower:
+                score += 3
+            if tok in tags_lower:
+                score += 3
+            if tok in category_lower:
+                score += 2
+            if tok in summary_lower:
+                score += 1
+        return score
+
+    # Rank resources by score (descending); prioritize matching items
+    ranked = sorted(saved_resources, key=score_resource, reverse=True)
+
+    res_summary = []
+    for r in ranked[:30]: # Provide up to 30 most relevant resources
+        res_summary.append({
+            "title": r.get("title"),
+            "url": r.get("url"),
+            "category": r.get("category"),
+            "one_liner": r.get("one_liner"),
+            "tags": r.get("tags"),
+            "safety": r.get("safety_status")
+        })
+
+    prompt = f"""USER QUESTION:
+{user_question}
+
+SAVED RESOURCES IN ARUSH'S VAULT:
+{json.dumps(res_summary, indent=2)}
+
+INSTRUCTIONS:
+1. Answer Arush directly in a friendly, high-energy student builder voice (Hinglish/English).
+2. Recommend the exact matching tool(s) from his vault with their title, 1-line reason, and direct URL.
+3. If multiple tools can do the job, briefly compare them in 1 sentence.
+4. If NO tool in the vault matches what he wants, tell him candidly and recommend a top verified tool he can add right now."""
+
+    messages = [
+        {"role": "system", "content": "You are Arush's personal OmniVault Second-Brain Assistant."},
+        {"role": "user", "content": prompt}
+    ]
+
+    try:
+        return call_llm(messages, max_tokens=600, temperature=0.5)
+    except Exception as e:
+        return f"Error consulting OmniVault AI: {e}"

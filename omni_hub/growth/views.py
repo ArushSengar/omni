@@ -10,7 +10,8 @@ from datetime import datetime
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import GrowthPost, ResearchTopic, SystemStatus, WeeklyGrowthReview
+from .models import GrowthPost, ResearchTopic, SystemStatus, WeeklyGrowthReview, VaultResource
+from . import omni_vault_engine
 
 REGISTRY_FILE = Path(__file__).resolve().parent / "managed_services.json"
 
@@ -373,8 +374,14 @@ def dashboard_view(request):
 
     total_posts = GrowthPost.objects.count()
     published_count = GrowthPost.objects.filter(status='PUBLISHED').count()
-    total_views = sum(p.views for p in posts)
-    total_likes = sum(p.likes for p in posts)
+    
+    from django.db.models import Sum
+    totals = GrowthPost.objects.aggregate(
+        total_views=Sum('views'),
+        total_likes=Sum('likes')
+    )
+    total_views = totals.get('total_views') or 0
+    total_likes = totals.get('total_likes') or 0
 
     recommendations = []
     if latest_review and latest_review.recommendations_json:
@@ -408,9 +415,9 @@ def reports_view(request):
     return render(request, "growth/reports_list.html", {"reports": get_reports_list()})
 
 def view_single_report(request, filename):
-    reports_dir = Path(__file__).resolve().parent / "templates" / "growth" / "reports"
-    target = reports_dir / filename
-    if target.exists() and target.is_file():
+    reports_dir = (Path(__file__).resolve().parent / "templates" / "growth" / "reports").resolve()
+    target = (reports_dir / filename).resolve()
+    if target.is_relative_to(reports_dir) and target.exists() and target.is_file():
         return HttpResponse(target.read_text(encoding="utf-8"), content_type="text/html")
     return HttpResponse("Report not found", status=404)
 
@@ -561,6 +568,7 @@ def api_service_action(request):
     except Exception as e:
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
+
 @csrf_exempt
 def api_run_maintenance(request):
     """Executes system cleaning, cache dropping, RAM optimization, or DB compaction."""
@@ -648,6 +656,7 @@ def api_send_email_reports(request):
     except Exception as e:
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
+
 @csrf_exempt
 def api_trigger_growth(request):
     return JsonResponse({
@@ -690,8 +699,7 @@ def api_dispatch_laptop(request):
 
     try:
         if mode == "async":
-            cmd = f'echo {json.dumps(prompt)} | {hermes_bin} peer run laptop'
-            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+            res = subprocess.run([hermes_bin, "peer", "run", "laptop"], input=prompt, capture_output=True, text=True, timeout=30)
             return JsonResponse({
                 "status": "ok",
                 "mode": "async",
@@ -700,10 +708,7 @@ def api_dispatch_laptop(request):
             })
         else:
             # Sync turn (dm)
-            import base64
-            b64_prompt = base64.b64encode(prompt.encode("utf-8")).decode("ascii")
-            cmd = f'PROMPT=$(echo "{b64_prompt}" | base64 -d) && {hermes_bin} peer dm laptop "$PROMPT"'
-            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
+            res = subprocess.run([hermes_bin, "peer", "dm", "laptop", prompt], capture_output=True, text=True, timeout=120)
             return JsonResponse({
                 "status": "ok",
                 "mode": "sync",
@@ -712,3 +717,390 @@ def api_dispatch_laptop(request):
             })
     except Exception as e:
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+# =====================================================================
+# OMNIVAULT VIEWS & MULTIMODAL API ENDPOINTS
+# =====================================================================
+
+def vault_dashboard_view(request):
+    """Renders the OmniVault Knowledge & Resource Dashboard."""
+    total_resources = VaultResource.objects.count()
+    categories = [
+        "All",
+        "AI & LLM Tools",
+        "Cyber Security & Pentesting",
+        "Developer & APIs",
+        "Media, Audio & Design",
+        "Linux, Homelab & Systems",
+        "Productivity & Automation",
+        "Student & Learning"
+    ]
+    recent_resources = VaultResource.objects.all()[:12]
+    context = {
+        "total_count": total_resources,
+        "categories": categories,
+        "recent_resources": recent_resources,
+    }
+    return render(request, "growth/vault_dashboard.html", context)
+
+
+def api_vault_list(request):
+    """Returns a filtered list of Vault resources with search and tags."""
+    query = request.GET.get("q", "").strip().lower()
+    category = request.GET.get("category", "").strip()
+    safety = request.GET.get("safety", "").strip()
+    fav_only = request.GET.get("favorite", "").lower() in ["true", "1"]
+
+    qs = VaultResource.objects.all()
+
+    if category and category.lower() != "all":
+        qs = qs.filter(category__iexact=category)
+
+    if safety:
+        qs = qs.filter(safety_status__iexact=safety)
+
+    if fav_only:
+        qs = qs.filter(favorite=True)
+
+    if query:
+        from django.db.models import Q
+        qs = qs.filter(
+            Q(title__icontains=query) |
+            Q(one_liner__icontains=query) |
+            Q(tags__icontains=query) |
+            Q(subcategory__icontains=query) |
+            Q(detailed_summary__icontains=query) |
+            Q(url__icontains=query)
+        )
+
+    results = []
+    for r in qs[:100]:
+        results.append({
+            "id": r.id,
+            "title": r.title,
+            "url": r.url,
+            "one_liner": r.one_liner,
+            "category": r.category,
+            "subcategory": r.subcategory,
+            "tags": [t.strip() for t in r.tags.split(",") if t.strip()] if r.tags else [],
+            "detailed_summary": r.detailed_summary,
+            "how_to_use": r.how_to_use,
+            "safety_status": r.safety_status,
+            "safety_notes": r.safety_notes,
+            "source_type": r.source_type,
+            "image_path": r.image_path,
+            "favorite": r.favorite,
+            "rating": r.rating,
+            "created_at": r.created_at.strftime("%d %b %Y, %H:%M")
+        })
+
+    return JsonResponse({
+        "status": "ok",
+        "count": len(results),
+        "total_in_db": VaultResource.objects.count(),
+        "resources": results
+    })
+
+
+@csrf_exempt
+def api_vault_ingest_image(request):
+    """Multimodal Image/Screenshot Ingestion: Runs OCR, AI multi-tool parsing, and records entries."""
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "POST required"}, status=405)
+
+    uploaded_file = request.FILES.get("file") or request.FILES.get("image")
+    if not uploaded_file:
+        return JsonResponse({"status": "error", "message": "No image file provided"}, status=400)
+
+    # Save to upload dir
+    save_dir = Path.home() / "omni_vault_media" / "uploads"
+    save_dir.mkdir(parents=True, exist_ok=True)
+    file_ext = Path(uploaded_file.name).suffix.lower()
+    if file_ext not in [".png", ".jpg", ".jpeg", ".webp"]:
+        file_ext = ".png"
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    saved_path = save_dir / f"vault_{ts}{file_ext}"
+
+    with open(saved_path, "wb+") as destination:
+        for chunk in uploaded_file.chunks():
+            destination.write(chunk)
+
+    try:
+        # Run OCR
+        ocr_text = omni_vault_engine.ocr_image(str(saved_path))
+        if not ocr_text or len(ocr_text.strip()) < 5:
+            # Fallback note
+            ocr_text = f"Uploaded image: {uploaded_file.name}"
+
+        # Run AI Multi-Tool Parsing & Enrichment
+        tools_data = omni_vault_engine.parse_and_enrich_text(ocr_text, source_context=f"Screenshot: {uploaded_file.name}")
+
+        created_items = []
+        for t in tools_data:
+            tags_str = ",".join(t.get("tags", [])) if isinstance(t.get("tags"), list) else str(t.get("tags", ""))
+            res = VaultResource.objects.create(
+                title=t.get("title", "Unknown Tool"),
+                url=t.get("url", ""),
+                one_liner=t.get("one_liner", "Useful tool discovered via screenshot"),
+                category=t.get("category", "General Tech"),
+                subcategory=t.get("subcategory", ""),
+                tags=tags_str,
+                detailed_summary=t.get("detailed_summary", ""),
+                how_to_use=t.get("how_to_use", ""),
+                safety_status=t.get("safety_status", "SAFE"),
+                safety_notes=t.get("safety_notes", ""),
+                source_type="screenshot",
+                raw_ocr_text=ocr_text[:3000],
+                image_path=str(saved_path),
+            )
+            created_items.append({
+                "id": res.id,
+                "title": res.title,
+                "one_liner": res.one_liner,
+                "category": res.category,
+                "safety_status": res.safety_status
+            })
+
+        return JsonResponse({
+            "status": "ok",
+            "message": f"Successfully extracted and indexed {len(created_items)} tool(s).",
+            "ocr_preview": ocr_text[:300],
+            "created": created_items
+        })
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": f"Ingestion failed: {e}"}, status=500)
+
+
+@csrf_exempt
+def api_vault_ingest_url(request):
+    """Web URL Ingestion: Crawls page metadata and enriches tool entry."""
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "POST required"}, status=405)
+
+    try:
+        data = json.loads(request.body.decode("utf-8")) if request.body else {}
+    except Exception:
+        data = request.POST
+
+    url = data.get("url", "").strip()
+    if not url:
+        return JsonResponse({"status": "error", "message": "URL is required"}, status=400)
+
+    try:
+        meta = omni_vault_engine.crawl_url_metadata(url)
+        combined_text = f"Title: {meta.get('title')}\nDescription: {meta.get('description')}\nSnippet:\n{meta.get('body_snippet', '')}"
+
+        tools = omni_vault_engine.parse_and_enrich_text(combined_text, source_context=f"URL Scrape: {url}")
+        if not tools:
+            # Fallback create single record
+            tools = [{
+                "title": meta.get("title") or url,
+                "url": url,
+                "one_liner": meta.get("description") or "Useful web resource",
+                "category": "Developer & APIs",
+                "subcategory": "Web Tool",
+                "tags": ["web", "tool"],
+                "detailed_summary": meta.get("description", ""),
+                "how_to_use": f"Visit {url}",
+                "safety_status": "SAFE",
+                "safety_notes": "Standard public website"
+            }]
+
+        created = []
+        for t in tools:
+            tags_str = ",".join(t.get("tags", [])) if isinstance(t.get("tags"), list) else str(t.get("tags", ""))
+            res = VaultResource.objects.create(
+                title=t.get("title", meta.get("title") or "Web Tool"),
+                url=t.get("url") or url,
+                one_liner=t.get("one_liner", "Useful web resource"),
+                category=t.get("category", "Developer & APIs"),
+                subcategory=t.get("subcategory", ""),
+                tags=tags_str,
+                detailed_summary=t.get("detailed_summary", ""),
+                how_to_use=t.get("how_to_use", ""),
+                safety_status=t.get("safety_status", "SAFE"),
+                safety_notes=t.get("safety_notes", ""),
+                source_type="url",
+                raw_ocr_text=combined_text[:3000]
+            )
+            created.append({"id": res.id, "title": res.title, "one_liner": res.one_liner, "category": res.category})
+
+        return JsonResponse({
+            "status": "ok",
+            "message": f"Successfully indexed {len(created)} tool(s) from URL.",
+            "created": created
+        })
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": f"URL ingest failed: {e}"}, status=500)
+
+
+@csrf_exempt
+def api_vault_ingest_text(request):
+    """Raw Text Ingestion: Parses multi-tool list, tricks, or notes."""
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "POST required"}, status=405)
+
+    try:
+        data = json.loads(request.body.decode("utf-8")) if request.body else {}
+    except Exception:
+        data = request.POST
+
+    text = data.get("text", "").strip()
+    if not text:
+        return JsonResponse({"status": "error", "message": "Text content required"}, status=400)
+
+    try:
+        tools = omni_vault_engine.parse_and_enrich_text(text, source_context="Direct Notes / List")
+        created = []
+        for t in tools:
+            tags_str = ",".join(t.get("tags", [])) if isinstance(t.get("tags"), list) else str(t.get("tags", ""))
+            res = VaultResource.objects.create(
+                title=t.get("title", "Tool"),
+                url=t.get("url", ""),
+                one_liner=t.get("one_liner", "Practical trick or tool"),
+                category=t.get("category", "General Tech"),
+                subcategory=t.get("subcategory", ""),
+                tags=tags_str,
+                detailed_summary=t.get("detailed_summary", ""),
+                how_to_use=t.get("how_to_use", ""),
+                safety_status=t.get("safety_status", "SAFE"),
+                safety_notes=t.get("safety_notes", ""),
+                source_type="manual",
+                raw_ocr_text=text[:3000]
+            )
+            created.append({"id": res.id, "title": res.title, "one_liner": res.one_liner, "category": res.category})
+
+        return JsonResponse({
+            "status": "ok",
+            "message": f"Successfully parsed and indexed {len(created)} tool(s).",
+            "created": created
+        })
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": f"Text ingest failed: {e}"}, status=500)
+
+
+@csrf_exempt
+def api_vault_ingest_pdf(request):
+    """PDF / Cheatsheet Ingestion: Extracts text and decomposes tools."""
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "POST required"}, status=405)
+
+    uploaded_file = request.FILES.get("file") or request.FILES.get("pdf")
+    if not uploaded_file:
+        return JsonResponse({"status": "error", "message": "No PDF file provided"}, status=400)
+
+    save_dir = Path.home() / "omni_vault_media" / "pdfs"
+    save_dir.mkdir(parents=True, exist_ok=True)
+    clean_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', Path(uploaded_file.name).name)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    saved_path = save_dir / f"vault_{ts}_{clean_name}"
+
+    with open(saved_path, "wb+") as destination:
+        for chunk in uploaded_file.chunks():
+            destination.write(chunk)
+
+    try:
+        pdf_text = omni_vault_engine.extract_text_from_pdf(str(saved_path))
+        if not pdf_text:
+            return JsonResponse({"status": "error", "message": "Could not extract text from PDF"}, status=400)
+
+        tools = omni_vault_engine.parse_and_enrich_text(pdf_text, source_context=f"PDF Document: {uploaded_file.name}")
+        created = []
+        for t in tools:
+            tags_str = ",".join(t.get("tags", [])) if isinstance(t.get("tags"), list) else str(t.get("tags", ""))
+            res = VaultResource.objects.create(
+                title=t.get("title", "PDF Guide Resource"),
+                url=t.get("url", ""),
+                one_liner=t.get("one_liner", "Useful guide or tool"),
+                category=t.get("category", "Student & Learning"),
+                subcategory=t.get("subcategory", ""),
+                tags=tags_str,
+                detailed_summary=t.get("detailed_summary", ""),
+                how_to_use=t.get("how_to_use", ""),
+                safety_status=t.get("safety_status", "SAFE"),
+                safety_notes=t.get("safety_notes", ""),
+                source_type="pdf",
+                raw_ocr_text=pdf_text[:3000]
+            )
+            created.append({"id": res.id, "title": res.title, "one_liner": res.one_liner, "category": res.category})
+
+        return JsonResponse({
+            "status": "ok",
+            "message": f"Successfully indexed {len(created)} tool(s) from PDF.",
+            "created": created
+        })
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": f"PDF ingest failed: {e}"}, status=500)
+
+
+@csrf_exempt
+def api_vault_chat(request):
+    """Conversational AI Assistant ('Ask Vault'): Natural language query to retrieve stored tools."""
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "POST required"}, status=405)
+
+    try:
+        data = json.loads(request.body.decode("utf-8")) if request.body else {}
+    except Exception:
+        data = request.POST
+
+    user_query = data.get("query", "").strip()
+    if not user_query:
+        return JsonResponse({"status": "error", "message": "Query string is required"}, status=400)
+
+    try:
+        all_resources = list(VaultResource.objects.all()[:150].values(
+            "id", "title", "url", "one_liner", "category", "subcategory", "tags", "safety_status", "how_to_use"
+        ))
+        answer = omni_vault_engine.query_vault_ai(user_query, all_resources)
+        return JsonResponse({
+            "status": "ok",
+            "query": user_query,
+            "answer": answer
+        })
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@csrf_exempt
+def api_vault_toggle_fav(request):
+    """Toggles favorite status on a resource."""
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "POST required"}, status=405)
+
+    try:
+        data = json.loads(request.body.decode("utf-8")) if request.body else {}
+    except Exception:
+        data = request.POST
+
+    resource_id = data.get("id")
+    try:
+        res = VaultResource.objects.get(id=resource_id)
+        res.favorite = not res.favorite
+        res.save()
+        return JsonResponse({"status": "ok", "id": res.id, "favorite": res.favorite})
+    except VaultResource.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Resource not found"}, status=404)
+
+
+@csrf_exempt
+def api_vault_delete(request):
+    """Deletes a resource."""
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "POST required"}, status=405)
+
+    try:
+        data = json.loads(request.body.decode("utf-8")) if request.body else {}
+    except Exception:
+        data = request.POST
+
+    resource_id = data.get("id")
+    try:
+        res = VaultResource.objects.get(id=resource_id)
+        title = res.title
+        res.delete()
+        return JsonResponse({"status": "ok", "message": f"Deleted '{title}'."})
+    except VaultResource.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Resource not found"}, status=404)
+

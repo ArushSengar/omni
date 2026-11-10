@@ -25,6 +25,11 @@ class GrowthPost(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['status']),
+            models.Index(fields=['domain']),
+        ]
 
     def __str__(self):
         return f"{self.title} ({self.status})"
@@ -43,6 +48,11 @@ class ResearchTopic(models.Model):
 
     class Meta:
         ordering = ['-researched_at']
+        indexes = [
+            models.Index(fields=['-researched_at']),
+            models.Index(fields=['category']),
+            models.Index(fields=['is_used']),
+        ]
 
     def __str__(self):
         return f"[{self.category}] {self.title}"
@@ -72,6 +82,49 @@ class WeeklyGrowthReview(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+        ]
 
     def __str__(self):
         return f"Review {self.period_label} - {self.growth_status}"
+
+
+class VaultResource(models.Model):
+    SAFETY_CHOICES = [
+        ('SAFE', 'Safe / Verified'),
+        ('PENTEST_ONLY', 'Pentest / Authorized Lab Only'),
+        ('CAUTION', 'Caution / Privacy Caveats'),
+        ('SUSPICIOUS', 'Suspicious / Untrusted'),
+    ]
+
+    title = models.CharField(max_length=255)
+    url = models.CharField(max_length=500, blank=True)
+    one_liner = models.CharField(max_length=400, help_text="Punchy 1-line purpose in simple Hindi/English")
+    category = models.CharField(max_length=100, default="AI & LLM Tools")
+    subcategory = models.CharField(max_length=100, blank=True)
+    tags = models.CharField(max_length=300, blank=True)
+    detailed_summary = models.TextField(blank=True)
+    how_to_use = models.TextField(blank=True)
+    safety_status = models.CharField(max_length=50, choices=SAFETY_CHOICES, default='SAFE')
+    safety_notes = models.CharField(max_length=400, blank=True)
+    source_type = models.CharField(max_length=50, default='screenshot')
+    raw_ocr_text = models.TextField(blank=True)
+    image_path = models.CharField(max_length=500, blank=True)
+    favorite = models.BooleanField(default=False)
+    rating = models.IntegerField(default=5)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['category']),
+            models.Index(fields=['safety_status']),
+            models.Index(fields=['favorite']),
+            models.Index(fields=['-created_at']),
+        ]
+
+    def __str__(self):
+        return f"[{self.category}] {self.title}"
+

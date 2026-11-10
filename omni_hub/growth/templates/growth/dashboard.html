@@ -92,6 +92,10 @@
                 <span>📋</span><span>Reports Archive</span>
                 <span class="text-xs px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-300">{{ reports|length }}</span>
             </button>
+            <a href="/vault/" class="px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center space-x-2 text-indigo-300 bg-indigo-950/40 border border-indigo-500/40 hover:bg-indigo-900/60 shadow-sm shadow-indigo-500/20">
+                <span>🗄️</span><span>OmniVault</span>
+                <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-indigo-500/30 text-indigo-200 mono">LIVE</span>
+            </a>
             <button onclick="switchTab('mcp')" id="tab-btn-mcp" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center space-x-2 text-slate-400 hover:text-white hover:bg-slate-800/60">
                 <span>🔌</span><span>Agent & MCPs</span>
                 <span class="text-xs px-1.5 py-0.2 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">{{ active_mcp_count }}</span>

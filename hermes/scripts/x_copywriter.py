@@ -109,13 +109,18 @@ def sanitize_tweet_text(text: str) -> str:
     cleaned = []
     started = False
     conversational = [
-        r"^here(?:'s|\s+is|\s+are)\b",
+        r"^here(?:['’]?s|\s+is|\s+are)\b",
         r"^certainly\b",
         r"^sure\b",
         r"^below is\b",
         r"^tweet\s*\d*:\s*",
         r"^post\s*:\s*",
-        r"^single tweet\s*:\s*"
+        r"^single tweet\s*:\s*",
+        r"^thread\s*:\s*",
+        r".*as arush sengar.*",
+        r".*here(?:['’]?s|\s+is)\s+(?:your\s+)?tweet.*",
+        r"^title\s*:",
+        r"^headline\s*:",
     ]
     for l in lines:
         st = l.strip()
@@ -133,7 +138,9 @@ def sanitize_tweet_text(text: str) -> str:
     # Strip raw markdown asterisks and backticks
     text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
     text = re.sub(r'\*(.*?)\*', r'\1', text)
+    text = text.replace('**', '')
     text = re.sub(r'`([^`]+)`', r'\1', text)
+    text = text.replace('`', '')
     text = re.sub(r'[\w\-]+\.docx', '', text)
     return text.strip()
 
@@ -147,7 +154,7 @@ def validate_tweets(tweets: list) -> tuple:
         ".docx", "as an ai", "i am an ai", "chatgpt", "deepseek",
         "language model", "without breaking a sweat", "dive deep",
         "delve", "game-changer", "here is your", "here's your",
-        "certainly!", "sure!"
+        "certainly!", "sure!", "as arush sengar"
     ]
 
     for i, tw in enumerate(tweets, 1):
@@ -162,6 +169,10 @@ def validate_tweets(tweets: list) -> tuple:
                 return False, f"Tweet {i} contains forbidden term: '{b}'"
         if "**" in clean_tw:
             return False, f"Tweet {i} contains raw markdown asterisks (**)"
+        if "`" in clean_tw:
+            return False, f"Tweet {i} contains raw markdown backticks (`)"
+        if "---" in clean_tw and "---tweet---" not in clean_tw.lower():
+            return False, f"Tweet {i} contains raw horizontal divider lines"
 
     # Verify hashtags present in thread or single tweet
     if not any("#" in tw for tw in tweets):

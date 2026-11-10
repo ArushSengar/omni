@@ -17,4 +17,15 @@ urlpatterns = [
     path('api/service-action/', views.api_service_action, name='api_service_action'),
     path('api/run-maintenance/', views.api_run_maintenance, name='api_run_maintenance'),
     path('api/dispatch-laptop/', views.api_dispatch_laptop, name='api_dispatch_laptop'),
+    
+    # OmniVault UI & Multimodal APIs
+    path('vault/', views.vault_dashboard_view, name='vault_dashboard'),
+    path('api/vault/list/', views.api_vault_list, name='api_vault_list'),
+    path('api/vault/ingest/image/', views.api_vault_ingest_image, name='api_vault_ingest_image'),
+    path('api/vault/ingest/url/', views.api_vault_ingest_url, name='api_vault_ingest_url'),
+    path('api/vault/ingest/text/', views.api_vault_ingest_text, name='api_vault_ingest_text'),
+    path('api/vault/ingest/pdf/', views.api_vault_ingest_pdf, name='api_vault_ingest_pdf'),
+    path('api/vault/chat/', views.api_vault_chat, name='api_vault_chat'),
+    path('api/vault/toggle-fav/', views.api_vault_toggle_fav, name='api_vault_toggle_fav'),
+    path('api/vault/delete/', views.api_vault_delete, name='api_vault_delete'),
 ]
