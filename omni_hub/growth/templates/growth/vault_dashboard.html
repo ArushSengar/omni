@@ -83,6 +83,24 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
         }
 
+        .subcat-chip {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #94a3b8;
+            cursor: pointer;
+        }
+        .subcat-chip:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #f1f5f9;
+            border-color: rgba(255, 255, 255, 0.16);
+        }
+        .subcat-chip.active {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(129, 140, 248, 0.5);
+            color: #c7d2fe;
+            box-shadow: 0 1px 4px rgba(99, 102, 241, 0.2);
+        }
+
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -258,13 +276,18 @@
             <!-- Apple Segmented Category Switcher (Dynamic Categories) -->
             <div id="category-pills" class="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs custom-scrollbar">
                 {% for cat in categories %}
-                <button onclick="selectCategory('{{ cat.name }}')" data-cat="{{ cat.name }}" class="segmented-btn {% if forloop.first %}active{% endif %} px-3.5 py-1.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] font-medium whitespace-nowrap flex items-center space-x-1.5 transition active:scale-95">
+                <button onclick="selectCategory(this.dataset.cat)" data-cat="{{ cat.name }}" class="segmented-btn {% if forloop.first %}active{% endif %} px-3.5 py-1.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] font-medium whitespace-nowrap flex items-center space-x-1.5 transition active:scale-95">
                     <span>{{ cat.icon }} {{ cat.name }}</span>
                     {% if cat.count is not None %}
                     <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-white/[0.08] text-slate-300 font-mono">{{ cat.count }}</span>
                     {% endif %}
                 </button>
                 {% endfor %}
+            </div>
+
+            <!-- Apple Segmented Subcategory Chips (Dynamic Two-Tier Hierarchy) -->
+            <div id="subcategory-pills" class="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs custom-scrollbar mt-1.5 hidden">
+                <!-- Injected via JavaScript when a category with subcategories is chosen -->
             </div>
         </div>
 
@@ -516,15 +539,26 @@
         </div>
     </div>
 
+    {{ categories|json_script:"categories-data" }}
+
     <!-- Application Controller Logic -->
     <script>
         let currentCategory = "All";
+        let currentSubcategory = "All";
         let isFavoriteFilterActive = false;
         let allResourcesCache = [];
         let debounceTimer = null;
+        let categoriesMetadata = [];
+        try {
+            const el = document.getElementById("categories-data");
+            if (el) categoriesMetadata = JSON.parse(el.textContent);
+        } catch(e) {
+            categoriesMetadata = [];
+        }
 
         document.addEventListener("DOMContentLoaded", () => {
             fetchResources();
+            renderSubcategoryPills();
             
             // Global keyboard shortcuts (Cmd + K or Ctrl + K for Spotlight)
             document.addEventListener("keydown", (e) => {
@@ -544,6 +578,9 @@
             const search = document.getElementById("vault-search-input").value.trim();
             const safety = document.getElementById("safety-filter").value;
             let url = `/api/vault/list/?category=${encodeURIComponent(currentCategory)}&q=${encodeURIComponent(search)}&safety=${encodeURIComponent(safety)}`;
+            if (currentSubcategory && currentSubcategory.toLowerCase() !== "all") {
+                url += `&subcategory=${encodeURIComponent(currentSubcategory)}`;
+            }
             if (isFavoriteFilterActive) url += "&favorite=true";
 
             fetch(url)
@@ -664,7 +701,7 @@
                 else if (item.source_type === "manual") sourceIcon = "fa-pen";
 
                 const tagPills = (item.tags || []).slice(0, 3).map(t => 
-                    `<span class="bg-white/[0.04] text-slate-400 px-2 py-0.5 rounded-md border border-white/[0.06] text-[10px] font-mono">#${t}</span>`
+                    `<span class="bg-white/[0.04] text-slate-400 px-2 py-0.5 rounded-md border border-white/[0.06] text-[10px] font-mono">#${escapeHtml(t)}</span>`
                 ).join(" ");
 
                 html += `
@@ -697,7 +734,7 @@
 
                             <!-- Category & Safety Tier -->
                             <div class="flex items-center justify-between text-[11px]">
-                                <span class="text-slate-400 font-medium truncate">${escapeHtml(item.category)}</span>
+                                <span class="text-slate-400 font-medium truncate">${escapeHtml(item.category)}${item.subcategory ? ` <span class="text-indigo-400/80 font-mono text-[10px]">// ${escapeHtml(item.subcategory)}</span>` : ''}</span>
                                 <span class="px-2 py-0.5 rounded-full text-[9.5px] font-mono border ${badgeClass}">
                                     ${item.safety_status}
                                 </span>
@@ -728,18 +765,101 @@
             grid.innerHTML = html;
         }
 
-        // Category Switcher
+        // Category & Dynamic Subcategory Controller
         function selectCategory(cat) {
-            currentCategory = cat;
+            currentCategory = cat || "All";
+            currentSubcategory = "All";
             document.querySelectorAll("#category-pills .segmented-btn").forEach(btn => {
-                const bCat = btn.getAttribute("data-cat") || btn.innerText.trim();
-                if (bCat.toLowerCase() === cat.toLowerCase()) {
+                const bCat = btn.dataset.cat || btn.getAttribute("data-cat") || btn.innerText.trim();
+                if (bCat.toLowerCase() === currentCategory.toLowerCase()) {
+                    btn.classList.add("active");
+                } else {
+                    btn.classList.remove("active");
+                }
+            });
+            renderSubcategoryPills();
+            fetchResources();
+        }
+
+        function renderSubcategoryPills() {
+            const container = document.getElementById("subcategory-pills");
+            if (!container) return;
+
+            if (currentCategory.toLowerCase() === "all") {
+                container.classList.add("hidden");
+                container.innerHTML = "";
+                return;
+            }
+
+            const catObj = categoriesMetadata.find(c => c.name.toLowerCase() === currentCategory.toLowerCase());
+            const subcats = (catObj && catObj.subcategories) ? catObj.subcategories : [];
+
+            if (!subcats || subcats.length === 0) {
+                container.classList.add("hidden");
+                container.innerHTML = "";
+                return;
+            }
+
+            let html = `
+                <button onclick="selectSubcategory('All')" data-subcat="All" class="subcat-chip ${currentSubcategory.toLowerCase() === 'all' ? 'active' : ''} px-2.5 py-1 rounded-md text-[11px] font-mono transition flex items-center space-x-1">
+                    <span>All Subcategories</span>
+                </button>
+            `;
+
+            subcats.forEach(sub => {
+                const isActive = currentSubcategory.toLowerCase() === sub.name.toLowerCase();
+                html += `
+                    <button onclick="selectSubcategory(this.dataset.subcat)" data-subcat="${escapeHtml(sub.name)}" class="subcat-chip ${isActive ? 'active' : ''} px-2.5 py-1 rounded-md text-[11px] font-mono transition flex items-center space-x-1.5">
+                        <span>${escapeHtml(sub.name)}</span>
+                        <span class="text-[9px] px-1 rounded-full bg-white/[0.08] text-slate-300 font-mono">${sub.count}</span>
+                    </button>
+                `;
+            });
+
+            container.innerHTML = html;
+            container.classList.remove("hidden");
+        }
+
+        function selectSubcategory(subcat) {
+            currentSubcategory = subcat || "All";
+            document.querySelectorAll("#subcategory-pills .subcat-chip").forEach(btn => {
+                const bSub = btn.dataset.subcat || "";
+                if (bSub.toLowerCase() === currentSubcategory.toLowerCase()) {
                     btn.classList.add("active");
                 } else {
                     btn.classList.remove("active");
                 }
             });
             fetchResources();
+        }
+
+        function refreshCategories() {
+            fetch('/api/vault/categories/')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === "ok" && data.categories) {
+                        categoriesMetadata = data.categories;
+                        renderCategoryPills(data.categories);
+                        renderSubcategoryPills();
+                    }
+                })
+                .catch(e => console.warn("Failed to refresh categories", e));
+        }
+
+        function renderCategoryPills(categories) {
+            const container = document.getElementById("category-pills");
+            if (!container) return;
+            let html = "";
+            categories.forEach(cat => {
+                const isActive = cat.name.toLowerCase() === currentCategory.toLowerCase();
+                html += `
+                    <button onclick="selectCategory(this.dataset.cat)" data-cat="${escapeHtml(cat.name)}" class="segmented-btn ${isActive ? 'active' : ''} px-3.5 py-1.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] font-medium whitespace-nowrap flex items-center space-x-1.5 transition active:scale-95">
+                        <span>${cat.icon} ${escapeHtml(cat.name)}</span>
+                        ${cat.count !== undefined ? `<span class="text-[10px] px-1.5 py-0.2 rounded-full bg-white/[0.08] text-slate-300 font-mono">${cat.count}</span>` : ''}
+                    </button>
+                `;
+            });
+            container.innerHTML = html;
         }
 
         function toggleFavFilter() {
@@ -828,10 +948,11 @@
                 return;
             }
             const filtered = allResourcesCache.filter(item => 
-                item.title.toLowerCase().includes(query) ||
-                item.one_liner.toLowerCase().includes(query) ||
+                (item.title && item.title.toLowerCase().includes(query)) ||
+                (item.one_liner && item.one_liner.toLowerCase().includes(query)) ||
                 (item.tags || []).some(t => t.toLowerCase().includes(query)) ||
-                item.category.toLowerCase().includes(query)
+                (item.category && item.category.toLowerCase().includes(query)) ||
+                (item.subcategory && item.subcategory.toLowerCase().includes(query))
             );
             renderSpotlightResults(filtered);
         }
@@ -848,7 +969,7 @@
                     <div class="space-y-0.5 truncate">
                         <div class="flex items-center space-x-2">
                             <span class="font-bold text-white text-xs group-hover:text-indigo-300 transition">${escapeHtml(item.title)}</span>
-                            <span class="text-[9.5px] font-mono text-slate-400 bg-white/[0.05] px-1.5 py-0.2 rounded border border-white/[0.06]">${item.category}</span>
+                            <span class="text-[9.5px] font-mono text-slate-400 bg-white/[0.05] px-1.5 py-0.2 rounded border border-white/[0.06]">${escapeHtml(item.category)}${item.subcategory ? ' // ' + escapeHtml(item.subcategory) : ''}</span>
                         </div>
                         <p class="text-[11px] text-slate-400 truncate">${escapeHtml(item.one_liner)}</p>
                     </div>
@@ -896,7 +1017,7 @@
             document.getElementById("modal-safety-notes").innerText = item.safety_notes || "Verified clean for engineering use.";
             
             const tagsBox = document.getElementById("modal-tags");
-            tagsBox.innerHTML = (item.tags || []).map(t => `<span class="bg-white/[0.04] text-slate-400 px-2 py-0.5 rounded-md border border-white/[0.06] font-mono">#${t}</span>`).join(" ");
+            tagsBox.innerHTML = (item.tags || []).map(t => `<span class="bg-white/[0.04] text-slate-400 px-2 py-0.5 rounded-md border border-white/[0.06] font-mono">#${escapeHtml(t)}</span>`).join(" ");
             
             document.getElementById("modal-created-at").innerText = `Saved: ${item.created_at}`;
             document.getElementById("detail-modal").classList.remove("hidden");
@@ -979,6 +1100,7 @@
                     document.getElementById("btn-submit-image").disabled = false;
                     if (data.status === "ok") {
                         setIngestStatus(data.message, "success");
+                        refreshCategories();
                         fetchResources();
                         setTimeout(closeIngestModal, 1500);
                     } else {
@@ -1006,6 +1128,7 @@
                 if (data.status === "ok") {
                     setIngestStatus(data.message, "success");
                     document.getElementById("url-input").value = "";
+                    refreshCategories();
                     fetchResources();
                     setTimeout(closeIngestModal, 1500);
                 } else {
@@ -1030,6 +1153,7 @@
                 if (data.status === "ok") {
                     setIngestStatus(data.message, "success");
                     document.getElementById("text-input").value = "";
+                    refreshCategories();
                     fetchResources();
                     setTimeout(closeIngestModal, 1500);
                 } else {
@@ -1052,6 +1176,7 @@
                 .then(data => {
                     if (data.status === "ok") {
                         setIngestStatus(data.message, "success");
+                        refreshCategories();
                         fetchResources();
                         setTimeout(closeIngestModal, 1500);
                     } else {
@@ -1117,7 +1242,7 @@
                 } else {
                     chatMessages.innerHTML += `
                         <div class="bg-rose-950/20 border border-rose-500/30 rounded-2xl p-3 mr-6 text-rose-300">
-                            Error: ${data.message}
+                            Error: ${escapeHtml(data.message || 'Unknown error')}
                         </div>
                     `;
                 }
@@ -1128,7 +1253,7 @@
                 if (loader) loader.remove();
                 chatMessages.innerHTML += `
                     <div class="bg-rose-950/20 border border-rose-500/30 rounded-2xl p-3 mr-6 text-rose-300">
-                        Error: ${err.message}
+                        Error: ${escapeHtml(err.message || 'Network error')}
                     </div>
                 `;
             });

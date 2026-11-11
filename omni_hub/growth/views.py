@@ -611,7 +611,8 @@ def api_auth_logout(request):
 def get_categories_with_metadata():
     """
     Returns all distinct categories currently present in VaultResource, ordered by item count,
-    with friendly emoji, FontAwesome icon, and item count. Always includes 'All' first.
+    with friendly emoji, FontAwesome icon, item count, and child subcategories. Always includes 'All' first.
+    Performs case-insensitive subcategory aggregation to prevent dropped subcategories.
     """
     from .models import VaultResource
     from . import omni_vault_engine
@@ -624,11 +625,32 @@ def get_categories_with_metadata():
     )
     total_all = sum(cat_counts.values())
 
+    # Collect subcategories per category with case-insensitive aggregation
+    subcat_rows = (
+        VaultResource.objects.exclude(subcategory__isnull=True)
+        .exclude(subcategory__exact='')
+        .values('category', 'subcategory')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+    subcats_map = {}
+    for r in subcat_rows:
+        c_key = (r['category'] or '').strip().lower()
+        s = (r['subcategory'] or '').strip()
+        if c_key and s:
+            existing = subcats_map.setdefault(c_key, [])
+            match = next((item for item in existing if item["name"].lower() == s.lower()), None)
+            if match:
+                match["count"] += r['total']
+            else:
+                existing.append({"name": s, "count": r['total']})
+
     categories = [{
         "name": "All",
         "count": total_all,
         "icon": "🌐",
-        "fa_icon": "fa-layer-group"
+        "fa_icon": "fa-layer-group",
+        "subcategories": []
     }]
 
     preferred_order = [
@@ -645,25 +667,29 @@ def get_categories_with_metadata():
     seen = {"all"}
 
     for cat_name in preferred_order:
-        if cat_name in cat_counts:
+        db_key = next((k for k in cat_counts if k and k.strip().lower() == cat_name.lower()), None)
+        if db_key:
             categories.append({
                 "name": cat_name,
-                "count": cat_counts[cat_name],
+                "count": cat_counts[db_key],
                 "icon": omni_vault_engine.CATEGORY_ICONS.get(cat_name, "📁"),
-                "fa_icon": omni_vault_engine.CATEGORY_FA_ICONS.get(cat_name, "fa-folder")
+                "fa_icon": omni_vault_engine.CATEGORY_FA_ICONS.get(cat_name, "fa-folder"),
+                "subcategories": subcats_map.get(cat_name.lower(), [])
             })
             seen.add(cat_name.lower())
 
     # Any other dynamic categories created by the AI or user
     for cat_name, count in cat_counts.items():
-        if cat_name and cat_name.lower() not in seen:
+        if cat_name and cat_name.strip().lower() not in seen:
+            clean_name = cat_name.strip()
             categories.append({
-                "name": cat_name,
+                "name": clean_name,
                 "count": count,
-                "icon": omni_vault_engine.CATEGORY_ICONS.get(cat_name, "✨"),
-                "fa_icon": omni_vault_engine.CATEGORY_FA_ICONS.get(cat_name, "fa-tag")
+                "icon": omni_vault_engine.CATEGORY_ICONS.get(clean_name, "✨"),
+                "fa_icon": omni_vault_engine.CATEGORY_FA_ICONS.get(clean_name, "fa-tag"),
+                "subcategories": subcats_map.get(clean_name.lower(), [])
             })
-            seen.add(cat_name.lower())
+            seen.add(clean_name.lower())
 
     return categories
 
@@ -1139,9 +1165,10 @@ def api_vault_detail(request, resource_id):
         return JsonResponse({"status": "error", "message": "Resource not found"}, status=404)
 
 def api_vault_list(request):
-    """Returns a filtered list of Vault resources with search and tags."""
+    """Returns a filtered list of Vault resources with search, category, and subcategory filters."""
     query = request.GET.get("q", "").strip().lower()
     category = request.GET.get("category", "").strip()
+    subcategory = request.GET.get("subcategory", "").strip()
     safety = request.GET.get("safety", "").strip()
     fav_only = request.GET.get("favorite", "").lower() in ["true", "1"]
 
@@ -1149,6 +1176,9 @@ def api_vault_list(request):
 
     if category and category.lower() != "all":
         qs = qs.filter(category__iexact=category)
+
+    if subcategory and subcategory.lower() != "all":
+        qs = qs.filter(subcategory__iexact=subcategory)
 
     if safety:
         qs = qs.filter(safety_status__iexact=safety)
@@ -1161,8 +1191,9 @@ def api_vault_list(request):
         qs = qs.filter(
             Q(title__icontains=query) |
             Q(one_liner__icontains=query) |
-            Q(tags__icontains=query) |
+            Q(category__icontains=query) |
             Q(subcategory__icontains=query) |
+            Q(tags__icontains=query) |
             Q(detailed_summary__icontains=query) |
             Q(url__icontains=query)
         )
@@ -1240,20 +1271,15 @@ def api_vault_ingest_image(request):
                 raw_url = str(t.get("url", "")).strip()
                 safe_url = raw_url if omni_vault_engine.is_safe_url(raw_url) else ""
 
-                cat = omni_vault_engine.detect_smart_category(
-                    title=t.get("title", ""),
-                    category_hint=t.get("category", ""),
-                    subcategory=t.get("subcategory", ""),
-                    tags=t.get("tags", []),
-                    text_context=ocr_text
-                )
+                cat = t.get("category") or "General Utilities"
+                subcat = (t.get("subcategory") or "").strip() or "General"
 
                 res = VaultResource.objects.create(
                     title=t.get("title", "Unknown Tool"),
                     url=safe_url,
                     one_liner=t.get("one_liner", "Useful tool discovered via screenshot"),
                     category=cat,
-                    subcategory=t.get("subcategory", ""),
+                    subcategory=subcat,
                     tags=tags_str,
                     detailed_summary=t.get("detailed_summary", ""),
                     how_to_use=t.get("how_to_use", ""),
@@ -1268,6 +1294,7 @@ def api_vault_ingest_image(request):
                     "title": res.title,
                     "one_liner": res.one_liner,
                     "category": res.category,
+                    "subcategory": res.subcategory,
                     "url": res.url,
                     "safety": res.safety_status,
                 })
@@ -1324,20 +1351,15 @@ def api_vault_ingest_url(request):
                 raw_url = str(t.get("url") or url).strip()
                 safe_url = raw_url if omni_vault_engine.is_safe_url(raw_url) else ""
 
-                cat = omni_vault_engine.detect_smart_category(
-                    title=t.get("title", meta.get("title") or ""),
-                    category_hint=t.get("category", ""),
-                    subcategory=t.get("subcategory", ""),
-                    tags=t.get("tags", []),
-                    text_context=combined_text
-                )
+                cat = t.get("category") or "Developer & APIs"
+                subcat = (t.get("subcategory") or "").strip() or "General"
 
                 res = VaultResource.objects.create(
                     title=t.get("title", meta.get("title") or "Web Tool"),
                     url=safe_url,
                     one_liner=t.get("one_liner", "Useful web resource"),
                     category=cat,
-                    subcategory=t.get("subcategory", ""),
+                    subcategory=subcat,
                     tags=tags_str,
                     detailed_summary=t.get("detailed_summary", ""),
                     how_to_use=t.get("how_to_use", ""),
@@ -1346,7 +1368,13 @@ def api_vault_ingest_url(request):
                     source_type="url",
                     raw_ocr_text=combined_text[:3000]
                 )
-                created.append({"id": res.id, "title": res.title, "one_liner": res.one_liner, "category": res.category})
+                created.append({
+                    "id": res.id,
+                    "title": res.title,
+                    "one_liner": res.one_liner,
+                    "category": res.category,
+                    "subcategory": res.subcategory
+                })
 
         return JsonResponse({
             "status": "ok",
@@ -1381,20 +1409,15 @@ def api_vault_ingest_text(request):
                 raw_url = str(t.get("url", "")).strip()
                 safe_url = raw_url if omni_vault_engine.is_safe_url(raw_url) else ""
 
-                cat = omni_vault_engine.detect_smart_category(
-                    title=t.get("title", ""),
-                    category_hint=t.get("category", ""),
-                    subcategory=t.get("subcategory", ""),
-                    tags=t.get("tags", []),
-                    text_context=text
-                )
+                cat = t.get("category") or "General Utilities"
+                subcat = (t.get("subcategory") or "").strip() or "General"
 
                 res = VaultResource.objects.create(
                     title=t.get("title", "Tool"),
                     url=safe_url,
                     one_liner=t.get("one_liner", "Practical trick or tool"),
                     category=cat,
-                    subcategory=t.get("subcategory", ""),
+                    subcategory=subcat,
                     tags=tags_str,
                     detailed_summary=t.get("detailed_summary", ""),
                     how_to_use=t.get("how_to_use", ""),
@@ -1403,7 +1426,13 @@ def api_vault_ingest_text(request):
                     source_type="manual",
                     raw_ocr_text=text[:3000]
                 )
-                created.append({"id": res.id, "title": res.title, "one_liner": res.one_liner, "category": res.category})
+                created.append({
+                    "id": res.id,
+                    "title": res.title,
+                    "one_liner": res.one_liner,
+                    "category": res.category,
+                    "subcategory": res.subcategory
+                })
 
         return JsonResponse({
             "status": "ok",
@@ -1457,20 +1486,15 @@ def api_vault_ingest_pdf(request):
                 raw_url = str(t.get("url", "")).strip()
                 safe_url = raw_url if omni_vault_engine.is_safe_url(raw_url) else ""
 
-                cat = omni_vault_engine.detect_smart_category(
-                    title=t.get("title", ""),
-                    category_hint=t.get("category", ""),
-                    subcategory=t.get("subcategory", ""),
-                    tags=t.get("tags", []),
-                    text_context=pdf_text
-                )
+                cat = t.get("category") or "Student & Learning"
+                subcat = (t.get("subcategory") or "").strip() or "General"
 
                 res = VaultResource.objects.create(
                     title=t.get("title", "PDF Guide Resource"),
                     url=safe_url,
                     one_liner=t.get("one_liner", "Useful guide or tool"),
                     category=cat,
-                    subcategory=t.get("subcategory", ""),
+                    subcategory=subcat,
                     tags=tags_str,
                     detailed_summary=t.get("detailed_summary", ""),
                     how_to_use=t.get("how_to_use", ""),
@@ -1479,7 +1503,13 @@ def api_vault_ingest_pdf(request):
                     source_type="pdf",
                     raw_ocr_text=pdf_text[:3000]
                 )
-                created.append({"id": res.id, "title": res.title, "one_liner": res.one_liner, "category": res.category})
+                created.append({
+                    "id": res.id,
+                    "title": res.title,
+                    "one_liner": res.one_liner,
+                    "category": res.category,
+                    "subcategory": res.subcategory
+                })
 
         return JsonResponse({
             "status": "ok",

@@ -120,6 +120,8 @@ class VaultResource(models.Model):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['category']),
+            models.Index(fields=['subcategory']),
+            models.Index(fields=['category', 'subcategory']),
             models.Index(fields=['safety_status']),
             models.Index(fields=['favorite']),
             models.Index(fields=['-created_at']),

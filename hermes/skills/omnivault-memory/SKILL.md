@@ -1,33 +1,30 @@
 ---
 name: omnivault-memory
-description: "Hermes Agent Multimodal Tool Memory & OmniVault Knowledge Bank on Port 8000. Autonomously ingests screenshots, images, web links, and technical tricks into OmniVault with OCR, AI categorization, and 1-line purpose summaries so Arush never has to manually open the browser. Queries stored tools and tracks AI provider wallet quotas."
-version: 1.0.0
+description: "Hermes Agent Multimodal Tool Memory & OmniVault Knowledge Bank on Port 8000. Autonomously ingests screenshots, images, web links, and technical tricks into OmniVault with OCR, dynamic two-tier AI categorization (reusing existing categories + branching subcategories, or dynamically creating new ones), and 1-line purpose summaries so Arush never has to manually open the browser. Queries stored tools and tracks AI provider wallet quotas."
+version: 1.1.0
 ---
 
-# omnivault-memory (God-Mode v1.0)
+# omnivault-memory (God-Mode v1.1)
 
 ## Core Capabilities
 1. **Autonomous Image & Screenshot Ingestion (`hermes-omnivault ingest-image <path>`)**:
-   - When Arush provides an image, photo, or screenshot of a website, tool, code snippet, or cheat-sheet:
+   - When Arush provides an image, photo, or screenshot of ANY website, tool, code snippet, or cheat-sheet:
      - DO NOT ask him to upload it to the website manually.
      - Execute: `python3 /home/arush/hermes_omnivault.py ingest-image "<path>" --json`
-     - The engine runs OCR via Tesseract, parses the technical features with OmniRoute AI, checks for duplicates, and creates a clean `VaultResource` in the Omni Hub database on Port 8000.
-     - Produces a crisp 1-line purpose summary: *"Maine yeh tool OmniVault mein save kar diya hai: [Title] — [1-Line Purpose]"*.
+     - The engine runs OCR via Tesseract, parses technical features with OmniRoute AI, checks for duplicates, and creates a clean `VaultResource` in the Omni Hub database on Port 8000.
+     - Automatically applies dynamic two-tier taxonomy:
+       * If a category already exists that fits, reuses it and dynamically creates/assigns an appropriate subcategory (e.g. Category: `Editing`, Subcategory: `Photos`).
+       * If no fitting category exists, dynamically creates a brand-new high-level category (e.g. `Editing`, `3D Modeling`, `Finance`, `Gaming`) and branches the subcategory under it.
+     - Produces a crisp 1-line purpose summary: *"Maine yeh tool OmniVault mein save kar diya hai: [Title] ([Category] // [Subcategory]) — [1-Line Purpose]"*.
 
-2. **Web URL & Technical Note Ingestion (`hermes-omnivault ingest-url <url>`)**:
-   - Ingests URLs directly with live metadata crawling, safety verification (SAFE vs PENTEST_ONLY vs CAUTION), and categorization into 7 canonical technical domains:
-     - `AI & LLM Tools`
-     - `Cyber Security & Pentesting`
-     - `Developer & APIs`
-     - `Media, Audio & Design`
-     - `Linux, Homelab & Systems`
-     - `Productivity & Cloud`
-     - `Student & Learning`
+2. **Web URL & Technical Note Ingestion (`hermes-omnivault ingest-url <url>` / `ingest-note <text>`)**:
+   - Ingests URLs or text notes directly with live metadata crawling, safety verification (SAFE vs PENTEST_ONLY vs CAUTION), and dynamic two-tier categorization.
+   - Never restricted to rigid legacy buckets; categories expand naturally as new knowledge arrives.
 
 3. **Natural Language Tool Retrieval (`hermes-omnivault search "<query>"`)**:
    - When Arush asks: "Mujhe audio split karne wali site batao jo save ki thi", execute:
      `python3 /home/arush/hermes_omnivault.py search "audio split vocal remove" --json`
-   - Returns the exact tool name, category, direct link, and 1-line description.
+   - Returns the exact tool name, category // subcategory, direct link, and 1-line description.
 
 4. **Omni Hub AI Wallet & System Telemetry (`hermes-omnivault wallet` / `status`)**:
    - Live query of all 11 model providers, active routing tiers, and dollar savings.

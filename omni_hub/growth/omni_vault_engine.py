@@ -27,7 +27,7 @@ import urllib.request
 import urllib.error
 import subprocess
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 
 # Dependencies
 try:
@@ -57,7 +57,9 @@ _CACHE_LOCK = threading.Lock()
 ALLOWED_SCRAPE_PORTS = {None, 80, 443, 8080, 8443}
 
 def _is_ip_restricted(ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
-    """Blocks private, loopback, link-local, reserved, multicast, and unspecified (0.0.0.0/::) IPs."""
+    """Blocks private, loopback, link-local, reserved, multicast, unspecified, and IPv4-mapped private IPs."""
+    if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.ipv4_mapped:
+        ip_obj = ip_obj.ipv4_mapped
     return (
         ip_obj.is_private or
         ip_obj.is_loopback or
@@ -121,118 +123,153 @@ def is_safe_url(url: str) -> bool:
     except Exception:
         return False
 
-CANONICAL_CATEGORIES = [
-    "Claude & Agent Skills",
-    "AI & LLM Tools",
-    "Cyber Security & Pentesting",
-    "Developer & APIs",
-    "Linux, Homelab & Systems",
-    "Media, Audio & Design",
-    "Productivity & Automation",
-    "Student & Learning"
-]
-VALID_CATEGORIES = CANONICAL_CATEGORIES
-
-CATEGORY_ICONS = {
-    "All": "🌐",
-    "Claude & Agent Skills": "🤖",
-    "AI & LLM Tools": "🧠",
-    "Cyber Security & Pentesting": "🛡️",
-    "Developer & APIs": "💻",
-    "Linux, Homelab & Systems": "🐧",
-    "Media, Audio & Design": "🎨",
-    "Productivity & Automation": "⚡",
-    "Student & Learning": "🎓",
-    "Reverse Engineering": "🔍",
-    "OSINT & Reconnaissance": "🕵️",
-    "Web Scraping & Automation": "🕸️",
-}
-
-CATEGORY_FA_ICONS = {
-    "All": "fa-layer-group",
-    "Claude & Agent Skills": "fa-robot",
-    "AI & LLM Tools": "fa-brain",
-    "Cyber Security & Pentesting": "fa-shield-halved",
-    "Developer & APIs": "fa-code",
-    "Linux, Homelab & Systems": "fa-server",
-    "Media, Audio & Design": "fa-palette",
-    "Productivity & Automation": "fa-bolt",
-    "Student & Learning": "fa-graduation-cap",
-    "Reverse Engineering": "fa-magnifying-glass-chart",
-    "OSINT & Reconnaissance": "fa-user-secret",
-    "Web Scraping & Automation": "fa-spider",
-}
+def get_existing_categories_list() -> List[str]:
+    """Retrieves list of currently active category names from the database."""
+    try:
+        from growth.models import VaultResource
+        cats = list(VaultResource.objects.values_list('category', flat=True).distinct().order_by('category'))
+        return [c.strip() for c in cats if c and c.strip()]
+    except Exception:
+        return [
+            "Claude & Agent Skills",
+            "AI & LLM Tools",
+            "Cyber Security & Pentesting",
+            "Developer & APIs",
+            "Linux, Homelab & Systems",
+            "Media, Audio & Design",
+            "Productivity & Automation",
+            "Student & Learning"
+        ]
 
 
-def detect_smart_category(title: str = "", category_hint: str = "", subcategory: str = "", tags = None, text_context: str = "") -> str:
+def get_category_icon(category_name: str) -> str:
+    """Returns a context-appropriate emoji icon for any dynamic category."""
+    c = (category_name or "").lower()
+    if "all" in c: return "🌐"
+    if "edit" in c or "photo" in c or "crop" in c: return "✂️"
+    if "agent" in c or "claude" in c: return "🤖"
+    if "ai" in c or "llm" in c or "gpt" in c or "model" in c or "intel" in c: return "🧠"
+    if "sec" in c or "hack" in c or "pentest" in c or "osint" in c: return "🛡️"
+    if "code" in c or "dev" in c or "api" in c or "sdk" in c: return "💻"
+    if "linux" in c or "sys" in c or "home" in c or "server" in c or "bash" in c: return "🐧"
+    if "music" in c or "audio" in c or "sound" in c: return "🎵"
+    if "video" in c or "film" in c or "stream" in c: return "🎬"
+    if "design" in c or "art" in c or "ui" in c: return "🎨"
+    if "3d" in c or "cad" in c or "render" in c: return "🧊"
+    if "finance" in c or "crypto" in c or "money" in c or "wallet" in c: return "💰"
+    if "game" in c or "gaming" in c: return "🎮"
+    if "job" in c or "career" in c or "resume" in c: return "💼"
+    if "learn" in c or "study" in c or "edu" in c or "student" in c: return "🎓"
+    if "scrap" in c or "crawl" in c: return "🕸️"
+    if "cloud" in c or "host" in c or "deploy" in c: return "☁️"
+    if "productiv" in c or "auto" in c or "task" in c or "flow" in c: return "⚡"
+    if "health" in c or "fit" in c or "med" in c: return "❤️"
+    return "📁"
+
+
+def get_category_fa_icon(category_name: str) -> str:
+    """Returns a FontAwesome icon class for any dynamic category."""
+    c = (category_name or "").lower()
+    if "all" in c: return "fa-layer-group"
+    if "edit" in c or "photo" in c or "crop" in c: return "fa-crop-simple"
+    if "agent" in c or "claude" in c: return "fa-robot"
+    if "ai" in c or "llm" in c or "gpt" in c: return "fa-brain"
+    if "sec" in c or "pentest" in c or "osint" in c: return "fa-shield-halved"
+    if "code" in c or "dev" in c or "api" in c: return "fa-code"
+    if "linux" in c or "server" in c or "sys" in c or "bash" in c: return "fa-server"
+    if "audio" in c or "music" in c: return "fa-music"
+    if "video" in c or "film" in c: return "fa-video"
+    if "design" in c or "art" in c: return "fa-palette"
+    if "3d" in c: return "fa-cube"
+    if "finance" in c or "crypto" in c: return "fa-coins"
+    if "game" in c: return "fa-gamepad"
+    if "career" in c or "job" in c: return "fa-briefcase"
+    if "edu" in c or "learn" in c or "student" in c: return "fa-graduation-cap"
+    if "scrap" in c: return "fa-spider"
+    if "cloud" in c: return "fa-cloud"
+    if "auto" in c or "productiv" in c: return "fa-bolt"
+    return "fa-folder"
+
+
+class _DynamicCategoryIconDict(dict):
+    def __getitem__(self, key):
+        return get_category_icon(key)
+    def get(self, key, default=None):
+        return get_category_icon(key)
+
+
+class _DynamicCategoryFaIconDict(dict):
+    def __getitem__(self, key):
+        return get_category_fa_icon(key)
+    def get(self, key, default=None):
+        return get_category_fa_icon(key)
+
+
+CATEGORY_ICONS = _DynamicCategoryIconDict()
+CATEGORY_FA_ICONS = _DynamicCategoryFaIconDict()
+
+
+TECH_ACRONYMS = {"ai", "llm", "api", "apis", "osint", "pdf", "cad", "sdk", "cli", "ui", "ux", "3d", "sql", "iot", "ctf", "rag"}
+
+def normalize_category_and_subcategory(raw_cat: str, raw_subcat: str = "", existing_categories: List[str] = None) -> Tuple[str, str]:
     """
-    Intelligently determines and normalizes the precise category for a resource.
-    Guarantees that Claude skills, agent skills, coding tools, security utilities, etc.
-    are automatically placed into their clean, distinct categories rather than generic buckets.
+    Cleans, title-cases, and aligns dynamic categories and subcategories.
+    Reuses existing category names (case-insensitively) to prevent duplicates,
+    while allowing arbitrary new categories to be born smoothly.
+    Preserves uppercase tech acronyms (e.g. AI, LLM, API, OSINT, 3D).
     """
-    tags_list = tags if isinstance(tags, list) else ([t.strip() for t in str(tags).split(",") if t.strip()] if tags else [])
-    combined_search = " ".join([
-        str(title or ""),
-        str(category_hint or ""),
-        str(subcategory or ""),
-        " ".join(tags_list),
-        str(text_context or "")
-    ]).lower()
+    cat = (raw_cat or "").strip()
+    subcat = (raw_subcat or "").strip()
 
-    # 1. Claude & Agent Skills
-    # Covers Claude Code, Cursor, AI agents, MCP servers, prompt-engineering skills, and agent toolkits
-    agent_keywords = [
-        "claude", "claude-code", "claude code", "agent-skill", "agent-skills", "agent skill",
-        "agent skills", "coding-agent", "coding agent", "cursor skill", "cursor rule",
-        "mcp server", "mcp-server", "model context protocol", "agent architecture",
-        "anti-slop", "anti-ai-slop", "skill card", "ai agent skill", "agent tool",
-        "claude design", "hermes-agent", "hermes skill"
-    ]
-    if any(k in combined_search for k in agent_keywords):
-        return "Claude & Agent Skills"
+    if not cat:
+        if subcat:
+            cat = subcat
+            subcat = "General"
+        else:
+            cat = "General Utilities"
+            subcat = "Tools"
 
-    # 2. Canonical or Category Hint Match
-    if category_hint:
-        clean_hint = category_hint.strip()
-        for can in CANONICAL_CATEGORIES:
-            if clean_hint.lower() == can.lower():
-                return can
-        hint_lower = clean_hint.lower()
-        if "agent" in hint_lower or "claude" in hint_lower:
-            return "Claude & Agent Skills"
-        if "ai" in hint_lower or "llm" in hint_lower or "gpt" in hint_lower:
-            return "AI & LLM Tools"
-        if "security" in hint_lower or "pentest" in hint_lower or "osint" in hint_lower or "hack" in hint_lower:
-            return "Cyber Security & Pentesting"
-        if "linux" in hint_lower or "homelab" in hint_lower or "sysadmin" in hint_lower or "server" in hint_lower:
-            return "Linux, Homelab & Systems"
-        if "audio" in hint_lower or "media" in hint_lower or "video" in hint_lower or "design" in hint_lower:
-            return "Media, Audio & Design"
-        if "developer" in hint_lower or "api" in hint_lower or "sdk" in hint_lower:
-            return "Developer & APIs"
-        if "student" in hint_lower or "learn" in hint_lower or "career" in hint_lower or "interview" in hint_lower:
-            return "Student & Learning"
-        if "productivity" in hint_lower or "automation" in hint_lower or "workflow" in hint_lower:
-            return "Productivity & Automation"
+    def _normalize_phrase(text: str) -> str:
+        clean = re.sub(r'[{}\[\]<>;"\'`\n\r\t]', '', text).replace("_", " ").replace("-", " ")
+        words = clean.split()
+        normalized_words = []
+        for w in words:
+            lw = w.lower()
+            if lw in TECH_ACRONYMS:
+                normalized_words.append(lw.upper())
+            elif lw in ("and", "&", "of", "the", "in", "for", "to"):
+                normalized_words.append(lw)
+            else:
+                normalized_words.append(w.capitalize())
+        result = " ".join(normalized_words).strip()
+        if result and result[0].islower():
+            result = result[0].upper() + result[1:]
+        return result
 
-        # Allow well-formed custom category in Title Case
-        if 2 <= len(clean_hint) <= 40 and not any(ch in clean_hint for ch in '{}[]<>;$"\\'):
-            words = clean_hint.replace("_", " ").replace("-", " ").split()
-            return " ".join(w.capitalize() if w.lower() not in ("and", "&", "of", "the", "in", "for") else w for w in words).strip()
+    cat_normalized = _normalize_phrase(cat)
 
-    # 3. Context Heuristics Fallback
-    if any(k in combined_search for k in ["pentest", "exploit", "cve", "malware", "ctf", "vulnerability", "nmap", "wireshark", "virustotal", "pwn", "osint"]):
-        return "Cyber Security & Pentesting"
-    if any(k in combined_search for k in ["homelab", "linux", "bash", "terminal", "docker", "systemd", "kernel", "pi4", "raspberry", "explainshell"]):
-        return "Linux, Homelab & Systems"
-    if any(k in combined_search for k in ["vocal", "stem-separation", "audio", "tinypng", "image-compression", "video-editor", "font", "color-palette", "lalal"]):
-        return "Media, Audio & Design"
-    if any(k in combined_search for k in ["interview", "dsa", "leetcode", "cheatsheet", "student", "placement", "course"]):
-        return "Student & Learning"
-    if any(k in combined_search for k in ["chatgpt", "gemini", "anthropic", "prompt", "fine-tuning", "rag", "embedding", "ollama", "local-llm"]):
-        return "AI & LLM Tools"
+    # Check case-insensitive match in existing categories
+    if existing_categories:
+        for ex in existing_categories:
+            if ex and ex.strip().lower() == cat_normalized.lower():
+                cat_normalized = ex.strip()
+                break
 
-    return "Developer & APIs"
+    if subcat:
+        subcat_normalized = _normalize_phrase(subcat)
+    else:
+        subcat_normalized = "General"
+
+    if cat_normalized.lower() == subcat_normalized.lower():
+        subcat_normalized = "General"
+
+    return cat_normalized, subcat_normalized
+
+
+def detect_smart_category(title: str = "", category_hint: str = "", subcategory: str = "", tags = None, text_context: str = "", existing_categories: List[str] = None) -> str:
+    """Backward-compatible helper that normalizes and returns category."""
+    cat, _ = normalize_category_and_subcategory(category_hint, subcategory, existing_categories or get_existing_categories_list())
+    return cat
 
 
 
@@ -415,26 +452,64 @@ def extract_text_from_pdf(pdf_path: str) -> str:
 # AI EXTRACTION & ENRICHMENT
 # =====================================================================
 
-SYSTEM_PROMPT = """You are OmniVault Intelligence, an expert digital knowledge extractor and research librarian built for Arush Sengar (Cyber Security student, builder, and homelab tinkerer).
+def build_extraction_system_prompt(existing_categories: List[str] = None) -> str:
+    """
+    Builds the system prompt dynamically injecting existing categories from the database.
+    Instructs the LLM on the two-tier hierarchy:
+      - If a domain already exists in existing_categories, reuse it and create a specific subcategory.
+      - If a domain does NOT exist in existing_categories, dynamically create a brand-new high-level category
+        in clean Title Case (e.g. 'Editing', '3D Modeling', 'Cryptocurrency') and a specific subcategory under it.
+      - For multi-item inputs (e.g. 5 photo editing websites), assign all to the same parent category.
+    Sanitizes category names and caps to top 40 to protect against prompt injection and bloat.
+    """
+    if not existing_categories:
+        existing_categories = get_existing_categories_list()
+
+    # Sanitize category strings and limit to top 40 unique categories
+    sanitized_cats = []
+    seen = set()
+    for c in existing_categories:
+        clean_c = re.sub(r'[\r\n\t`"\'<>{}\[\]]', '', str(c)).strip()[:60]
+        if clean_c and clean_c.lower() not in seen:
+            seen.add(clean_c.lower())
+            sanitized_cats.append(clean_c)
+        if len(sanitized_cats) >= 40:
+            break
+
+    cats_formatted = "\n".join([f"    - {c}" for c in sanitized_cats])
+
+    return f"""You are OmniVault Intelligence, an expert digital knowledge extractor and research librarian built for Arush Sengar.
 
 Your job is to analyze raw input (OCR text from screenshots, web scrapes, PDF text, or user notes) and identify EVERY distinct website, utility, digital trick, or software tool mentioned.
 
+TAXONOMY & DYNAMIC TWO-TIER HIERARCHY RULES:
+Every item MUST be assigned both a high-level "category" and a specific "subcategory".
+
+CURRENT EXISTING CATEGORIES IN ARUSH'S VAULT:
+{cats_formatted}
+
+RULES FOR CATEGORY & SUBCATEGORY SELECTION:
+1. REUSE EXISTING CATEGORY IF A REASONABLE MATCH EXISTS:
+   - If one of the existing categories above fits the high-level domain of the item, REUSE that exact category name.
+   - Then, create or assign an appropriate, specific "subcategory" under it.
+   - Example: If the tool is a Claude Code extension or prompt pack, use category "Claude & Agent Skills" and subcategory "Coding Workflows" or "Agent Skills".
+   - Example: If the tool is an audio separation tool and "Media, Audio & Design" or "Editing" exists, use that category and subcategory "Audio Separation".
+
+2. DYNAMICALLY CREATE A NEW CATEGORY IF NO EXISTING ONE FITS:
+   - If the item belongs to a domain not covered by the existing categories, DO NOT force it into an unrelated bucket.
+   - DYNAMICALLY INVENT A BRAND NEW high-level category in clean Title Case (e.g. "Editing", "3D Modeling", "Finance", "Gaming", "Robotics", "Health & Fitness", etc.).
+   - Then, branch a specific "subcategory" under it (e.g. category "Editing", subcategory "Photos" or "Video").
+
+3. MULTI-TOOL BATCH COHESION:
+   - If an image or note lists multiple tools of a shared domain (e.g. 5 websites for photo editing), group ALL of them under the same high-level category (e.g. "Editing") and assign fitting subcategories (e.g. "Photos").
+
 FOR EACH TOOL / WEBSITE DETECTED, RETURN A STRICT JSON OBJECT WITH:
-- "title": Clean canonical name (e.g. "CyberChef", "v0.dev", "LALAL.AI", "Explainshell").
-- "url": Real canonical URL (e.g. "https://gchq.github.io/CyberChef/"). If not explicit, deduce the official domain.
-- "one_liner": A punchy, crystal-clear 1-sentence explanation in simple Hindi/English student-friendly language explaining EXACTLY what this tool does and what it is used for (e.g. "1 click mein audio se vocal aur background music alag karne ke liye" or "Linux terminal commands ke flags ko visual breakdown ke saath explain karne ke liye"). NEVER use generic corporate fluff.
-- "category": MUST be the most precise, accurate technical category. Standard categories include:
-    * "Claude & Agent Skills" (ALL Claude Code skills, Cursor rules, AI coding agents, autonomous agent workflows, MCP tools, and agent skill cards. e.g. REA, Ponytail, Hallmark, Impeccable, Diagram Design for Claude, Humanizer, agent prompt packs).
-    * "AI & LLM Tools" (General LLM models, RAG engines, enterprise search, AI chat interfaces).
-    * "Cyber Security & Pentesting" (Offensive security, CTF, network tools, scanners, OSINT, reverse engineering).
-    * "Developer & APIs" (SDKs, APIs, HTTP tools, software libraries, web utilities).
-    * "Linux, Homelab & Systems" (Linux commands, homelab servers, systemd, docker, CLI tools).
-    * "Media, Audio & Design" (Audio stem separation, image compression, video, UI design).
-    * "Productivity & Automation" (Workflow automation, browser helpers, notes).
-    * "Student & Learning" (Interview prep, DSA, placement cheatsheets, documentation).
-    * OR a clean, concise custom category in Title Case (e.g. "Web Scraping & Stealth") if none of the above fit accurately.
-- "subcategory": Specific domain (e.g. "Audio Separation", "Linux Hardening", "UI Mockup").
-- "tags": Array of 3-5 lowercase hashtags (e.g. ["audio", "ai", "free", "stem-separation"]).
+- "title": Clean canonical name (e.g. "CyberChef", "v0.dev", "Photoroom", "Pixlr").
+- "url": Real canonical URL (e.g. "https://photoroom.com"). If not explicit, deduce the official domain.
+- "one_liner": A punchy, crystal-clear 1-sentence explanation in simple Hindi/English student-friendly language explaining EXACTLY what this tool does and what it is used for (e.g. "1 click mein photo se background erase karke high quality PNG export karne ke liye"). NEVER use generic corporate fluff.
+- "category": High-level domain (reused from existing categories or newly invented per the rules above).
+- "subcategory": Specific niche/domain under this category (e.g. "Photos", "Video Editing", "Pentesting", "Audio Stem Separation").
+- "tags": Array of 3-5 lowercase hashtags (e.g. ["photo-editing", "ai", "background-removal"]).
 - "detailed_summary": 2-3 sentences explaining core capabilities, free vs paid tier, and notable features.
 - "how_to_use": Actionable tips or exact commands on how to use it immediately.
 - "safety_status": One of:
@@ -445,23 +520,32 @@ FOR EACH TOOL / WEBSITE DETECTED, RETURN A STRICT JSON OBJECT WITH:
 - "safety_notes": 1 clear sentence explaining legality, compliance, or safety caution.
 
 OUTPUT FORMAT:
-Respond with a RAW JSON array of objects `[ {...}, {...} ]`. Output ZERO markdown fences, ZERO conversational intro."""
+Respond with a RAW JSON array of objects `[ {{...}}, {{...}} ]`. Output ZERO markdown fences, ZERO conversational intro."""
 
 
-def parse_and_enrich_text(raw_text: str, source_context: str = "Screenshot OCR") -> List[Dict]:
+# Static prompt retained for backward-compatibility if referenced externally
+SYSTEM_PROMPT = build_extraction_system_prompt()
+
+
+def parse_and_enrich_text(raw_text: str, source_context: str = "Screenshot OCR", existing_categories: List[str] = None) -> List[Dict]:
     """Uses LLM to identify, categorize, and enrich all websites/tricks in text."""
     if not raw_text or len(raw_text.strip()) < 5:
         return []
+
+    if existing_categories is None:
+        existing_categories = get_existing_categories_list()
+
+    system_prompt = build_extraction_system_prompt(existing_categories)
 
     user_prompt = f"""SOURCE CONTEXT: {source_context}
 EXTRACTED CONTENT:
 {raw_text[:4000]}
 
-Extract all distinct websites, software tools, or practical tricks. If multiple tools are listed (e.g. '5 websites you must know'), return an entry for EACH ONE.
+Extract all distinct websites, software tools, or practical tricks. If multiple tools are listed (e.g. '5 websites you must know'), return an entry for EACH ONE following the two-tier categorization rules.
 Return strictly a valid JSON array."""
 
     messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt}
     ]
 
@@ -504,20 +588,20 @@ Return strictly a valid JSON array."""
         elif not isinstance(data, list):
             data = []
 
-
-        # Validate and sanitize categories with intelligent automatic detection
+        # Validate and sanitize categories with intelligent dynamic detection
         sanitized = []
+        active_categories = list(existing_categories)
         for item in data:
             if not item.get("title"):
                 continue
-            cat = detect_smart_category(
-                title=item.get("title", ""),
-                category_hint=item.get("category", ""),
-                subcategory=item.get("subcategory", ""),
-                tags=item.get("tags", []),
-                text_context=raw_text
-            )
+            raw_cat = item.get("category", "")
+            raw_sub = item.get("subcategory", "")
+            cat, subcat = normalize_category_and_subcategory(raw_cat, raw_sub, active_categories)
             item["category"] = cat
+            item["subcategory"] = subcat
+            if cat not in active_categories:
+                active_categories.append(cat)
+
             if not item.get("safety_status"):
                 item["safety_status"] = "SAFE"
             raw_url = str(item.get("url", "")).strip()
@@ -527,14 +611,13 @@ Return strictly a valid JSON array."""
         return sanitized
     except Exception as e:
         print(f"[warn] JSON parsing error in LLM extraction ({e})")
-        fallback_cat = detect_smart_category(text_context=raw_text)
-        # Fallback single item
+        fallback_cat, fallback_sub = normalize_category_and_subcategory("General Utilities", "Tools", existing_categories)
         return [{
             "title": "Extracted Note & Trick",
             "url": "",
             "one_liner": raw_text[:120].strip(),
             "category": fallback_cat,
-            "subcategory": "General Utilities",
+            "subcategory": fallback_sub,
             "tags": ["notes", "tricks", "reference"],
             "detailed_summary": raw_text[:500],
             "how_to_use": "Refer to raw note.",
@@ -674,6 +757,7 @@ def search_vault(query: str, limit: int = 10) -> List[Dict]:
             Q(title__icontains=q_clean) |
             Q(one_liner__icontains=q_clean) |
             Q(category__icontains=q_clean) |
+            Q(subcategory__icontains=q_clean) |
             Q(tags__icontains=q_clean) |
             Q(detailed_summary__icontains=q_clean) |
             Q(raw_ocr_text__icontains=q_clean)
@@ -684,6 +768,7 @@ def search_vault(query: str, limit: int = 10) -> List[Dict]:
                 "title": r.title,
                 "url": r.url,
                 "category": r.category,
+                "subcategory": r.subcategory,
                 "one_liner": r.one_liner,
                 "safety_status": r.safety_status,
                 "favorite": r.favorite,

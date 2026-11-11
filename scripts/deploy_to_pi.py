@@ -35,10 +35,12 @@ def ssh(command):
 def main():
     root = Path(__file__).resolve().parent.parent
 
-    # 1. Transfer settings.py, views.py, urls.py
+    # 1. Transfer settings.py, views.py, urls.py, models.py, migrations
     scp(root / "omni_hub" / "omni_hub" / "settings.py", "/home/arush/omni_hub/omni_hub/settings.py")
     scp(root / "omni_hub" / "growth" / "views.py", "/home/arush/omni_hub/growth/views.py")
     scp(root / "omni_hub" / "growth" / "urls.py", "/home/arush/omni_hub/growth/urls.py")
+    scp(root / "omni_hub" / "growth" / "models.py", "/home/arush/omni_hub/growth/models.py")
+    scp(root / "omni_hub" / "growth" / "migrations" / "0005_growthpost_growth_grow_created_a4412b_idx_and_more.py", "/home/arush/omni_hub/growth/migrations/0005_growthpost_growth_grow_created_a4412b_idx_and_more.py")
 
     # 2. Transfer templates
     scp(root / "omni_hub" / "growth" / "templates" / "growth" / "vault_dashboard.html", "/home/arush/omni_hub/growth/templates/growth/vault_dashboard.html")
@@ -60,12 +62,17 @@ def main():
     code, out, err = ssh("chmod +x /home/arush/hermes_omnivault.py && echo arush | sudo -S cp /home/arush/hermes_omnivault.py /usr/local/bin/hermes-omnivault && echo arush | sudo -S chmod +x /usr/local/bin/hermes-omnivault")
     print("Permissions and symlink updated.")
 
-    # 6. Run manage.py check on Pi
+    # 6. Run manage.py check and migrate on Pi
     code, out, err = ssh("python3 /home/arush/omni_hub/manage.py check")
     print("Django Check output:", out)
     if code != 0:
         print("Check FAILED:", err)
         sys.exit(1)
+
+    code, out, err = ssh("python3 /home/arush/omni_hub/manage.py migrate")
+    print("Django Migrate output:", out)
+    if code != 0:
+        print("Migrate note:", err)
 
     # 7. Execute category migration
     print("Executing category migration on Pi database...")

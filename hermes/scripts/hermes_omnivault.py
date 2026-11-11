@@ -68,8 +68,9 @@ def format_output(data: dict, as_json: bool = False):
             print(f"✅ {data.get('message', 'Operation successful')}")
             if "resource" in data:
                 r = data["resource"]
+                sub = f" // {r.get('subcategory')}" if r.get('subcategory') else ""
                 print(f"   📌 Title:    {r.get('title')}")
-                print(f"   📂 Category: {r.get('category')}")
+                print(f"   📂 Category: {r.get('category')}{sub}")
                 print(f"   💡 Purpose:  {r.get('one_liner')}")
                 print(f"   🛡️ Safety:   {r.get('safety_status', 'SAFE')}")
                 if r.get("url"):
@@ -78,7 +79,8 @@ def format_output(data: dict, as_json: bool = False):
                 print(f"Found {len(data['results'])} matching resources:")
                 for idx, item in enumerate(data["results"], 1):
                     fav = "⭐ " if item.get("favorite") else ""
-                    print(f"\n   [{idx}] {fav}{item.get('title')} ({item.get('category')})")
+                    sub = f" // {item.get('subcategory')}" if item.get('subcategory') else ""
+                    print(f"\n   [{idx}] {fav}{item.get('title')} ({item.get('category')}{sub})")
                     print(f"       Purpose: {item.get('one_liner')}")
                     if item.get("url"):
                         print(f"       Link:    {item.get('url')}")
@@ -173,6 +175,7 @@ def ingest_image(image_path: str, title: str = None, category: str = None, as_js
                     "title": res.title,
                     "url": res.url,
                     "category": res.category,
+                    "subcategory": res.subcategory,
                     "one_liner": res.one_liner,
                     "safety_status": res.safety_status
                 })
@@ -241,6 +244,7 @@ def ingest_url(url: str, category: str = None, as_json: bool = False):
                     url=safe_url,
                     one_liner=t.get("one_liner") or meta.get("description") or "Useful online tool",
                     category=cat,
+                    subcategory=t.get("subcategory", ""),
                     tags=tags_str,
                     detailed_summary=t.get("detailed_summary") or meta.get("description", ""),
                     safety_status=t.get("safety_status", "SAFE"),
@@ -252,6 +256,7 @@ def ingest_url(url: str, category: str = None, as_json: bool = False):
                     "title": res.title,
                     "url": res.url,
                     "category": res.category,
+                    "subcategory": res.subcategory,
                     "one_liner": res.one_liner,
                     "safety_status": res.safety_status
                 })
@@ -311,6 +316,7 @@ def ingest_note(text: str, title: str = None, category: str = None, as_json: boo
                     url=t.get("url", ""),
                     one_liner=t.get("one_liner", "Useful note or trick"),
                     category=cat,
+                    subcategory=t.get("subcategory", ""),
                     tags=tags_str,
                     detailed_summary=text[:2000],
                     safety_status=t.get("safety_status", "SAFE"),
@@ -321,6 +327,7 @@ def ingest_note(text: str, title: str = None, category: str = None, as_json: boo
                     "id": res.id,
                     "title": res.title,
                     "category": res.category,
+                    "subcategory": res.subcategory,
                     "one_liner": res.one_liner
                 })
 
@@ -349,6 +356,7 @@ def search_vault(query: str, limit: int = 5, as_json: bool = False):
             Q(title__icontains=q_clean) |
             Q(one_liner__icontains=q_clean) |
             Q(category__icontains=q_clean) |
+            Q(subcategory__icontains=q_clean) |
             Q(tags__icontains=q_clean) |
             Q(detailed_summary__icontains=q_clean) |
             Q(raw_ocr_text__icontains=q_clean)
@@ -361,6 +369,7 @@ def search_vault(query: str, limit: int = 5, as_json: bool = False):
                 "title": r.title,
                 "url": r.url,
                 "category": r.category,
+                "subcategory": r.subcategory,
                 "one_liner": r.one_liner,
                 "safety_status": r.safety_status,
                 "favorite": r.favorite,

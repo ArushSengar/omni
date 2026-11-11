@@ -88,7 +88,8 @@ def ingest_image_cli(img_path: str):
 
     for t in tools:
         res = save_vault_resource(t, source_type="screenshot", raw_text=ocr_text, image_path=str(img_path))
-        print(f"\n   ✅ SAVED: {res.title} [{res.category}]")
+        sub = f" // {res.subcategory}" if res.subcategory else ""
+        print(f"\n   ✅ SAVED: {res.title} [{res.category}{sub}]")
         print(f"      Target: {res.url or 'N/A'}")
         print(f"      Purpose: {res.one_liner}")
         print(f"      Safety: {res.safety_status}")
@@ -112,7 +113,8 @@ def ingest_url_cli(url: str):
 
     for t in tools:
         res = save_vault_resource(t, source_type="url", raw_text=combined)
-        print(f"\n   ✅ SAVED: {res.title} [{res.category}]")
+        sub = f" // {res.subcategory}" if res.subcategory else ""
+        print(f"\n   ✅ SAVED: {res.title} [{res.category}{sub}]")
         print(f"      URL: {res.url}")
         print(f"      Purpose: {res.one_liner}")
 
@@ -122,7 +124,8 @@ def ingest_text_cli(text: str):
     tools = omni_vault_engine.parse_and_enrich_text(text, source_context="CLI Notes")
     for t in tools:
         res = save_vault_resource(t, source_type="manual", raw_text=text)
-        print(f"\n   ✅ SAVED: {res.title} [{res.category}]")
+        sub = f" // {res.subcategory}" if res.subcategory else ""
+        print(f"\n   ✅ SAVED: {res.title} [{res.category}{sub}]")
         print(f"      Purpose: {res.one_liner}")
 
 
@@ -144,7 +147,8 @@ def ingest_pdf_cli(pdf_path: str):
 
     for t in tools:
         res = save_vault_resource(t, source_type="pdf", raw_text=text)
-        print(f"\n   ✅ SAVED: {res.title} [{res.category}]")
+        sub = f" // {res.subcategory}" if res.subcategory else ""
+        print(f"\n   ✅ SAVED: {res.title} [{res.category}{sub}]")
         print(f"      Target: {res.url or 'N/A'}")
         print(f"      Purpose: {res.one_liner}")
         print(f"      Safety: {res.safety_status}")
@@ -169,7 +173,8 @@ def list_cli():
     print("-" * 75)
     for i in items:
         star = "★" if i.favorite else " "
-        print(f"{star} [{i.safety_status:^12}] {i.title:<24} | {i.category:<25}")
+        cat_disp = f"{i.category} // {i.subcategory}" if i.subcategory else i.category
+        print(f"{star} [{i.safety_status:^12}] {i.title:<24} | {cat_disp:<30}")
         print(f"    ↳ {i.one_liner}")
         if i.url:
             print(f"    ↳ {i.url}")
