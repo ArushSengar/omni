@@ -283,6 +283,15 @@
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">{{ published_count }}</span>
                 </button>
 
+                <!-- Career Sentinel & JobBot Tab -->
+                <button onclick="switchTab('jobs')" id="nav-tab-jobs" class="nav-tab-btn w-full px-3.5 py-2.5 rounded-2xl text-xs font-semibold flex items-center justify-between transition-all text-slate-400 hover:text-white hover:bg-white/[0.05]">
+                    <div class="flex items-center space-x-3">
+                        <i class="fa-solid fa-briefcase text-sm w-5 text-center text-emerald-400"></i>
+                        <span>Career Sentinel</span>
+                    </div>
+                    <span id="sidebar-badge-jobs" class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">{{ jobs_count }}</span>
+                </button>
+
                 <!-- Hardware Telemetry Tab -->
                 <button onclick="switchTab('system')" id="nav-tab-system" class="nav-tab-btn w-full px-3.5 py-2.5 rounded-2xl text-xs font-semibold flex items-center space-x-3 transition-all text-slate-400 hover:text-white hover:bg-white/[0.05]">
                     <i class="fa-solid fa-microchip text-sm w-5 text-center text-cyan-400"></i>
@@ -444,6 +453,26 @@
                             <span class="text-emerald-400">Zero Throttling</span>
                             <span>SQLite WAL</span>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Career Sentinel Quick Action Banner (Clickable -> Jobs Tab) -->
+                <div onclick="switchTab('jobs')" class="apple-glass rounded-3xl p-4 md:p-5 flex items-center justify-between cursor-pointer hover:border-emerald-500/40 transition group">
+                    <div class="flex items-center space-x-3.5">
+                        <div class="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center justify-center group-hover:scale-105 transition-transform">
+                            <i class="fa-solid fa-briefcase text-base"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors">Career Sentinel & Job Intelligence</span>
+                                <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">{{ jobs_high_match_count }} High Matches</span>
+                            </div>
+                            <div class="text-xs text-slate-400 mt-0.5">{{ jobs_count }} Remote Cybersecurity & Systems roles scanned · 1-click tailored application pitches</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2 text-xs font-semibold text-emerald-400 group-hover:translate-x-1 transition-transform">
+                        <span>Open Sentinel</span>
+                        <i class="fa-solid fa-arrow-right text-[11px]"></i>
                     </div>
                 </div>
 
@@ -960,6 +989,181 @@
             </section>
 
             <!-- =========================================================================
+                 SECTION: CAREER SENTINEL & AUTONOMOUS JOBBOT INTELLIGENCE
+                 ========================================================================= -->
+            <section id="pane-jobs" class="workspace-pane hidden space-y-6">
+                
+                <div class="apple-glass rounded-3xl p-6 lg:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div class="space-y-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="px-3 py-1 rounded-full text-xs font-mono font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">OPSWAT & SecOps Tuned</span>
+                            <span class="text-xs text-slate-400">Autonomous Career Sentinel</span>
+                        </div>
+                        <h1 class="text-2xl font-black text-white">Career Intelligence & JobBot Sentinel</h1>
+                        <p class="text-xs text-slate-300">Continuous remote cybersecurity & systems harvester · Semantic skill matching · Human-in-the-loop tailored pitch generator.</p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2.5">
+                        <button onclick="triggerJobScan()" id="btn-job-scan" class="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-xs flex items-center space-x-2 shadow-lg shadow-emerald-500/20 transition active:scale-95">
+                            <i class="fa-solid fa-radar" id="icon-job-scan"></i>
+                            <span id="text-job-scan">Scan Jobs Now</span>
+                        </button>
+                        <button onclick="filterJobCategory('all', this)" class="px-4 py-2.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-white font-medium text-xs flex items-center space-x-2 transition active:scale-95">
+                            <i class="fa-solid fa-rotate-right text-emerald-400"></i>
+                            <span>Reset Filters</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4 Metrics Cards -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="apple-card rounded-3xl p-5 space-y-1">
+                        <div class="text-[11px] font-mono uppercase tracking-wider text-slate-400">Total Scanned</div>
+                        <div id="stat-job-total" class="text-2xl font-black text-white font-mono">{{ jobs_count }}</div>
+                        <div class="text-[11px] text-slate-400">Remote Opportunities</div>
+                    </div>
+                    <div class="apple-card rounded-3xl p-5 space-y-1">
+                        <div class="text-[11px] font-mono uppercase tracking-wider text-emerald-400">High Match (80%+)</div>
+                        <div id="stat-job-high" class="text-2xl font-black text-emerald-400 font-mono">{{ jobs_high_match_count }}</div>
+                        <div class="text-[11px] text-emerald-300/80">Prime Candidate Alignment</div>
+                    </div>
+                    <div class="apple-card rounded-3xl p-5 space-y-1">
+                        <div class="text-[11px] font-mono uppercase tracking-wider text-cyan-400">Applied Pipeline</div>
+                        <div id="stat-job-applied" class="text-2xl font-black text-cyan-400 font-mono">{{ jobs_applied_count }}</div>
+                        <div class="text-[11px] text-cyan-300/80">Submitted Applications</div>
+                    </div>
+                    <div class="apple-card rounded-3xl p-5 space-y-1">
+                        <div class="text-[11px] font-mono uppercase tracking-wider text-purple-400">Candidate Target</div>
+                        <div class="text-base font-bold text-purple-300 font-mono">B.Tech Cyber + OPSWAT</div>
+                        <div class="text-[11px] text-slate-400">Galgotias Univ · TryHackMe</div>
+                    </div>
+                </div>
+
+                <!-- Search and Filters Bar -->
+                <div class="apple-card rounded-3xl p-4 flex flex-col md:flex-row gap-3 items-center justify-between">
+                    <div class="relative w-full md:w-80">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input type="text" id="job-search-input" onkeyup="filterJobsLive()" placeholder="Search title, company, skills..." class="w-full pl-9 pr-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] focus:border-emerald-500/50 text-xs text-white placeholder-slate-500 focus:outline-none">
+                    </div>
+
+                    <!-- Role Category Filter Pills -->
+                    <div class="flex flex-wrap gap-1.5 w-full md:w-auto text-[11px] font-medium" id="job-role-filters">
+                        <button onclick="filterJobCategory('all', this)" class="job-filter-pill px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 font-bold">All Roles</button>
+                        <button onclick="filterJobCategory('cybersecurity', this)" class="job-filter-pill px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300">Cybersecurity</button>
+                        <button onclick="filterJobCategory('devsecops', this)" class="job-filter-pill px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300">DevSecOps</button>
+                        <button onclick="filterJobCategory('penetration', this)" class="job-filter-pill px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300">AppSec / Pentest</button>
+                        <button onclick="filterJobCategory('soc', this)" class="job-filter-pill px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300">SOC & Threat</button>
+                        <button onclick="filterJobCategory('python', this)" class="job-filter-pill px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300">Python Systems</button>
+                    </div>
+                </div>
+
+                <!-- Job Opportunities Grid -->
+                <div id="jobs-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for job in recent_jobs %}
+                    <div class="job-card apple-card rounded-3xl p-5 space-y-3.5 relative group border border-white/[0.08] hover:border-emerald-500/40 transition-all"
+                         data-id="{{ job.id }}"
+                         data-role="{{ job.role_type|lower }}"
+                         data-status="{{ job.status }}"
+                         data-skills="{{ job.matched_skills|lower }}"
+                         data-text="{{ job.title|lower }} {{ job.company|lower }} {{ job.matched_skills|lower }}">
+                        
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xs font-mono font-bold text-white group-hover:text-emerald-300 transition-colors">{{ job.company }}</span>
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.05] text-slate-400 border border-white/[0.06]">{{ job.source }}</span>
+                                </div>
+                                <h3 class="text-base font-bold text-white mt-1 leading-snug">{{ job.title }}</h3>
+                            </div>
+
+                            <div class="flex flex-col items-end">
+                                <span class="px-2.5 py-1 rounded-xl text-xs font-mono font-black {% if job.match_score >= 80 %}bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_12px_rgba(52,211,153,0.2)]{% else %}bg-blue-500/20 text-blue-300 border border-blue-500/30{% endif %}">
+                                    {{ job.match_score }}% MATCH
+                                </span>
+                                <span class="text-[10px] text-slate-500 font-mono mt-1">{{ job.detected_at|date:"M d, H:i" }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Location & Salary & Role Type -->
+                        <div class="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                            <span class="flex items-center space-x-1.5"><i class="fa-solid fa-earth-americas text-blue-400 text-[10px]"></i><span>{{ job.location }}</span></span>
+                            {% if job.salary %}
+                            <span class="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 text-[10px] font-mono border border-amber-500/20">{{ job.salary }}</span>
+                            {% endif %}
+                            <span class="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 text-[10px] font-mono border border-purple-500/20">{{ job.role_type }}</span>
+                        </div>
+
+                        <!-- Matched Skills Pills -->
+                        {% if job.matched_skills %}
+                        <div class="flex flex-wrap gap-1">
+                            {% for skill in job.matched_skills.split %}
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">{{ skill }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <!-- Summary -->
+                        {% if job.summary %}
+                        <p class="text-xs text-slate-300/90 leading-relaxed line-clamp-2">{{ job.summary }}</p>
+                        {% endif %}
+
+                        <!-- Bespoke Application Pitch Drawer -->
+                        {% if job.tailored_pitch %}
+                        <div class="pt-2 border-t border-white/[0.06] space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold flex items-center space-x-1">
+                                    <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
+                                    <span>Bespoke Cover Pitch</span>
+                                </span>
+                                <button onclick="copyPitchText(this, 'pitch-text-{{ job.id }}')" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-[10px] font-mono font-bold flex items-center space-x-1 transition active:scale-95">
+                                    <i class="fa-solid fa-copy"></i>
+                                    <span>Copy Pitch</span>
+                                </button>
+                            </div>
+                            <pre id="pitch-text-{{ job.id }}" class="hidden text-xs">{{ job.tailored_pitch }}</pre>
+                            <div class="p-2.5 rounded-xl bg-black/40 border border-white/[0.06] text-[11px] text-slate-300 font-mono leading-relaxed max-h-24 overflow-y-auto">
+                                {{ job.tailored_pitch|linebreaksbr }}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Card Action Buttons -->
+                        <div class="pt-3 border-t border-white/[0.06] flex items-center justify-between gap-2">
+                            <div class="flex items-center space-x-2">
+                                {% if job.url %}
+                                <a href="{{ job.url }}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 text-xs font-semibold flex items-center space-x-1.5 transition">
+                                    <span>Apply Now</span>
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                                </a>
+                                {% endif %}
+                                <button onclick="setJobStatus({{ job.id }}, 'APPLIED', this)" class="px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-emerald-600/30 hover:text-emerald-300 text-slate-300 text-xs font-medium transition">
+                                    <i class="fa-solid fa-check text-[10px]"></i>
+                                    <span>{% if job.status == 'APPLIED' %}Applied ✓{% else %}Mark Applied{% endif %}</span>
+                                </button>
+                            </div>
+
+                            <button onclick="setJobStatus({{ job.id }}, 'ARCHIVED', this)" class="w-8 h-8 rounded-xl bg-white/[0.04] hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition" title="Archive Job">
+                                <i class="fa-solid fa-box-archive text-xs"></i>
+                            </button>
+                        </div>
+
+                    </div>
+                    {% empty %}
+                    <div class="col-span-2 p-12 text-center apple-card rounded-3xl space-y-3">
+                        <i class="fa-solid fa-briefcase text-4xl text-slate-600"></i>
+                        <h4 class="text-base font-bold text-white">No Job Opportunities Harvested Yet</h4>
+                        <p class="text-xs text-slate-400 max-w-md mx-auto">Click 'Scan Jobs Now' to harvest the latest remote cybersecurity and developer roles aligned to your profile.</p>
+                        <button onclick="triggerJobScan()" class="px-5 py-2.5 rounded-2xl bg-emerald-500 text-slate-950 font-bold text-xs inline-flex items-center space-x-2">
+                            <i class="fa-solid fa-radar"></i>
+                            <span>Scan Remote Opportunities Now</span>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+
+            </section>
+
+            <!-- =========================================================================
                  SECTION 6: PI 4 HARDWARE TELEMETRY
                  ========================================================================= -->
             <section id="pane-system" class="workspace-pane hidden space-y-6">
@@ -1430,6 +1634,15 @@
                 <button onclick="switchTab('reports'); closeMobileNavModal()" class="p-3 rounded-2xl bg-white/[0.04] hover:bg-teal-600/20 hover:text-teal-300 border border-white/[0.06] flex items-center space-x-2.5 text-left">
                     <i class="fa-solid fa-file-waveform text-teal-400"></i>
                     <span>Intel Reports</span>
+                </button>
+                <button onclick="switchTab('jobs'); closeMobileNavModal()" class="p-3 rounded-2xl bg-white/[0.04] hover:bg-emerald-600/20 hover:text-emerald-300 border border-white/[0.06] flex items-center space-x-2.5 text-left col-span-2">
+                    <div class="flex items-center justify-between w-full">
+                        <div class="flex items-center space-x-2.5">
+                            <i class="fa-solid fa-briefcase text-emerald-400"></i>
+                            <span>Career Sentinel & Jobs</span>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">{{ jobs_count }}</span>
+                    </div>
                 </button>
                 <button onclick="switchTab('laptop'); closeMobileNavModal()" class="p-3 rounded-2xl bg-white/[0.04] hover:bg-emerald-600/20 hover:text-emerald-300 border border-white/[0.06] flex items-center space-x-2.5 text-left col-span-2">
                     <i class="fa-solid fa-laptop-code text-emerald-400"></i>
@@ -2466,6 +2679,123 @@
                 closeIngestModal();
             }
         });
+
+        // =========================================================================
+        // CAREER SENTINEL & JOBBOT AUTOMATION
+        // =========================================================================
+        async function triggerJobScan() {
+            const btn = document.getElementById('btn-job-scan');
+            const icon = document.getElementById('icon-job-scan');
+            const txt = document.getElementById('text-job-scan');
+            if (icon) icon.className = 'fa-solid fa-spinner fa-spin';
+            if (txt) txt.textContent = 'Scanning Web...';
+            showToast('Harvesting remote cybersecurity opportunities...');
+
+            try {
+                const res = await fetch('/api/jobs/scan/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCSRFToken()
+                    },
+                    body: JSON.stringify({ min_score: 60 })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(`Scanned ${data.scanned_count} jobs: ${data.unique_matches} high matches!`);
+                    setTimeout(() => window.location.reload(), 1200);
+                } else {
+                    showToast('Scan notice: ' + (data.message || 'completed'), 'info');
+                }
+            } catch (e) {
+                showToast('Job scan request error', 'error');
+            } finally {
+                if (icon) icon.className = 'fa-solid fa-radar';
+                if (txt) txt.textContent = 'Scan Jobs Now';
+            }
+        }
+
+        function filterJobCategory(category, btn) {
+            document.querySelectorAll('.job-filter-pill').forEach(b => {
+                b.className = 'job-filter-pill px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300';
+            });
+            if (btn) {
+                btn.className = 'job-filter-pill px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 font-bold';
+            }
+
+            const cat = (category || 'all').toLowerCase();
+            document.querySelectorAll('.job-card').forEach(card => {
+                const role = (card.getAttribute('data-role') || '').toLowerCase();
+                if (cat === 'all' || role.includes(cat)) {
+                    card.classList.remove('hidden');
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
+        }
+
+        function filterJobsLive() {
+            const query = (document.getElementById('job-search-input')?.value || '').toLowerCase().trim();
+            document.querySelectorAll('.job-card').forEach(card => {
+                const text = (card.getAttribute('data-text') || '').toLowerCase();
+                if (!query || text.includes(query)) {
+                    card.classList.remove('hidden');
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
+        }
+
+        function copyPitchText(btn, elementId) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            const text = el.textContent || el.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const orig = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Copied! ✓</span>';
+                btn.classList.add('bg-emerald-500', 'text-slate-950');
+                showToast('Bespoke cover pitch copied to clipboard!');
+                setTimeout(() => {
+                    btn.innerHTML = orig;
+                    btn.classList.remove('bg-emerald-500', 'text-slate-950');
+                }, 2000);
+            }).catch(() => {
+                showToast('Failed to copy pitch', 'error');
+            });
+        }
+
+        async function setJobStatus(jobId, newStatus, btn) {
+            try {
+                const res = await fetch('/api/jobs/action/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCSRFToken()
+                    },
+                    body: JSON.stringify({ id: jobId, action: 'status_change', status: newStatus })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    if (newStatus === 'APPLIED') {
+                        if (btn) btn.innerHTML = '<i class="fa-solid fa-check text-[10px]"></i> <span>Applied ✓</span>';
+                        showToast('Marked as Applied! Added to pipeline.');
+                        const badge = document.getElementById('stat-job-applied');
+                        if (badge) badge.textContent = parseInt(badge.textContent || 0) + 1;
+                    } else if (newStatus === 'ARCHIVED') {
+                        const card = btn.closest('.job-card');
+                        if (card) {
+                            card.style.opacity = '0';
+                            setTimeout(() => card.remove(), 300);
+                        }
+                        showToast('Job archived.');
+                    }
+                } else {
+                    showToast(data.message || 'Error updating status', 'error');
+                }
+            } catch (e) {
+                showToast('Network error updating job', 'error');
+            }
+        }
 
         // Periodic Telemetry Auto-Refresh (Every 10s)
         setInterval(refreshHardwareStats, 10000);

@@ -20,8 +20,9 @@ from django.contrib.auth.models import User
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import GrowthPost, ResearchTopic, SystemStatus, WeeklyGrowthReview, VaultResource
+from .models import GrowthPost, ResearchTopic, SystemStatus, WeeklyGrowthReview, VaultResource, JobOpportunity
 from . import omni_vault_engine
+from . import jobbot_engine
 
 REGISTRY_FILE = Path(__file__).resolve().parent / "managed_services.json"
 
@@ -728,6 +729,11 @@ def dashboard_view(request):
     vault_categories = get_categories_with_metadata()
     vault_recent = VaultResource.objects.all()[:16]
 
+    jobs_count = JobOpportunity.objects.count()
+    jobs_high_match_count = JobOpportunity.objects.filter(match_score__gte=80).count()
+    jobs_applied_count = JobOpportunity.objects.filter(status='APPLIED').count()
+    recent_jobs = list(JobOpportunity.objects.all()[:30])
+
     context = {
         "posts": posts,
         "topics": topics,
@@ -747,6 +753,10 @@ def dashboard_view(request):
         "vault_fav_count": vault_fav_count,
         "vault_categories": vault_categories,
         "vault_recent": vault_recent,
+        "jobs_count": jobs_count,
+        "jobs_high_match_count": jobs_high_match_count,
+        "jobs_applied_count": jobs_applied_count,
+        "recent_jobs": recent_jobs,
     }
     return render(request, "growth/dashboard.html", context)
 
@@ -1641,4 +1651,106 @@ def api_system_health(request):
             "active": active_services
         }
     })
+
+
+def api_jobs_list(request):
+    """Returns JSON list of jobs with filters and search."""
+    role_type = request.GET.get('role_type')
+    status_filter = request.GET.get('status')
+    min_score = request.GET.get('min_score', 0)
+    query = request.GET.get('q', '').strip()
+
+    qs = JobOpportunity.objects.all()
+    if role_type and role_type != 'all':
+        qs = qs.filter(role_type__icontains=role_type)
+    if status_filter and status_filter != 'all':
+        qs = qs.filter(status=status_filter)
+    if min_score:
+        try:
+            qs = qs.filter(match_score__gte=int(min_score))
+        except ValueError:
+            pass
+    if query:
+        from django.db.models import Q
+        qs = qs.filter(Q(title__icontains=query) | Q(company__icontains=query) | Q(matched_skills__icontains=query))
+
+    jobs = []
+    for j in qs[:50]:
+        jobs.append({
+            'id': j.id,
+            'title': j.title,
+            'company': j.company,
+            'location': j.location,
+            'url': j.url,
+            'source': j.source,
+            'role_type': j.role_type,
+            'match_score': j.match_score,
+            'matched_skills': j.matched_skills,
+            'salary': j.salary,
+            'summary': j.summary,
+            'tailored_pitch': j.tailored_pitch,
+            'status': j.status,
+            'detected_at': j.detected_at.strftime('%Y-%m-%d %H:%M') if j.detected_at else '',
+            'applied_at': j.applied_at.strftime('%Y-%m-%d %H:%M') if j.applied_at else '',
+        })
+    return JsonResponse({'status': 'success', 'count': len(jobs), 'jobs': jobs})
+
+
+@csrf_exempt
+def api_jobs_scan(request):
+    """Triggers live job scan across public remote sources."""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'POST required'}, status=405)
+    try:
+        min_score = 60
+        if request.body:
+            try:
+                data = json.loads(request.body)
+                min_score = int(data.get('min_score', 60))
+            except Exception:
+                pass
+        res = jobbot_engine.scan_and_sync_jobs(min_score=min_score, sync_vault=True)
+        return JsonResponse(res)
+    except Exception as e:
+        logger.exception("Job scan error")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@csrf_exempt
+def api_jobs_action(request):
+    """Handles job actions: change status (APPLIED, REVIEWED, ARCHIVED) or regenerate pitch."""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'POST required'}, status=405)
+    try:
+        data = json.loads(request.body)
+        job_id = data.get('id')
+        action = data.get('action')
+        
+        job = JobOpportunity.objects.filter(id=job_id).first()
+        if not job:
+            return JsonResponse({'status': 'error', 'message': 'Job not found'}, status=404)
+
+        if action == 'status_change':
+            new_status = data.get('status')
+            if new_status in dict(JobOpportunity.STATUS_CHOICES):
+                job.status = new_status
+                if new_status == 'APPLIED':
+                    from django.utils import timezone
+                    job.applied_at = timezone.now()
+                job.save()
+                return JsonResponse({'status': 'success', 'job_id': job.id, 'new_status': job.status})
+            return JsonResponse({'status': 'error', 'message': 'Invalid status'}, status=400)
+
+        elif action == 'generate_pitch':
+            skills = [s.strip() for s in job.matched_skills.split(',') if s.strip()]
+            custom_pitch = jobbot_engine.generate_tailored_pitch(job.title, job.company, skills, job.role_type)
+            job.tailored_pitch = custom_pitch
+            job.save()
+            return JsonResponse({'status': 'success', 'job_id': job.id, 'tailored_pitch': job.tailored_pitch})
+
+        return JsonResponse({'status': 'error', 'message': 'Unknown action'}, status=400)
+    except Exception as e:
+        logger.exception("Job action error")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
 

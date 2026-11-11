@@ -48,7 +48,11 @@ HISTORY_FILE = STATE_DIR / "daily_tweets.json"
 ARCHIVE_DIR = Path.home() / "posts" / "x"
 ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
 
-PLAYWRIGHT_PYTHON = "/home/arush/.hermes/installs/c4e5f05fc62c46c7/environments/c3eca3e27a664bb2929bbedfcbc483b7/venv/bin/python"
+PLAYWRIGHT_CANDIDATES = [
+    "/home/arush/.hermes/venv/bin/python",
+    "/home/arush/.hermes/installs/c4e5f05fc62c46c7/environments/c3eca3e27a664bb2929bbedfcbc483b7/venv/bin/python",
+]
+PLAYWRIGHT_PYTHON = next((p for p in PLAYWRIGHT_CANDIDATES if os.path.exists(p)), sys.executable)
 COOKIE_FILE = Path.home() / ".twitter-profile" / "cookies.json"
 
 

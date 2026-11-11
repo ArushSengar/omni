@@ -40,27 +40,28 @@ def main():
     scp(root / "omni_hub" / "growth" / "views.py", "/home/arush/omni_hub/growth/views.py")
     scp(root / "omni_hub" / "growth" / "urls.py", "/home/arush/omni_hub/growth/urls.py")
     scp(root / "omni_hub" / "growth" / "models.py", "/home/arush/omni_hub/growth/models.py")
-    scp(root / "omni_hub" / "growth" / "migrations" / "0005_growthpost_growth_grow_created_a4412b_idx_and_more.py", "/home/arush/omni_hub/growth/migrations/0005_growthpost_growth_grow_created_a4412b_idx_and_more.py")
+    scp(root / "omni_hub" / "growth" / "migrations" / "0006_jobopportunity.py", "/home/arush/omni_hub/growth/migrations/0006_jobopportunity.py")
 
     # 2. Transfer templates
     scp(root / "omni_hub" / "growth" / "templates" / "growth" / "vault_dashboard.html", "/home/arush/omni_hub/growth/templates/growth/vault_dashboard.html")
     scp(root / "omni_hub" / "growth" / "templates" / "growth" / "dashboard.html", "/home/arush/omni_hub/growth/templates/growth/dashboard.html")
 
-    # 3. Transfer omni_vault_engine.py and vault_ingest.py
-    scp(root / "omni_hub" / "growth" / "omni_vault_engine.py", "/home/arush/omni_hub/growth/omni_vault_engine.py")
-    scp(root / "omni_hub" / "vault_ingest.py", "/home/arush/omni_hub/vault_ingest.py")
+    # 3. Transfer jobbot_engine.py & jobbot_sentinel.py
+    scp(root / "omni_hub" / "growth" / "jobbot_engine.py", "/home/arush/omni_hub/growth/jobbot_engine.py")
+    scp(root / "omni_hub" / "growth" / "jobbot_engine.py", "/home/arush/jobbot_engine.py")
+    scp(root / "hermes" / "scripts" / "jobbot_sentinel.py", "/home/arush/jobbot_sentinel.py")
+    scp(root / "hermes" / "scripts" / "jobbot_sentinel.py", "/home/arush/.hermes/scripts/jobbot_sentinel.py")
 
-    # 4. Transfer hermes_omnivault.py and migrate_vault_categories.py
-    scp(root / "hermes" / "scripts" / "hermes_omnivault.py", "/home/arush/hermes_omnivault.py")
-    scp(root / "scripts" / "migrate_vault_categories.py", "/home/arush/migrate_vault_categories.py")
+    # 4. Transfer growth sentinel, x_daily_post, growth_reporter_email
+    scp(root / "hermes" / "scripts" / "omni_growth_sentinel.py", "/home/arush/omni_growth_sentinel.py")
+    scp(root / "hermes" / "scripts" / "omni_growth_sentinel.py", "/home/arush/.hermes/scripts/omni_growth_sentinel.py")
+    scp(root / "hermes" / "scripts" / "x_daily_post.py", "/home/arush/x_daily_post.py")
+    scp(root / "hermes" / "scripts" / "x_daily_post.py", "/home/arush/.hermes/scripts/x_daily_post.py")
+    scp(root / "hermes" / "scripts" / "growth_reporter_email.py", "/home/arush/growth_reporter_email.py")
+    scp(root / "hermes" / "scripts" / "growth_reporter_email.py", "/home/arush/.hermes/scripts/growth_reporter_email.py")
 
-    # 5. Ensure skill directory exists on Pi and transfer SKILL.md
-    ssh("mkdir -p /home/arush/.hermes/skills/omnivault-memory")
-    scp(root / "hermes" / "skills" / "omnivault-memory" / "SKILL.md", "/home/arush/.hermes/skills/omnivault-memory/SKILL.md")
-
-    # 5. Make executable and update /usr/local/bin/hermes-omnivault
-    code, out, err = ssh("chmod +x /home/arush/hermes_omnivault.py && echo arush | sudo -S cp /home/arush/hermes_omnivault.py /usr/local/bin/hermes-omnivault && echo arush | sudo -S chmod +x /usr/local/bin/hermes-omnivault")
-    print("Permissions and symlink updated.")
+    # 5. Make scripts executable
+    ssh("chmod +x /home/arush/jobbot_sentinel.py /home/arush/omni_growth_sentinel.py /home/arush/x_daily_post.py /home/arush/growth_reporter_email.py /home/arush/.hermes/scripts/*.py")
 
     # 6. Run manage.py check and migrate on Pi
     code, out, err = ssh("python3 /home/arush/omni_hub/manage.py check")
@@ -74,12 +75,12 @@ def main():
     if code != 0:
         print("Migrate note:", err)
 
-    # 7. Execute category migration
-    print("Executing category migration on Pi database...")
-    code, out, err = ssh("python3 /home/arush/migrate_vault_categories.py")
+    # 7. Initial Career Sentinel & JobBot scan on Pi
+    print("Executing initial Career Sentinel & JobBot scan on Pi...")
+    code, out, err = ssh("python3 /home/arush/jobbot_sentinel.py --min-score 60")
     print(out)
     if code != 0:
-        print("Migration error:", err)
+        print("JobBot notice:", err)
 
     # 8. Restart omni-hub.service
     print("Restarting omni-hub.service...")

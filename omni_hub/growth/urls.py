@@ -39,4 +39,9 @@ urlpatterns = [
     path('api/vault/chat/', views.api_vault_chat, name='api_vault_chat'),
     path('api/vault/toggle-fav/', views.api_vault_toggle_fav, name='api_vault_toggle_fav'),
     path('api/vault/delete/', views.api_vault_delete, name='api_vault_delete'),
+
+    # Career Sentinel & JobBot APIs
+    path('api/jobs/', views.api_jobs_list, name='api_jobs_list'),
+    path('api/jobs/scan/', views.api_jobs_scan, name='api_jobs_scan'),
+    path('api/jobs/action/', views.api_jobs_action, name='api_jobs_action'),
 ]

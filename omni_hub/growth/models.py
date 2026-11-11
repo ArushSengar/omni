@@ -130,3 +130,41 @@ class VaultResource(models.Model):
     def __str__(self):
         return f"[{self.category}] {self.title}"
 
+
+class JobOpportunity(models.Model):
+    STATUS_CHOICES = [
+        ('NEW', 'New Match'),
+        ('REVIEWED', 'Reviewed'),
+        ('APPLIED', 'Applied'),
+        ('INTERVIEW', 'Interview'),
+        ('ARCHIVED', 'Archived'),
+    ]
+
+    title = models.CharField(max_length=255)
+    company = models.CharField(max_length=255)
+    location = models.CharField(max_length=255, default='Remote')
+    url = models.CharField(max_length=500, blank=True)
+    source = models.CharField(max_length=100, default='RemoteOK')
+    role_type = models.CharField(max_length=100, default='Cybersecurity')
+    match_score = models.IntegerField(default=75)
+    matched_skills = models.CharField(max_length=300, blank=True)
+    salary = models.CharField(max_length=100, blank=True)
+    summary = models.TextField(blank=True)
+    tailored_pitch = models.TextField(blank=True, help_text="Bespoke human cover note tailored to Arush's profile")
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='NEW')
+    detected_at = models.DateTimeField(auto_now_add=True)
+    applied_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-match_score', '-detected_at']
+        indexes = [
+            models.Index(fields=['-match_score']),
+            models.Index(fields=['status']),
+            models.Index(fields=['role_type']),
+            models.Index(fields=['-detected_at']),
+        ]
+
+    def __str__(self):
+        return f"[{self.match_score}%] {self.title} @ {self.company}"
+
+

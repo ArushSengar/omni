@@ -27,6 +27,7 @@ logs/
 call_logs/
 tmp/
 temp/
+omni_hub/growth/templates/growth/reports/*.html
 
 # Python
 __pycache__/

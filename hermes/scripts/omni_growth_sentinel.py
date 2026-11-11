@@ -38,6 +38,14 @@ SENTINEL_LOG.parent.mkdir(parents=True, exist_ok=True)
 DIRECTIVES_PATH = Path.home() / ".hermes" / "growth_manager_directives.json"
 
 
+def get_python_exe() -> str:
+    """Returns hermes virtualenv python if available, falling back to sys.executable."""
+    venv_py = Path("/home/arush/.hermes/venv/bin/python")
+    if venv_py.exists():
+        return str(venv_py)
+    return sys.executable
+
+
 def log(msg: str):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     formatted = f"[{timestamp}] [SENTINEL-HEAD] {msg}"
@@ -183,7 +191,12 @@ class OmniGrowthSentinel:
         self.self_heal_and_recalibrate()
         self.run_preflight_checks()
 
-        cmd = [sys.executable, str(Path.home() / "omni_daily_growth.py")]
+        python_exe = get_python_exe()
+        growth_script = Path.home() / "omni_daily_growth.py"
+        if not growth_script.exists():
+            growth_script = Path(__file__).resolve().parent / "omni_daily_growth.py"
+
+        cmd = [python_exe, str(growth_script)]
         if dry_run:
             cmd.append("--dry-run")
         if force_research:
@@ -197,6 +210,22 @@ class OmniGrowthSentinel:
 
         self.state["last_growth_run"] = datetime.now().isoformat()
         self.save_state()
+
+        # Phase 4.5: Execute Autonomous Career Sentinel & JobBot Scan
+        log("Executing Autonomous Career Sentinel & JobBot High-Accuracy Discovery...")
+        try:
+            job_script = Path.home() / "jobbot_sentinel.py"
+            if not job_script.exists():
+                job_script = Path(__file__).resolve().parent / "jobbot_sentinel.py"
+            if job_script.exists():
+                j_res = subprocess.run([python_exe, str(job_script), "--min-score", "65"], capture_output=True, text=True, timeout=45)
+                log("Career Sentinel Output:\n" + (j_res.stdout[-400:] if j_res.stdout else "Scan finished."))
+                if j_res.stderr:
+                    log("Career Sentinel Errors:\n" + j_res.stderr[-200:])
+            else:
+                log("Career Sentinel script not found, skipping job harvest.")
+        except Exception as e:
+            log(f"Career Sentinel Notice: {e}")
 
         # Phase 5: Trigger Email Dispatch Confirmation
         log("Triggering Automated Growth Email Dispatch...")

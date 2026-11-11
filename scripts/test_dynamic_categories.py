@@ -79,3 +79,4 @@ deleted_count, _ = VaultResource.objects.filter(id__in=saved_ids).delete()
 print(f"Cleaned up {deleted_count} temporary test entries from database.")
 
 print("\nSUCCESS: Dynamic Two-Tier Category Creation & Reuse Verified 100%!")
+
