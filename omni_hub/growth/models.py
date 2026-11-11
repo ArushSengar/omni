@@ -164,6 +164,13 @@ class JobOpportunity(models.Model):
             models.Index(fields=['-detected_at']),
         ]
 
+    @property
+    def skills_list(self):
+        """Returns clean list of matched skills without trailing commas or spaces."""
+        if not self.matched_skills:
+            return []
+        return [s.strip() for s in self.matched_skills.split(',') if s.strip()]
+
     def __str__(self):
         return f"[{self.match_score}%] {self.title} @ {self.company}"
 

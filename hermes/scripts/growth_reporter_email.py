@@ -13,6 +13,7 @@ standalone mobile-responsive web reports saved to omni_hub/reports/.
 import os
 import sys
 import json
+import html
 import smtplib
 import sqlite3
 from email.mime.multipart import MIMEMultipart
@@ -58,17 +59,21 @@ def build_weekly_growth_html(review_data: dict) -> str:
     diagnosis = review_data.get("diagnosis", [])
     posts = review_data.get("audited_posts", [])
 
-    recs_html = "".join([f'<li style="margin-bottom: 8px; color: #10b981;">⚡ {r}</li>' for r in recs])
-    diag_html = "".join([f'<li style="margin-bottom: 8px; color: #cbd5e1;">• {d}</li>' for d in diagnosis])
+    recs_html = "".join([f'<li style="margin-bottom: 8px; color: #10b981;">⚡ {html.escape(str(r))}</li>' for r in recs])
+    diag_html = "".join([f'<li style="margin-bottom: 8px; color: #cbd5e1;">• {html.escape(str(d))}</li>' for d in diagnosis])
 
     posts_html = ""
     for p in posts[:4]:
+        p_title = html.escape(str(p.get('title', ''))[:40])
+        p_views = int(p.get('views', 0))
+        p_likes = int(p.get('likes', 0))
+        p_comments = int(p.get('comments', 0))
         posts_html += f"""
         <tr style="border-bottom: 1px solid #334155;">
-            <td style="padding: 10px; color: #f8fafc; font-weight: 600;">{p.get('title', '')[:40]}...</td>
-            <td style="padding: 10px; color: #38bdf8; text-align: center;">{p.get('views', 0)}</td>
-            <td style="padding: 10px; color: #34d399; text-align: center;">{p.get('likes', 0)}</td>
-            <td style="padding: 10px; color: #a78bfa; text-align: center;">{p.get('comments', 0)}</td>
+            <td style="padding: 10px; color: #f8fafc; font-weight: 600;">{p_title}...</td>
+            <td style="padding: 10px; color: #38bdf8; text-align: center;">{p_views}</td>
+            <td style="padding: 10px; color: #34d399; text-align: center;">{p_likes}</td>
+            <td style="padding: 10px; color: #a78bfa; text-align: center;">{p_comments}</td>
         </tr>
         """
 
@@ -83,9 +88,15 @@ def build_weekly_growth_html(review_data: dict) -> str:
             cur.execute("SELECT title, company, role_type, match_score, url FROM growth_jobopportunity WHERE match_score >= 80 ORDER BY match_score DESC, id DESC LIMIT 3")
             rows = cur.fetchall()
             for r in rows:
+                j_title = html.escape(str(r[0]))
+                j_company = html.escape(str(r[1]))
+                j_role = html.escape(str(r[2]))
+                j_score = int(r[3])
+                raw_url = str(r[4] or "").strip()
+                safe_url = html.escape(raw_url) if raw_url.startswith(("https://", "http://")) else "#"
                 jobs_html += f"""
                 <li style="margin-bottom: 8px;">
-                    <strong style="color: #34d399;">[{r[3]}% Match]</strong> <a href="{r[4]}" style="color: #38bdf8; text-decoration: none; font-weight: 600;">{r[0]}</a> @ {r[1]} <span style="color: #94a3b8; font-size: 11px;">({r[2]})</span>
+                    <strong style="color: #34d399;">[{j_score}% Match]</strong> <a href="{safe_url}" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; text-decoration: none; font-weight: 600;">{j_title}</a> @ {j_company} <span style="color: #94a3b8; font-size: 11px;">({j_role})</span>
                 </li>
                 """
             conn.close()
@@ -101,7 +112,7 @@ def build_weekly_growth_html(review_data: dict) -> str:
     </div>
     """ if jobs_html else ""
 
-    html = f"""
+    template_html = f"""
     <!DOCTYPE html>
     <html>
     <head>
@@ -190,12 +201,16 @@ def build_weekly_growth_html(review_data: dict) -> str:
     </body>
     </html>
     """
-    return html
+    return template_html
 
 
 def build_system_maintenance_html(stats: dict) -> str:
     """Renders a modern system maintenance & health report for Arush's Pi cluster."""
-    html = f"""
+    host_val = html.escape(str(stats.get('host', 'arush@192.168.0.100')))
+    uptime_val = html.escape(str(stats.get('uptime', 'Active')))
+    ram_val = html.escape(str(stats.get('ram', '1.8 GB free')))
+    zram_val = html.escape(str(stats.get('zram', 'Active (zstd)')))
+    html_out = f"""
     <!DOCTYPE html>
     <html>
     <head>
@@ -220,10 +235,10 @@ def build_system_maintenance_html(stats: dict) -> str:
                 <p>Status: All Systems Operational • {datetime.now().strftime('%Y-%m-%d %H:%M IST')}</p>
             </div>
             <div class="content">
-                <div class="stat-row"><span class="stat-label">Pi Hostname & IP</span><span class="stat-val">{stats.get('host', 'arush@192.168.0.100')}</span></div>
-                <div class="stat-row"><span class="stat-label">System Uptime</span><span class="stat-val">{stats.get('uptime', 'Active')}</span></div>
-                <div class="stat-row"><span class="stat-label">RAM Usage (4GB Total)</span><span class="stat-val">{stats.get('ram', '1.8 GB free')}</span></div>
-                <div class="stat-row"><span class="stat-label">Zram Compressed Swap</span><span class="stat-val">{stats.get('zram', 'Active (zstd)')}</span></div>
+                <div class="stat-row"><span class="stat-label">Pi Hostname & IP</span><span class="stat-val">{host_val}</span></div>
+                <div class="stat-row"><span class="stat-label">System Uptime</span><span class="stat-val">{uptime_val}</span></div>
+                <div class="stat-row"><span class="stat-label">RAM Usage (4GB Total)</span><span class="stat-val">{ram_val}</span></div>
+                <div class="stat-row"><span class="stat-label">Zram Compressed Swap</span><span class="stat-val">{zram_val}</span></div>
                 <div class="stat-row"><span class="stat-label">OmniRoute LLM Router</span><span class="stat-val" style="color: #10b981;">Online (Port 20128)</span></div>
                 <div class="stat-row"><span class="stat-label">Omni Hub Django Service</span><span class="stat-val" style="color: #10b981;">Online (Port 8000)</span></div>
                 <div class="stat-row"><span class="stat-label">Next Scheduled Post</span><span class="stat-val" style="color: #f59e0b;">Tomorrow 07:00 AM IST</span></div>
@@ -235,7 +250,7 @@ def build_system_maintenance_html(stats: dict) -> str:
     </body>
     </html>
     """
-    return html
+    return html_out
 
 
 def send_email(subject: str, html_body: str, to_email: str = DEFAULT_RECIPIENT) -> bool:

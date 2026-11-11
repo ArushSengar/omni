@@ -15,15 +15,16 @@ Autonomous Closed-Loop Functions:
 
 import os
 import sys
+from pathlib import Path
+
 sys.path.insert(0, "/home/arush")
-sys.path.insert(0, str(Path(__file__).resolve().parent)) if 'Path' in locals() else None
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import json
 import sqlite3
 import subprocess
 import time
 from datetime import datetime
-from pathlib import Path
 
 # Subsystem Modules
 import smart_tagger
@@ -156,11 +157,25 @@ class OmniGrowthSentinel:
         log("Running Pre-Flight Infrastructure & Health Verification...")
         # Check LLM endpoints
         endpoints = ["http://localhost:20128/v1/models", "http://192.168.0.100:20128/v1/models"]
+        token = os.environ.get("HERMES_CUSTOM_LOCALHOST_20128_API_KEY") or os.environ.get("OMNIRoute_API_KEY", "")
+        if not token:
+            cfg_env = Path.home() / ".hermes" / ".env"
+            if cfg_env.exists():
+                try:
+                    for line in cfg_env.read_text(encoding="utf-8", errors="replace").splitlines():
+                        if line.startswith("HERMES_CUSTOM_LOCALHOST_20128_API_KEY="):
+                            token = line.split("=", 1)[1].strip().strip('"').strip("'")
+                            break
+                except Exception:
+                    pass
+        if not token:
+            token = "sk-971230e546e14a3e-23822a-06e1aa8d"
+
         llm_ok = False
         import urllib.request
         for ep in endpoints:
             try:
-                req = urllib.request.Request(ep, headers={"Authorization": "Bearer sk-971230e546e14a3e-23822a-06e1aa8d"})
+                req = urllib.request.Request(ep, headers={"Authorization": f"Bearer {token}"})
                 with urllib.request.urlopen(req, timeout=5) as r:
                     if r.status == 200:
                         llm_ok = True

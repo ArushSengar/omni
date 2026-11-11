@@ -732,7 +732,7 @@ def dashboard_view(request):
     jobs_count = JobOpportunity.objects.count()
     jobs_high_match_count = JobOpportunity.objects.filter(match_score__gte=80).count()
     jobs_applied_count = JobOpportunity.objects.filter(status='APPLIED').count()
-    recent_jobs = list(JobOpportunity.objects.all()[:30])
+    recent_jobs = list(JobOpportunity.objects.exclude(status='ARCHIVED')[:30])
 
     context = {
         "posts": posts,
@@ -1705,10 +1705,13 @@ def api_jobs_scan(request):
         min_score = 60
         if request.body:
             try:
-                data = json.loads(request.body)
+                data = json.loads(request.body.decode('utf-8'))
                 min_score = int(data.get('min_score', 60))
             except Exception:
-                pass
+                min_score = int(request.POST.get('min_score', 60))
+        elif request.POST.get('min_score'):
+            min_score = int(request.POST.get('min_score', 60))
+
         res = jobbot_engine.scan_and_sync_jobs(min_score=min_score, sync_vault=True)
         return JsonResponse(res)
     except Exception as e:
@@ -1722,7 +1725,15 @@ def api_jobs_action(request):
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'POST required'}, status=405)
     try:
-        data = json.loads(request.body)
+        data = {}
+        if request.body:
+            try:
+                data = json.loads(request.body.decode('utf-8'))
+            except Exception:
+                data = request.POST.dict()
+        else:
+            data = request.POST.dict()
+
         job_id = data.get('id')
         action = data.get('action')
         
@@ -1742,7 +1753,7 @@ def api_jobs_action(request):
             return JsonResponse({'status': 'error', 'message': 'Invalid status'}, status=400)
 
         elif action == 'generate_pitch':
-            skills = [s.strip() for s in job.matched_skills.split(',') if s.strip()]
+            skills = job.skills_list
             custom_pitch = jobbot_engine.generate_tailored_pitch(job.title, job.company, skills, job.role_type)
             job.tailored_pitch = custom_pitch
             job.save()

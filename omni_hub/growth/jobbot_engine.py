@@ -17,6 +17,7 @@ Features:
 import os
 import re
 import sys
+import html
 import json
 import logging
 import urllib.request
@@ -88,33 +89,49 @@ LEVEL_KEYWORDS = {
 }
 
 # Negative Disqualifiers (Filter out false positives with maximum precision)
-DISQUALIFY_PATTERNS = [
+TITLE_DISQUALIFY_PATTERNS = [
     r"\bdirector\b", r"\bvice president\b", r"\bvp\b", r"\bhead of\b",
-    r"\bchief\b", r"\bciso\b", r"\bprincipal\b", r"\bstaff engineer\b",
+    r"\bchief\b", r"\bciso\b", r"\bprincipal engineer\b", r"\bstaff engineer\b",
+    r"\blead engineer\b", r"\bmanager\b"
+]
+
+CONTENT_DISQUALIFY_PATTERNS = [
     r"\b10\+\s*years\b", r"\b8\+\s*years\b", r"\b7\+\s*years\b",
     r"\bsales executive\b", r"\baccount executive\b", r"\btelemarketing\b",
-    r"\bseo\b", r"\bcopywriter\b", r"\bgui designer\b", r"\breal estate\b",
-    r"\bnurse\b", r"\bmedical\b", r"\btruck\b"
+    r"\bseo specialist\b", r"\breal estate\b", r"\bnurse\b", r"\bmedical doctor\b"
 ]
 
 
+def is_safe_http_url(url: str) -> bool:
+    """Validate that URL uses safe http or https schemes (blocks javascript: or data: XSS)."""
+    if not url or not isinstance(url, str):
+        return False
+    clean = url.strip().lower()
+    return clean.startswith("https://") or clean.startswith("http://")
+
+
 def clean_html(raw_html: str) -> str:
-    """Strip HTML tags and unescape text."""
+    """Strip HTML tags and unescape character entities safely."""
     if not raw_html:
         return ""
-    clean = re.sub(r"<[^>]+>", " ", raw_html)
-    clean = re.sub(r"&[a-z]+;", " ", clean)
-    clean = re.sub(r"\s+", " ", clean).strip()
-    return clean
+    text = re.sub(r"<[^>]+>", " ", raw_html)
+    return html.unescape(re.sub(r"\s+", " ", text)).strip()
 
 
 def is_disqualified(title: str, text: str) -> bool:
-    """Return True if role matches senior/executive or unrelated disqualifiers."""
-    full = f"{title} {text}".lower()
-    for pat in DISQUALIFY_PATTERNS:
-        if re.search(pat, full):
-            return True
-    return False
+    """Return True if title is executive or content contains senior disqualifiers."""
+    t_low = title.lower()
+    if any(re.search(pat, t_low) for pat in TITLE_DISQUALIFY_PATTERNS):
+        return True
+    full = f"{t_low} {text.lower()}"
+    return any(re.search(pat, full) for pat in CONTENT_DISQUALIFY_PATTERNS)
+
+
+def matches_keyword(kw: str, content: str) -> bool:
+    """Word-boundary match for short acronyms (<=4 chars) to prevent false positives like 'associate' -> 'soc'."""
+    if len(kw) <= 4:
+        return bool(re.search(rf"\b{re.escape(kw)}\b", content))
+    return kw in content
 
 
 def calculate_match_score(title: str, description: str, tags: list = None) -> tuple:
@@ -134,7 +151,7 @@ def calculate_match_score(title: str, description: str, tags: list = None) -> tu
     # 1. Security relevance
     sec_hits = 0
     for kw, weight in SECURITY_KEYWORDS.items():
-        if kw in content:
+        if matches_keyword(kw, content):
             sec_hits += 1
             score += weight
             matched_skills.append(kw.title())
@@ -142,14 +159,14 @@ def calculate_match_score(title: str, description: str, tags: list = None) -> tu
     # 2. Tech stack relevance
     tech_hits = 0
     for kw, weight in TECH_KEYWORDS.items():
-        if kw in content:
+        if matches_keyword(kw, content):
             tech_hits += 1
             score += weight
             matched_skills.append(kw.title())
 
     # 3. Level relevance (intern/junior boost)
     for kw, weight in LEVEL_KEYWORDS.items():
-        if kw in content:
+        if matches_keyword(kw, content):
             score += weight
             matched_skills.append(kw.title())
 
@@ -159,7 +176,7 @@ def calculate_match_score(title: str, description: str, tags: list = None) -> tu
             role_type = "DevSecOps & Cloud Security"
         elif "penetration" in content or "pentest" in content or "vulnerability" in content:
             role_type = "Penetration Testing & AppSec"
-        elif "soc" in content or "incident" in content:
+        elif matches_keyword("soc", content) or "incident" in content:
             role_type = "SOC & Threat Monitoring"
         else:
             role_type = "Cybersecurity"
@@ -219,12 +236,13 @@ def fetch_remoteok_jobs() -> list:
                     company = item.get("company", "Remote Company")
                     tags = item.get("tags", [])
                     desc = clean_html(item.get("description", ""))
-                    job_url = item.get("url", f"https://remoteok.com/l/{item.get('id', '')}")
+                    raw_url = str(item.get("url") or f"https://remoteok.com/l/{item.get('id', '')}")
+                    job_url = raw_url if is_safe_http_url(raw_url) else ""
                     location = item.get("location") or "Remote Worldwide"
                     salary = f"${item.get('salary_min', '')}-${item.get('salary_max', '')}/yr" if item.get('salary_min') else ""
 
                     score, matched, role_type = calculate_match_score(title, desc, tags)
-                    if score >= 60:
+                    if score >= 60 and job_url:
                         jobs.append({
                             "title": title,
                             "company": company,
@@ -258,12 +276,13 @@ def fetch_remotive_jobs() -> list:
                     company = item.get("company_name", "Remote Company")
                     tags = item.get("tags", [])
                     desc = clean_html(item.get("description", ""))
-                    job_url = item.get("url", "")
+                    raw_url = str(item.get("url", ""))
+                    job_url = raw_url if is_safe_http_url(raw_url) else ""
                     location = item.get("candidate_required_location") or "Remote"
                     salary = item.get("salary", "")
 
                     score, matched, role_type = calculate_match_score(title, desc, tags)
-                    if score >= 60:
+                    if score >= 60 and job_url:
                         jobs.append({
                             "title": title,
                             "company": company,
@@ -307,19 +326,11 @@ def scan_and_sync_jobs(min_score: int = 60, sync_vault: bool = True) -> dict:
     except Exception as e:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] [JOBBOT] Remotive error: {e}")
 
-    # Deduplicate harvested jobs by (company + title)
-    seen = set()
-    unique_jobs = []
-    for j in all_harvested:
-        key = f"{j['company'].strip().lower()}:{j['title'].strip().lower()}"
-        if key not in seen:
-            seen.add(key)
-            unique_jobs.append(j)
+    # Lean deduplication using dictionary comprehension
+    dedup_dict = {f"{j['company'].strip().lower()}:{j['title'].strip().lower()}": j for j in all_harvested}
+    unique_jobs = sorted(dedup_dict.values(), key=lambda x: x["match_score"], reverse=True)
 
-    # Sort descending by match score
-    unique_jobs.sort(key=lambda x: x["match_score"], reverse=True)
-
-    # 2. Persist to Django ORM (if django initialized)
+    # 2. Persist to Django ORM safely without MultipleObjectsReturned hazards
     created_count = 0
     updated_count = 0
     try:
@@ -328,45 +339,59 @@ def scan_and_sync_jobs(min_score: int = 60, sync_vault: bool = True) -> dict:
             if job_data["match_score"] < min_score:
                 continue
 
-            obj, created = JobOpportunity.objects.update_or_create(
+            existing = JobOpportunity.objects.filter(
                 title=job_data["title"],
-                company=job_data["company"],
-                defaults={
-                    "location": job_data["location"],
-                    "url": job_data["url"],
-                    "source": job_data["source"],
-                    "role_type": job_data["role_type"],
-                    "match_score": job_data["match_score"],
-                    "matched_skills": job_data["matched_skills"],
-                    "salary": job_data["salary"],
-                    "summary": job_data["summary"],
-                    "tailored_pitch": job_data["tailored_pitch"],
-                }
-            )
-            if created:
+                company=job_data["company"]
+            ).first()
+
+            if not existing:
+                JobOpportunity.objects.create(
+                    title=job_data["title"],
+                    company=job_data["company"],
+                    location=job_data["location"],
+                    url=job_data["url"],
+                    source=job_data["source"],
+                    role_type=job_data["role_type"],
+                    match_score=job_data["match_score"],
+                    matched_skills=job_data["matched_skills"],
+                    salary=job_data["salary"],
+                    summary=job_data["summary"],
+                    tailored_pitch=job_data["tailored_pitch"],
+                )
                 created_count += 1
-                # Cross-reference high-priority roles (Score >= 80) into OmniVault
-                if sync_vault and job_data["match_score"] >= 80:
-                    try:
-                        VaultResource.objects.get_or_create(
-                            url=job_data["url"],
-                            defaults={
-                                "title": f"Opportunity: {job_data['title']} @ {job_data['company']}",
-                                "one_liner": f"{job_data['match_score']}% match for {job_data['role_type']}",
-                                "category": "Career & Opportunities",
-                                "subcategory": job_data["role_type"],
-                                "tags": job_data["matched_skills"],
-                                "detailed_summary": job_data["summary"],
-                                "how_to_use": job_data["tailored_pitch"],
-                                "safety_status": "SAFE",
-                                "safety_notes": "Verified remote listing",
-                                "source_type": "jobbot"
-                            }
-                        )
-                    except Exception:
-                        pass
             else:
+                existing.location = job_data["location"]
+                existing.url = job_data["url"]
+                existing.source = job_data["source"]
+                existing.role_type = job_data["role_type"]
+                existing.match_score = job_data["match_score"]
+                existing.matched_skills = job_data["matched_skills"]
+                existing.salary = job_data["salary"]
+                existing.summary = job_data["summary"]
+                if not existing.tailored_pitch:
+                    existing.tailored_pitch = job_data["tailored_pitch"]
+                existing.save()
                 updated_count += 1
+
+            # Cross-reference high-priority roles (Score >= 80) into OmniVault safely
+            if sync_vault and job_data["match_score"] >= 80 and job_data["url"]:
+                try:
+                    if not VaultResource.objects.filter(url=job_data["url"]).exists():
+                        VaultResource.objects.create(
+                            title=f"Opportunity: {job_data['title']} @ {job_data['company']}",
+                            url=job_data["url"],
+                            one_liner=f"{job_data['match_score']}% match for {job_data['role_type']}",
+                            category="Career & Opportunities",
+                            subcategory=job_data["role_type"],
+                            tags=job_data["matched_skills"],
+                            detailed_summary=job_data["summary"],
+                            how_to_use=job_data["tailored_pitch"],
+                            safety_status="SAFE",
+                            safety_notes="Verified remote listing",
+                            source_type="jobbot"
+                        )
+                except Exception:
+                    pass
     except Exception as e:
         logger.warning(f"Django DB sync notice: {e}")
 

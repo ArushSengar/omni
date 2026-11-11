@@ -1096,7 +1096,7 @@
                         <!-- Matched Skills Pills -->
                         {% if job.matched_skills %}
                         <div class="flex flex-wrap gap-1">
-                            {% for skill in job.matched_skills.split %}
+                            {% for skill in job.skills_list %}
                             <span class="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">{{ skill }}</span>
                             {% endfor %}
                         </div>
@@ -2715,6 +2715,8 @@
             }
         }
 
+        let activeJobCategory = 'all';
+
         function filterJobCategory(category, btn) {
             document.querySelectorAll('.job-filter-pill').forEach(b => {
                 b.className = 'job-filter-pill px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300';
@@ -2722,23 +2724,22 @@
             if (btn) {
                 btn.className = 'job-filter-pill px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 font-bold';
             }
-
-            const cat = (category || 'all').toLowerCase();
-            document.querySelectorAll('.job-card').forEach(card => {
-                const role = (card.getAttribute('data-role') || '').toLowerCase();
-                if (cat === 'all' || role.includes(cat)) {
-                    card.classList.remove('hidden');
-                } else {
-                    card.classList.add('hidden');
-                }
-            });
+            activeJobCategory = (category || 'all').toLowerCase();
+            applyJobFilters();
         }
 
         function filterJobsLive() {
+            applyJobFilters();
+        }
+
+        function applyJobFilters() {
             const query = (document.getElementById('job-search-input')?.value || '').toLowerCase().trim();
             document.querySelectorAll('.job-card').forEach(card => {
+                const role = (card.getAttribute('data-role') || '').toLowerCase();
                 const text = (card.getAttribute('data-text') || '').toLowerCase();
-                if (!query || text.includes(query)) {
+                const matchCategory = (activeJobCategory === 'all' || role.includes(activeJobCategory));
+                const matchQuery = (!query || text.includes(query));
+                if (matchCategory && matchQuery) {
                     card.classList.remove('hidden');
                 } else {
                     card.classList.add('hidden');
@@ -2777,10 +2778,13 @@
                 const data = await res.json();
                 if (data.status === 'success') {
                     if (newStatus === 'APPLIED') {
-                        if (btn) btn.innerHTML = '<i class="fa-solid fa-check text-[10px]"></i> <span>Applied ✓</span>';
-                        showToast('Marked as Applied! Added to pipeline.');
-                        const badge = document.getElementById('stat-job-applied');
-                        if (badge) badge.textContent = parseInt(badge.textContent || 0) + 1;
+                        if (btn && !btn.classList.contains('applied-done')) {
+                            btn.classList.add('applied-done');
+                            btn.innerHTML = '<i class="fa-solid fa-check text-[10px]"></i> <span>Applied ✓</span>';
+                            showToast('Marked as Applied! Added to pipeline.');
+                            const badge = document.getElementById('stat-job-applied');
+                            if (badge) badge.textContent = parseInt(badge.textContent || 0) + 1;
+                        }
                     } else if (newStatus === 'ARCHIVED') {
                         const card = btn.closest('.job-card');
                         if (card) {
