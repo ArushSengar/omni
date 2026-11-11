@@ -145,11 +145,19 @@ def ingest_image(image_path: str, title: str = None, category: str = None, as_js
                 tags = t.get("tags", [])
                 tags_str = ",".join(tags) if isinstance(tags, list) else str(tags)
 
+                cat = omni_vault_engine.detect_smart_category(
+                    title=t.get("title", p.stem),
+                    category_hint=category or t.get("category", ""),
+                    subcategory=t.get("subcategory", ""),
+                    tags=tags,
+                    text_context=ocr_text
+                )
+
                 res = VaultResource.objects.create(
                     title=t.get("title", p.stem),
                     url=safe_url,
                     one_liner=t.get("one_liner", "Useful tool or trick"),
-                    category=t.get("category", "Developer & APIs"),
+                    category=cat,
                     subcategory=t.get("subcategory", ""),
                     tags=tags_str,
                     detailed_summary=t.get("detailed_summary", ""),
@@ -220,11 +228,19 @@ def ingest_url(url: str, category: str = None, as_json: bool = False):
                 tags = t.get("tags", [])
                 tags_str = ",".join(tags) if isinstance(tags, list) else str(tags)
 
+                cat = omni_vault_engine.detect_smart_category(
+                    title=t.get("title") or meta.get("title") or url,
+                    category_hint=category or t.get("category", ""),
+                    subcategory=t.get("subcategory", ""),
+                    tags=tags,
+                    text_context=combined
+                )
+
                 res = VaultResource.objects.create(
                     title=t.get("title") or meta.get("title") or url,
                     url=safe_url,
                     one_liner=t.get("one_liner") or meta.get("description") or "Useful online tool",
-                    category=category or t.get("category", "Developer & APIs"),
+                    category=cat,
                     tags=tags_str,
                     detailed_summary=t.get("detailed_summary") or meta.get("description", ""),
                     safety_status=t.get("safety_status", "SAFE"),
@@ -282,11 +298,19 @@ def ingest_note(text: str, title: str = None, category: str = None, as_json: boo
                 tags = t.get("tags", [])
                 tags_str = ",".join(tags) if isinstance(tags, list) else str(tags)
 
+                cat = omni_vault_engine.detect_smart_category(
+                    title=t.get("title", "Technical Note"),
+                    category_hint=category or t.get("category", ""),
+                    subcategory=t.get("subcategory", ""),
+                    tags=tags,
+                    text_context=text
+                )
+
                 res = VaultResource.objects.create(
                     title=t.get("title", "Technical Note"),
                     url=t.get("url", ""),
                     one_liner=t.get("one_liner", "Useful note or trick"),
-                    category=t.get("category", "Developer & APIs"),
+                    category=cat,
                     tags=tags_str,
                     detailed_summary=text[:2000],
                     safety_status=t.get("safety_status", "SAFE"),

@@ -121,15 +121,119 @@ def is_safe_url(url: str) -> bool:
     except Exception:
         return False
 
-VALID_CATEGORIES = [
+CANONICAL_CATEGORIES = [
+    "Claude & Agent Skills",
     "AI & LLM Tools",
     "Cyber Security & Pentesting",
     "Developer & APIs",
-    "Media, Audio & Design",
     "Linux, Homelab & Systems",
+    "Media, Audio & Design",
     "Productivity & Automation",
     "Student & Learning"
 ]
+VALID_CATEGORIES = CANONICAL_CATEGORIES
+
+CATEGORY_ICONS = {
+    "All": "🌐",
+    "Claude & Agent Skills": "🤖",
+    "AI & LLM Tools": "🧠",
+    "Cyber Security & Pentesting": "🛡️",
+    "Developer & APIs": "💻",
+    "Linux, Homelab & Systems": "🐧",
+    "Media, Audio & Design": "🎨",
+    "Productivity & Automation": "⚡",
+    "Student & Learning": "🎓",
+    "Reverse Engineering": "🔍",
+    "OSINT & Reconnaissance": "🕵️",
+    "Web Scraping & Automation": "🕸️",
+}
+
+CATEGORY_FA_ICONS = {
+    "All": "fa-layer-group",
+    "Claude & Agent Skills": "fa-robot",
+    "AI & LLM Tools": "fa-brain",
+    "Cyber Security & Pentesting": "fa-shield-halved",
+    "Developer & APIs": "fa-code",
+    "Linux, Homelab & Systems": "fa-server",
+    "Media, Audio & Design": "fa-palette",
+    "Productivity & Automation": "fa-bolt",
+    "Student & Learning": "fa-graduation-cap",
+    "Reverse Engineering": "fa-magnifying-glass-chart",
+    "OSINT & Reconnaissance": "fa-user-secret",
+    "Web Scraping & Automation": "fa-spider",
+}
+
+
+def detect_smart_category(title: str = "", category_hint: str = "", subcategory: str = "", tags = None, text_context: str = "") -> str:
+    """
+    Intelligently determines and normalizes the precise category for a resource.
+    Guarantees that Claude skills, agent skills, coding tools, security utilities, etc.
+    are automatically placed into their clean, distinct categories rather than generic buckets.
+    """
+    tags_list = tags if isinstance(tags, list) else ([t.strip() for t in str(tags).split(",") if t.strip()] if tags else [])
+    combined_search = " ".join([
+        str(title or ""),
+        str(category_hint or ""),
+        str(subcategory or ""),
+        " ".join(tags_list),
+        str(text_context or "")
+    ]).lower()
+
+    # 1. Claude & Agent Skills
+    # Covers Claude Code, Cursor, AI agents, MCP servers, prompt-engineering skills, and agent toolkits
+    agent_keywords = [
+        "claude", "claude-code", "claude code", "agent-skill", "agent-skills", "agent skill",
+        "agent skills", "coding-agent", "coding agent", "cursor skill", "cursor rule",
+        "mcp server", "mcp-server", "model context protocol", "agent architecture",
+        "anti-slop", "anti-ai-slop", "skill card", "ai agent skill", "agent tool",
+        "claude design", "hermes-agent", "hermes skill"
+    ]
+    if any(k in combined_search for k in agent_keywords):
+        return "Claude & Agent Skills"
+
+    # 2. Canonical or Category Hint Match
+    if category_hint:
+        clean_hint = category_hint.strip()
+        for can in CANONICAL_CATEGORIES:
+            if clean_hint.lower() == can.lower():
+                return can
+        hint_lower = clean_hint.lower()
+        if "agent" in hint_lower or "claude" in hint_lower:
+            return "Claude & Agent Skills"
+        if "ai" in hint_lower or "llm" in hint_lower or "gpt" in hint_lower:
+            return "AI & LLM Tools"
+        if "security" in hint_lower or "pentest" in hint_lower or "osint" in hint_lower or "hack" in hint_lower:
+            return "Cyber Security & Pentesting"
+        if "linux" in hint_lower or "homelab" in hint_lower or "sysadmin" in hint_lower or "server" in hint_lower:
+            return "Linux, Homelab & Systems"
+        if "audio" in hint_lower or "media" in hint_lower or "video" in hint_lower or "design" in hint_lower:
+            return "Media, Audio & Design"
+        if "developer" in hint_lower or "api" in hint_lower or "sdk" in hint_lower:
+            return "Developer & APIs"
+        if "student" in hint_lower or "learn" in hint_lower or "career" in hint_lower or "interview" in hint_lower:
+            return "Student & Learning"
+        if "productivity" in hint_lower or "automation" in hint_lower or "workflow" in hint_lower:
+            return "Productivity & Automation"
+
+        # Allow well-formed custom category in Title Case
+        if 2 <= len(clean_hint) <= 40 and not any(ch in clean_hint for ch in '{}[]<>;$"\\'):
+            words = clean_hint.replace("_", " ").replace("-", " ").split()
+            return " ".join(w.capitalize() if w.lower() not in ("and", "&", "of", "the", "in", "for") else w for w in words).strip()
+
+    # 3. Context Heuristics Fallback
+    if any(k in combined_search for k in ["pentest", "exploit", "cve", "malware", "ctf", "vulnerability", "nmap", "wireshark", "virustotal", "pwn", "osint"]):
+        return "Cyber Security & Pentesting"
+    if any(k in combined_search for k in ["homelab", "linux", "bash", "terminal", "docker", "systemd", "kernel", "pi4", "raspberry", "explainshell"]):
+        return "Linux, Homelab & Systems"
+    if any(k in combined_search for k in ["vocal", "stem-separation", "audio", "tinypng", "image-compression", "video-editor", "font", "color-palette", "lalal"]):
+        return "Media, Audio & Design"
+    if any(k in combined_search for k in ["interview", "dsa", "leetcode", "cheatsheet", "student", "placement", "course"]):
+        return "Student & Learning"
+    if any(k in combined_search for k in ["chatgpt", "gemini", "anthropic", "prompt", "fine-tuning", "rag", "embedding", "ollama", "local-llm"]):
+        return "AI & LLM Tools"
+
+    return "Developer & APIs"
+
 
 
 def call_llm(messages: List[Dict], max_tokens: int = 1500, temperature: float = 0.25) -> str:
@@ -319,14 +423,16 @@ FOR EACH TOOL / WEBSITE DETECTED, RETURN A STRICT JSON OBJECT WITH:
 - "title": Clean canonical name (e.g. "CyberChef", "v0.dev", "LALAL.AI", "Explainshell").
 - "url": Real canonical URL (e.g. "https://gchq.github.io/CyberChef/"). If not explicit, deduce the official domain.
 - "one_liner": A punchy, crystal-clear 1-sentence explanation in simple Hindi/English student-friendly language explaining EXACTLY what this tool does and what it is used for (e.g. "1 click mein audio se vocal aur background music alag karne ke liye" or "Linux terminal commands ke flags ko visual breakdown ke saath explain karne ke liye"). NEVER use generic corporate fluff.
-- "category": MUST be one of:
-    * "AI & LLM Tools"
-    * "Cyber Security & Pentesting"
-    * "Developer & APIs"
-    * "Media, Audio & Design"
-    * "Linux, Homelab & Systems"
-    * "Productivity & Automation"
-    * "Student & Learning"
+- "category": MUST be the most precise, accurate technical category. Standard categories include:
+    * "Claude & Agent Skills" (ALL Claude Code skills, Cursor rules, AI coding agents, autonomous agent workflows, MCP tools, and agent skill cards. e.g. REA, Ponytail, Hallmark, Impeccable, Diagram Design for Claude, Humanizer, agent prompt packs).
+    * "AI & LLM Tools" (General LLM models, RAG engines, enterprise search, AI chat interfaces).
+    * "Cyber Security & Pentesting" (Offensive security, CTF, network tools, scanners, OSINT, reverse engineering).
+    * "Developer & APIs" (SDKs, APIs, HTTP tools, software libraries, web utilities).
+    * "Linux, Homelab & Systems" (Linux commands, homelab servers, systemd, docker, CLI tools).
+    * "Media, Audio & Design" (Audio stem separation, image compression, video, UI design).
+    * "Productivity & Automation" (Workflow automation, browser helpers, notes).
+    * "Student & Learning" (Interview prep, DSA, placement cheatsheets, documentation).
+    * OR a clean, concise custom category in Title Case (e.g. "Web Scraping & Stealth") if none of the above fit accurately.
 - "subcategory": Specific domain (e.g. "Audio Separation", "Linux Hardening", "UI Mockup").
 - "tags": Array of 3-5 lowercase hashtags (e.g. ["audio", "ai", "free", "stem-separation"]).
 - "detailed_summary": 2-3 sentences explaining core capabilities, free vs paid tier, and notable features.
@@ -399,14 +505,18 @@ Return strictly a valid JSON array."""
             data = []
 
 
-        # Validate and sanitize categories
+        # Validate and sanitize categories with intelligent automatic detection
         sanitized = []
         for item in data:
             if not item.get("title"):
                 continue
-            cat = item.get("category", "Developer & APIs")
-            if cat not in VALID_CATEGORIES:
-                cat = "Developer & APIs"
+            cat = detect_smart_category(
+                title=item.get("title", ""),
+                category_hint=item.get("category", ""),
+                subcategory=item.get("subcategory", ""),
+                tags=item.get("tags", []),
+                text_context=raw_text
+            )
             item["category"] = cat
             if not item.get("safety_status"):
                 item["safety_status"] = "SAFE"
@@ -417,12 +527,13 @@ Return strictly a valid JSON array."""
         return sanitized
     except Exception as e:
         print(f"[warn] JSON parsing error in LLM extraction ({e})")
+        fallback_cat = detect_smart_category(text_context=raw_text)
         # Fallback single item
         return [{
             "title": "Extracted Note & Trick",
             "url": "",
             "one_liner": raw_text[:120].strip(),
-            "category": "Developer & APIs",
+            "category": fallback_cat,
             "subcategory": "General Utilities",
             "tags": ["notes", "tricks", "reference"],
             "detailed_summary": raw_text[:500],

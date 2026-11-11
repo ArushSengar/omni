@@ -585,14 +585,16 @@
                         <input id="vault-search-input" oninput="filterVaultCards()" type="text" placeholder="Search tools, tags, OSINT, flags..." class="w-full bg-[#0d1322] border border-white/[0.1] rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition">
                     </div>
 
-                    <!-- Category Pills Horizontal Scroll -->
+                    <!-- Category Pills Horizontal Scroll (Dynamic Categories) -->
                     <div class="flex items-center space-x-1.5 overflow-x-auto custom-scrollbar w-full md:w-auto pb-1 md:pb-0">
-                        <button onclick="selectVaultCategory('All', this)" class="vault-cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-indigo-600 text-white transition active:scale-95">All</button>
-                        <button onclick="selectVaultCategory('Cyber Security & Pentesting', this)" class="vault-cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-white/[0.05] text-slate-300 hover:text-white transition active:scale-95">Pentest & OSINT</button>
-                        <button onclick="selectVaultCategory('AI & LLM Tools', this)" class="vault-cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-white/[0.05] text-slate-300 hover:text-white transition active:scale-95">AI & LLMs</button>
-                        <button onclick="selectVaultCategory('Developer & APIs', this)" class="vault-cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-white/[0.05] text-slate-300 hover:text-white transition active:scale-95">Developer</button>
-                        <button onclick="selectVaultCategory('Linux, Homelab & Systems', this)" class="vault-cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-white/[0.05] text-slate-300 hover:text-white transition active:scale-95">Homelab</button>
-                        <button onclick="selectVaultCategory('Media, Audio & Design', this)" class="vault-cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-white/[0.05] text-slate-300 hover:text-white transition active:scale-95">Audio / Media</button>
+                        {% for cat in vault_categories %}
+                        <button onclick="selectVaultCategory('{{ cat.name }}', this)" class="vault-cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap {% if forloop.first %}bg-indigo-600 text-white{% else %}bg-white/[0.05] text-slate-300 hover:text-white{% endif %} transition active:scale-95 flex items-center space-x-1.5">
+                            <span>{{ cat.icon }} {{ cat.name }}</span>
+                            {% if cat.count is not None %}
+                            <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-white/[0.1] text-slate-200 font-mono">{{ cat.count }}</span>
+                            {% endif %}
+                        </button>
+                        {% endfor %}
                     </div>
 
                     <!-- Starred Only Toggle (Clickable) -->

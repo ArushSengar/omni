@@ -29,6 +29,7 @@ urlpatterns = [
     
     # OmniVault UI & Multimodal APIs
     path('vault/', views.vault_dashboard_view, name='vault_dashboard'),
+    path('api/vault/categories/', views.api_vault_categories, name='api_vault_categories'),
     path('api/vault/list/', views.api_vault_list, name='api_vault_list'),
     path('api/vault/<int:resource_id>/', views.api_vault_detail, name='api_vault_detail'),
     path('api/vault/ingest/image/', views.api_vault_ingest_image, name='api_vault_ingest_image'),

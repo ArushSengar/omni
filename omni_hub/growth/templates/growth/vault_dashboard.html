@@ -255,32 +255,16 @@
                 </div>
             </div>
 
-            <!-- Apple Segmented Category Switcher -->
+            <!-- Apple Segmented Category Switcher (Dynamic Categories) -->
             <div id="category-pills" class="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs custom-scrollbar">
-                <button onclick="selectCategory('All')" class="segmented-btn active px-3.5 py-1.5 rounded-lg border border-transparent text-slate-300 font-medium whitespace-nowrap">
-                    All
+                {% for cat in categories %}
+                <button onclick="selectCategory('{{ cat.name }}')" data-cat="{{ cat.name }}" class="segmented-btn {% if forloop.first %}active{% endif %} px-3.5 py-1.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] font-medium whitespace-nowrap flex items-center space-x-1.5 transition active:scale-95">
+                    <span>{{ cat.icon }} {{ cat.name }}</span>
+                    {% if cat.count is not None %}
+                    <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-white/[0.08] text-slate-300 font-mono">{{ cat.count }}</span>
+                    {% endif %}
                 </button>
-                <button onclick="selectCategory('AI & LLM Tools')" class="segmented-btn px-3.5 py-1.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] font-medium whitespace-nowrap">
-                    🤖 AI & LLM Tools
-                </button>
-                <button onclick="selectCategory('Cyber Security & Pentesting')" class="segmented-btn px-3.5 py-1.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] font-medium whitespace-nowrap">
-                    🛡️ Cyber Security & Pentesting
-                </button>
-                <button onclick="selectCategory('Developer & APIs')" class="segmented-btn px-3.5 py-1.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] font-medium whitespace-nowrap">
-                    💻 Developer & APIs
-                </button>
-                <button onclick="selectCategory('Media, Audio & Design')" class="segmented-btn px-3.5 py-1.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] font-medium whitespace-nowrap">
-                    🎨 Media, Audio & Design
-                </button>
-                <button onclick="selectCategory('Linux, Homelab & Systems')" class="segmented-btn px-3.5 py-1.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] font-medium whitespace-nowrap">
-                    🐧 Linux, Homelab & Systems
-                </button>
-                <button onclick="selectCategory('Productivity & Automation')" class="segmented-btn px-3.5 py-1.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] font-medium whitespace-nowrap">
-                    ⚡ Productivity & Automation
-                </button>
-                <button onclick="selectCategory('Student & Learning')" class="segmented-btn px-3.5 py-1.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] font-medium whitespace-nowrap">
-                    🎓 Student & Learning
-                </button>
+                {% endfor %}
             </div>
         </div>
 
@@ -747,8 +731,9 @@
         // Category Switcher
         function selectCategory(cat) {
             currentCategory = cat;
-            document.querySelectorAll(".segmented-btn").forEach(btn => {
-                if (btn.innerText.includes(cat) || (cat === "All" && btn.innerText.trim() === "All")) {
+            document.querySelectorAll("#category-pills .segmented-btn").forEach(btn => {
+                const bCat = btn.getAttribute("data-cat") || btn.innerText.trim();
+                if (bCat.toLowerCase() === cat.toLowerCase()) {
                     btn.classList.add("active");
                 } else {
                     btn.classList.remove("active");

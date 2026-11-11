@@ -35,17 +35,24 @@ def ssh(command):
 def main():
     root = Path(__file__).resolve().parent.parent
 
-    # 1. Transfer settings.py and views.py
+    # 1. Transfer settings.py, views.py, urls.py
     scp(root / "omni_hub" / "omni_hub" / "settings.py", "/home/arush/omni_hub/omni_hub/settings.py")
     scp(root / "omni_hub" / "growth" / "views.py", "/home/arush/omni_hub/growth/views.py")
+    scp(root / "omni_hub" / "growth" / "urls.py", "/home/arush/omni_hub/growth/urls.py")
 
-    # 2. Transfer omni_vault_engine.py
+    # 2. Transfer templates
+    scp(root / "omni_hub" / "growth" / "templates" / "growth" / "vault_dashboard.html", "/home/arush/omni_hub/growth/templates/growth/vault_dashboard.html")
+    scp(root / "omni_hub" / "growth" / "templates" / "growth" / "dashboard.html", "/home/arush/omni_hub/growth/templates/growth/dashboard.html")
+
+    # 3. Transfer omni_vault_engine.py and vault_ingest.py
     scp(root / "omni_hub" / "growth" / "omni_vault_engine.py", "/home/arush/omni_hub/growth/omni_vault_engine.py")
+    scp(root / "omni_hub" / "vault_ingest.py", "/home/arush/omni_hub/vault_ingest.py")
 
-    # 3. Transfer hermes_omnivault.py
+    # 4. Transfer hermes_omnivault.py and migrate_vault_categories.py
     scp(root / "hermes" / "scripts" / "hermes_omnivault.py", "/home/arush/hermes_omnivault.py")
+    scp(root / "scripts" / "migrate_vault_categories.py", "/home/arush/migrate_vault_categories.py")
 
-    # 4. Ensure skill directory exists on Pi and transfer SKILL.md
+    # 5. Ensure skill directory exists on Pi and transfer SKILL.md
     ssh("mkdir -p /home/arush/.hermes/skills/omnivault-memory")
     scp(root / "hermes" / "skills" / "omnivault-memory" / "SKILL.md", "/home/arush/.hermes/skills/omnivault-memory/SKILL.md")
 
@@ -60,7 +67,14 @@ def main():
         print("Check FAILED:", err)
         sys.exit(1)
 
-    # 7. Restart omni-hub.service
+    # 7. Execute category migration
+    print("Executing category migration on Pi database...")
+    code, out, err = ssh("python3 /home/arush/migrate_vault_categories.py")
+    print(out)
+    if code != 0:
+        print("Migration error:", err)
+
+    # 8. Restart omni-hub.service
     print("Restarting omni-hub.service...")
     code, out, err = ssh("echo arush | sudo -S systemctl restart omni-hub.service")
     code, out, err = ssh("systemctl is-active omni-hub.service")

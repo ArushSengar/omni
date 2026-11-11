@@ -49,11 +49,18 @@ def save_vault_resource(tool_data: dict, source_type: str, raw_text: str = "", i
     tags_str = ",".join(tags) if isinstance(tags, list) else str(tags)
     raw_url = str(tool_data.get("url", "")).strip()
     safe_url = raw_url if omni_vault_engine.is_safe_url(raw_url) else ""
+    cat = omni_vault_engine.detect_smart_category(
+        title=tool_data.get("title", ""),
+        category_hint=tool_data.get("category", ""),
+        subcategory=tool_data.get("subcategory", ""),
+        tags=tags,
+        text_context=raw_text
+    )
     return VaultResource.objects.create(
         title=tool_data.get("title", "Tool"),
         url=safe_url,
         one_liner=tool_data.get("one_liner", "Useful tool or trick"),
-        category=tool_data.get("category", "Developer & APIs"),
+        category=cat,
         subcategory=tool_data.get("subcategory", ""),
         tags=tags_str,
         detailed_summary=tool_data.get("detailed_summary", ""),
