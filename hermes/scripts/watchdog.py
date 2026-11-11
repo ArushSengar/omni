@@ -120,8 +120,27 @@ def check_disk():
                     issues.append({"check": "disk", "mount": parts[5], "free_pct": free_pct})
     return issues
 
+def check_mem():
+    issues = []
+    try:
+        with open("/proc/meminfo") as f:
+            lines = dict(line.split(":", 1) for line in f if ":" in line)
+        total = int(lines.get("MemTotal", "0 kB").split()[0])
+        avail = int(lines.get("MemAvailable", "0 kB").split()[0])
+        if total > 0:
+            used_pct = round(((total - avail) / total) * 100, 1)
+            if used_pct >= MEM_THRESHOLD_PCT:
+                # Proactive self-healing: drop page caches and prune orphaned chromium renderers
+                run(["sudo", "-n", "sync"])
+                run(["sudo", "-n", "sh", "-c", "echo 3 > /proc/sys/vm/drop_caches"])
+                run(["pkill", "-f", "chromium.*--type=renderer"])
+                issues.append({"check": "memory", "used_pct": used_pct, "action": "flushed_caches_and_pruned_renderers"})
+    except Exception as e:
+        issues.append({"check": "memory_check_error", "error": str(e)})
+    return issues
+
 def main():
-    issues = check_services() + check_ports() + check_tunnel() + check_disk()
+    issues = check_services() + check_ports() + check_tunnel() + check_disk() + check_mem()
     for i in issues:
         log_issue(i)
     if issues:

@@ -93,7 +93,11 @@ with sync_playwright() as p:
     ctx = p.chromium.launch_persistent_context(
         PROFILE,
         headless=True,
-        args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
+        args=[
+            "--disable-blink-features=AutomationControlled",
+            "--no-sandbox",
+            "--disable-dev-shm-usage"
+        ],
     )
     try:
         page = ctx.pages[0] if ctx.pages else ctx.new_page()

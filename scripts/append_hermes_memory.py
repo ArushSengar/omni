@@ -38,3 +38,4 @@ cmd = ['plink', '-batch', '-hostkey', HOSTKEY, '-pw', PW, HOST, 'bash -s']
 res = subprocess.run(cmd, input=remote_script.encode('utf-8'), capture_output=True)
 print(res.stdout.decode('utf-8', errors='replace'))
 print(res.stderr.decode('utf-8', errors='replace'))
+

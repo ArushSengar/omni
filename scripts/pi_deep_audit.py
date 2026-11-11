@@ -53,7 +53,8 @@ echo "=== 8. CHECK COMPOSIO SOCIAL CONFIG ==="
 cat /home/arush/.composio_social_config.json 2>/dev/null || echo "No composio social config"
 """
 
-code, out, err = ssh_exec(script)
-print(out)
-if err:
-    print("ERRORS:", err)
+if __name__ == '__main__':
+    code, out, err = ssh_exec(script)
+    print(out)
+    if err:
+        print("ERRORS:", err)

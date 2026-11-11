@@ -12,7 +12,7 @@ import secrets
 
 SECRET_KEY = os.environ.get('SECRET_KEY') or 'django-insecure-0m8eu3odnlj$#hxbfi$!3+y6n0*qw-v^#(s@w64$kzt3oc&!0o'
 
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1')
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in ('true', '1')
 
 ALLOWED_HOSTS = [
     host.strip() for host in os.environ.get(
@@ -95,7 +95,15 @@ else:
             'NAME': BASE_DIR / 'db.sqlite3',
             'OPTIONS': {
                 'timeout': 20,
-            }
+                'init_command': (
+                    'PRAGMA journal_mode = WAL;'
+                    'PRAGMA synchronous = NORMAL;'
+                    'PRAGMA cache_size = -64000;'
+                    'PRAGMA mmap_size = 268435456;'
+                    'PRAGMA temp_store = MEMORY;'
+                )
+            },
+            'CONN_MAX_AGE': 600,
         }
     }
 
