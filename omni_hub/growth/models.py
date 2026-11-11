@@ -171,6 +171,11 @@ class JobOpportunity(models.Model):
             return []
         return [s.strip() for s in self.matched_skills.split(',') if s.strip()]
 
+    @property
+    def is_high_match(self):
+        """Returns True if role match score is 80% or higher."""
+        return self.match_score >= 80
+
     def __str__(self):
         return f"[{self.match_score}%] {self.title} @ {self.company}"
 

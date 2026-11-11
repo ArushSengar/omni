@@ -130,7 +130,7 @@
     </style>
 </head>
 <body class="selection:bg-blue-600 selection:text-white font-sans text-slate-100 min-h-screen">
-    {% csrf_token %}
+    <div class="hidden">{% csrf_token %}</div>
 
     <!-- =========================================================================
          TOP FLOATING DYNAMIC ISLAND & COMMAND HEADER
@@ -541,7 +541,7 @@
                             <div class="space-y-2">
                                 <div class="flex items-center justify-between text-xs">
                                     <span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 truncate">{{ r.category }}</span>
-                                    <button onclick="toggleFavorite({{ r.id }}, this)" class="text-amber-400 hover:scale-125 transition-transform">
+                                    <button onclick="toggleFavorite('{{ r.id }}', this)" class="text-amber-400 hover:scale-125 transition-transform">
                                         <i class="{% if r.favorite %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
                                     </button>
                                 </div>
@@ -645,7 +645,7 @@
                                     <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold {% if r.safety_status == 'SAFE' %}bg-emerald-500/20 text-emerald-300 border border-emerald-500/40{% elif r.safety_status == 'PENTEST_ONLY' %}bg-amber-500/20 text-amber-300 border border-amber-500/40{% else %}bg-rose-500/20 text-rose-300 border border-rose-500/40{% endif %}">
                                         {{ r.safety_status }}
                                     </span>
-                                    <button onclick="toggleFavorite({{ r.id }}, this)" title="Toggle Favorite Star" class="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-amber-400 flex items-center justify-center transition active:scale-90">
+                                    <button onclick="toggleFavorite('{{ r.id }}', this)" title="Toggle Favorite Star" class="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-amber-400 flex items-center justify-center transition active:scale-90">
                                         <i class="{% if r.favorite %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
                                     </button>
                                 </div>
@@ -675,7 +675,7 @@
                                 <span>Copy Link</span>
                             </button>
                             <div class="flex items-center space-x-3">
-                                <button onclick="viewResourceDetails({{ r.id }})" class="text-indigo-400 hover:text-indigo-300 font-semibold">
+                                <button onclick="viewResourceDetails('{{ r.id }}')" class="text-indigo-400 hover:text-indigo-300 font-semibold">
                                     Details
                                 </button>
                                 {% if r.url %}
@@ -768,7 +768,11 @@
 
                             <!-- iOS Toggle Switch for Start/Stop -->
                             <label class="ios-switch" title="Toggle Service State">
-                                <input type="checkbox" {% if svc.is_active %}checked{% endif %} onchange="toggleServiceState('{{ svc.id }}', this.checked)">
+                                {% if svc.is_active %}
+                                <input type="checkbox" checked onchange="toggleServiceState('{{ svc.id }}', this.checked)">
+                                {% else %}
+                                <input type="checkbox" onchange="toggleServiceState('{{ svc.id }}', this.checked)">
+                                {% endif %}
                                 <span class="ios-slider"></span>
                             </label>
                         </div>
@@ -1077,9 +1081,15 @@
                             </div>
 
                             <div class="flex flex-col items-end">
-                                <span class="px-2.5 py-1 rounded-xl text-xs font-mono font-black {% if job.match_score >= 80 %}bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_12px_rgba(52,211,153,0.2)]{% else %}bg-blue-500/20 text-blue-300 border border-blue-500/30{% endif %}">
+                                {% if job.is_high_match %}
+                                <span class="px-2.5 py-1 rounded-xl text-xs font-mono font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_12px_rgba(52,211,153,0.2)]">
                                     {{ job.match_score }}% MATCH
                                 </span>
+                                {% else %}
+                                <span class="px-2.5 py-1 rounded-xl text-xs font-mono font-black bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                                    {{ job.match_score }}% MATCH
+                                </span>
+                                {% endif %}
                                 <span class="text-[10px] text-slate-500 font-mono mt-1">{{ job.detected_at|date:"M d, H:i" }}</span>
                             </div>
                         </div>
@@ -1136,13 +1146,13 @@
                                     <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
                                 </a>
                                 {% endif %}
-                                <button onclick="setJobStatus({{ job.id }}, 'APPLIED', this)" class="px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-emerald-600/30 hover:text-emerald-300 text-slate-300 text-xs font-medium transition">
+                                <button onclick="setJobStatus('{{ job.id }}', 'APPLIED', this)" class="px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-emerald-600/30 hover:text-emerald-300 text-slate-300 text-xs font-medium transition">
                                     <i class="fa-solid fa-check text-[10px]"></i>
                                     <span>{% if job.status == 'APPLIED' %}Applied ✓{% else %}Mark Applied{% endif %}</span>
                                 </button>
                             </div>
 
-                            <button onclick="setJobStatus({{ job.id }}, 'ARCHIVED', this)" class="w-8 h-8 rounded-xl bg-white/[0.04] hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition" title="Archive Job">
+                            <button onclick="setJobStatus('{{ job.id }}', 'ARCHIVED', this)" class="w-8 h-8 rounded-xl bg-white/[0.04] hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition" title="Archive Job">
                                 <i class="fa-solid fa-box-archive text-xs"></i>
                             </button>
                         </div>
@@ -1807,7 +1817,7 @@
                 </div>
             </div>
             <div class="flex-1 rounded-2xl overflow-hidden bg-white border border-white/[0.1]">
-                <iframe id="report-iframe" sandbox="allow-same-origin" src="" class="w-full h-full border-0"></iframe>
+                <iframe id="report-iframe" sandbox="allow-same-origin" src="about:blank" class="w-full h-full border-0"></iframe>
             </div>
         </div>
     </div>
