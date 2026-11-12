@@ -205,10 +205,24 @@ def extract_docx_metadata(docx_path: str) -> dict:
                 m_topic = re.search(r"Topic:\s*([^\n\r]+)", full_text, re.IGNORECASE)
                 if m_topic:
                     meta["topic"] = m_topic.group(1).strip()
+                elif meta.get("assignment_num") == "13":
+                    meta["topic"] = "Digital Forensics & Incident Response: Volatility Memory Analysis & Autopsy"
+                elif meta.get("assignment_num") == "14":
+                    meta["topic"] = "Digital Forensics: Case Investigation, Chain of Custody & FTK Imager"
+                elif meta.get("labs"):
+                    first_lab = meta["labs"][0]
+                    clean_lab = re.sub(r"^Lab\s*\d+\s*:\s*", "", first_lab, flags=re.I).strip()
+                    meta["topic"] = f"Cyber Security Lab: {clean_lab}"
+                elif "forensic" in full_text.lower():
+                    meta["topic"] = "Digital Forensics & Incident Response"
+                else:
+                    meta["topic"] = Path(docx_path).stem.replace("_", " ")
                     
                 m_plat = re.search(r"Platform:\s*([^\n\r]+)", full_text, re.IGNORECASE)
                 if m_plat:
                     meta["platform"] = m_plat.group(1).strip()
+                elif "tryhackme" in full_text.lower():
+                    meta["platform"] = "TryHackMe"
                     
                 # Collect labs & reflections
                 for i, p in enumerate(paras):
@@ -221,6 +235,17 @@ def extract_docx_metadata(docx_path: str) -> dict:
                                 break
                             ref_txt.append(paras[j])
                         meta["reflections"].append(" ".join(ref_txt))
+
+                # Auto-extract embedded screenshots from docx if not already extracted
+                stem = Path(docx_path).stem
+                candidate_media_dir = MEDIA_DIR / stem
+                if not candidate_media_dir.exists() or not list(candidate_media_dir.glob("*.*")):
+                    candidate_media_dir.mkdir(parents=True, exist_ok=True)
+                    for zname in z.namelist():
+                        if zname.startswith("word/media/"):
+                            img_data = z.read(zname)
+                            out_img = candidate_media_dir / Path(zname).name
+                            out_img.write_bytes(img_data)
     except Exception as e:
         print(f"Error parsing docx {docx_path}: {e}")
         
