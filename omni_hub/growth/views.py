@@ -655,6 +655,7 @@ def get_categories_with_metadata():
     }]
 
     preferred_order = [
+        "Blueprints & Architecture",
         "Claude & Agent Skills",
         "AI & LLM Tools",
         "Cyber Security & Pentesting",
@@ -727,7 +728,7 @@ def dashboard_view(request):
     vault_count = VaultResource.objects.count()
     vault_fav_count = VaultResource.objects.filter(favorite=True).count()
     vault_categories = get_categories_with_metadata()
-    vault_recent = VaultResource.objects.all()[:16]
+    vault_recent = VaultResource.objects.all()[:80]
 
     jobs_count = JobOpportunity.objects.count()
     jobs_high_match_count = JobOpportunity.objects.filter(match_score__gte=80).count()
@@ -1455,22 +1456,19 @@ def api_vault_ingest_text(request):
 
 @csrf_exempt
 def api_vault_ingest_pdf(request):
-    """PDF / Cheatsheet Ingestion: Extracts text and decomposes tools."""
+    """
+    Document & Blueprint Ingestion: Accepts PDFs, Markdown blueprints, cheatsheets, and docs.
+    Extracts structured knowledge and guarantees zero-loss indexing of the primary blueprint/document.
+    """
     if request.method != "POST":
         return JsonResponse({"status": "error", "message": "POST required"}, status=405)
 
-    if not omni_vault_engine.PdfReader:
-        return JsonResponse({
-            "status": "error",
-            "message": "PyPDF dependency missing. Install with 'pip install pypdf'."
-        }, status=503)
-
-    uploaded_file = request.FILES.get("file") or request.FILES.get("pdf")
+    uploaded_file = request.FILES.get("file") or request.FILES.get("pdf") or request.FILES.get("document")
     if not uploaded_file:
-        return JsonResponse({"status": "error", "message": "No PDF file provided"}, status=400)
+        return JsonResponse({"status": "error", "message": "No document or PDF file provided"}, status=400)
 
-    if uploaded_file.size > 25 * 1024 * 1024:
-        return JsonResponse({"status": "error", "message": "PDF exceeds 25MB size limit"}, status=413)
+    if uploaded_file.size > 30 * 1024 * 1024:
+        return JsonResponse({"status": "error", "message": "File exceeds 30MB size limit"}, status=413)
 
     save_dir = Path.home() / "omni_vault_media" / "pdfs"
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -1484,11 +1482,110 @@ def api_vault_ingest_pdf(request):
             destination.write(chunk)
 
     try:
-        pdf_text = omni_vault_engine.extract_text_from_pdf(str(saved_path))
-        if not pdf_text:
-            return JsonResponse({"status": "error", "message": "Could not extract text from PDF"}, status=400)
+        # Extract text based on file format (PDF or text/markdown)
+        doc_text = omni_vault_engine.extract_text_from_document(str(saved_path))
+        if not doc_text or len(doc_text.strip()) < 5:
+            # Fallback direct read attempt
+            try:
+                doc_text = saved_path.read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                doc_text = ""
 
-        tools = omni_vault_engine.parse_and_enrich_text(pdf_text, source_context=f"PDF Document: {uploaded_file.name}")
+        if not doc_text or len(doc_text.strip()) < 5:
+            return JsonResponse({"status": "error", "message": "Could not extract readable text from document"}, status=400)
+
+        # Detect User Custom Overrides
+        user_title = (request.POST.get("title") or "").strip()
+        user_cat = (request.POST.get("category") or "").strip()
+        user_subcat = (request.POST.get("subcategory") or "").strip()
+
+        # Detect if document is a blueprint, architecture spec, or roadmap
+        lower_name = clean_name.lower()
+        lower_text = doc_text[:1200].lower()
+        is_blueprint = any(k in lower_name or k in user_title.lower() for k in ["blueprint", "arch", "roadmap", "spec", "diagram", "plan"]) or \
+                       any(k in lower_text for k in ["blueprint", "architecture", "system design", "technical specification", "roadmap"])
+
+        # Determine Primary Document Title
+        primary_title = user_title
+        if not primary_title:
+            for line in doc_text.splitlines()[:15]:
+                clean_line = line.strip()
+                if clean_line.startswith("# ") and len(clean_line) > 3:
+                    primary_title = clean_line[2:].strip()
+                    break
+        if not primary_title:
+            primary_title = Path(uploaded_file.name).stem.replace("_", " ").replace("-", " ").title()
+
+        # Determine Primary Document Category & Subcategory
+        if user_cat:
+            primary_cat = user_cat
+        elif is_blueprint:
+            primary_cat = "Blueprints & Architecture"
+        else:
+            primary_cat = "Student & Learning"
+
+        if user_subcat:
+            primary_subcat = user_subcat
+        elif is_blueprint:
+            primary_subcat = "System Architecture"
+        else:
+            primary_subcat = "Guides & Documentation"
+
+        # Normalize category
+        primary_cat, primary_subcat = omni_vault_engine.normalize_category_and_subcategory(
+            primary_cat, primary_subcat
+        )
+
+        # Generate fallback one-liner from text
+        doc_snippet = ""
+        for line in doc_text.splitlines()[:25]:
+            clean_l = line.strip()
+            if clean_l and not clean_l.startswith("#") and not clean_l.startswith("```") and len(clean_l) > 15:
+                doc_snippet = clean_l[:220]
+                break
+        if not doc_snippet:
+            doc_snippet = f"Technical document and specification for {primary_title}."
+
+        # Parse with LLM
+        tools = []
+        try:
+            tools = omni_vault_engine.parse_and_enrich_text(
+                doc_text,
+                source_context=f"Document: {uploaded_file.name} ({primary_title})"
+            )
+        except Exception as parse_err:
+            print(f"[warn] LLM extraction error during doc ingest: {parse_err}")
+
+        # Ensure Primary Blueprint/Document entry exists
+        has_primary = any(t.get("title", "").strip().lower() == primary_title.lower() for t in tools)
+        if not has_primary:
+            primary_item = {
+                "title": primary_title,
+                "url": "",
+                "one_liner": doc_snippet,
+                "category": primary_cat,
+                "subcategory": primary_subcat,
+                "tags": ["blueprint", "architecture", "docs"] if is_blueprint else ["document", "cheatsheet"],
+                "detailed_summary": doc_text[:1200],
+                "how_to_use": f"Refer to {primary_title} for architectural patterns, technical specifications, and execution steps.",
+                "safety_status": "SAFE",
+                "safety_notes": "Internal technical documentation and architectural reference."
+            }
+            tools.insert(0, primary_item)
+
+        # Enforce user category or blueprint categorization on the primary document entry
+        for t in tools:
+            t_title = t.get("title", "").strip().lower()
+            if t_title == primary_title.lower() or (user_title and t_title == user_title.lower()):
+                if user_cat:
+                    t["category"] = user_cat
+                elif is_blueprint and "blueprint" not in (t.get("category") or "").lower():
+                    t["category"] = "Blueprints & Architecture"
+                if user_subcat:
+                    t["subcategory"] = user_subcat
+                elif is_blueprint and not t.get("subcategory"):
+                    t["subcategory"] = "System Architecture"
+
         created = []
         with transaction.atomic():
             for t in tools:
@@ -1496,13 +1593,13 @@ def api_vault_ingest_pdf(request):
                 raw_url = str(t.get("url", "")).strip()
                 safe_url = raw_url if omni_vault_engine.is_safe_url(raw_url) else ""
 
-                cat = t.get("category") or "Student & Learning"
-                subcat = (t.get("subcategory") or "").strip() or "General"
+                cat = t.get("category") or primary_cat
+                subcat = (t.get("subcategory") or "").strip() or primary_subcat
 
                 res = VaultResource.objects.create(
-                    title=t.get("title", "PDF Guide Resource"),
+                    title=t.get("title", primary_title),
                     url=safe_url,
-                    one_liner=t.get("one_liner", "Useful guide or tool"),
+                    one_liner=t.get("one_liner", doc_snippet),
                     category=cat,
                     subcategory=subcat,
                     tags=tags_str,
@@ -1510,8 +1607,9 @@ def api_vault_ingest_pdf(request):
                     how_to_use=t.get("how_to_use", ""),
                     safety_status=t.get("safety_status", "SAFE"),
                     safety_notes=t.get("safety_notes", ""),
-                    source_type="pdf",
-                    raw_ocr_text=pdf_text[:3000]
+                    source_type="pdf" if clean_name.endswith(".pdf") else "doc",
+                    image_path=str(saved_path),
+                    raw_ocr_text=doc_text[:6000]
                 )
                 created.append({
                     "id": res.id,
@@ -1523,11 +1621,11 @@ def api_vault_ingest_pdf(request):
 
         return JsonResponse({
             "status": "ok",
-            "message": f"Successfully indexed {len(created)} tool(s) from PDF.",
+            "message": f"Successfully indexed {len(created)} item(s) from {uploaded_file.name}.",
             "created": created
         })
     except Exception as e:
-        return JsonResponse({"status": "error", "message": f"PDF ingest failed: {e}"}, status=500)
+        return JsonResponse({"status": "error", "message": f"Document ingest failed: {e}"}, status=500)
 
 
 @csrf_exempt

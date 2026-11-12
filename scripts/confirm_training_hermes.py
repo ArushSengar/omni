@@ -20,3 +20,4 @@ print("=== HERMES CONFIRMATION ===")
 print("STDOUT:\n", res.stdout)
 if res.stderr:
     print("STDERR:\n", res.stderr)
+

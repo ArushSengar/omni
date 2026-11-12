@@ -35,12 +35,14 @@ def ssh(command):
 def main():
     root = Path(__file__).resolve().parent.parent
 
-    # 1. Transfer settings.py, views.py, urls.py, models.py, migrations
+    # 1. Transfer core growth backend files
     scp(root / "omni_hub" / "omni_hub" / "settings.py", "/home/arush/omni_hub/omni_hub/settings.py")
     scp(root / "omni_hub" / "growth" / "views.py", "/home/arush/omni_hub/growth/views.py")
     scp(root / "omni_hub" / "growth" / "urls.py", "/home/arush/omni_hub/growth/urls.py")
     scp(root / "omni_hub" / "growth" / "models.py", "/home/arush/omni_hub/growth/models.py")
-    scp(root / "omni_hub" / "growth" / "migrations" / "0006_jobopportunity.py", "/home/arush/omni_hub/growth/migrations/0006_jobopportunity.py")
+    scp(root / "omni_hub" / "growth" / "omni_vault_engine.py", "/home/arush/omni_hub/growth/omni_vault_engine.py")
+    scp(root / "omni_hub" / "vault_ingest.py", "/home/arush/omni_hub/vault_ingest.py")
+    scp(root / "hermes" / "scripts" / "hermes_omnivault.py", "/home/arush/hermes_omnivault.py")
 
     # 2. Transfer templates
     scp(root / "omni_hub" / "growth" / "templates" / "growth" / "vault_dashboard.html", "/home/arush/omni_hub/growth/templates/growth/vault_dashboard.html")

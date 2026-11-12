@@ -146,6 +146,8 @@ def get_category_icon(category_name: str) -> str:
     """Returns a context-appropriate emoji icon for any dynamic category."""
     c = (category_name or "").lower()
     if "all" in c: return "🌐"
+    if "blueprint" in c or "arch" in c or "spec" in c or "schema" in c or "diagram" in c: return "📐"
+    if "doc" in c or "book" in c or "paper" in c or "cheatsheet" in c or "guide" in c: return "📄"
     if "edit" in c or "photo" in c or "crop" in c: return "✂️"
     if "agent" in c or "claude" in c: return "🤖"
     if "ai" in c or "llm" in c or "gpt" in c or "model" in c or "intel" in c: return "🧠"
@@ -171,6 +173,8 @@ def get_category_fa_icon(category_name: str) -> str:
     """Returns a FontAwesome icon class for any dynamic category."""
     c = (category_name or "").lower()
     if "all" in c: return "fa-layer-group"
+    if "blueprint" in c or "arch" in c or "spec" in c or "schema" in c: return "fa-compass-drafting"
+    if "doc" in c or "paper" in c or "book" in c or "cheatsheet" in c or "guide" in c: return "fa-file-lines"
     if "edit" in c or "photo" in c or "crop" in c: return "fa-crop-simple"
     if "agent" in c or "claude" in c: return "fa-robot"
     if "ai" in c or "llm" in c or "gpt" in c: return "fa-brain"
@@ -432,19 +436,56 @@ def crawl_url_metadata(url: str) -> Dict:
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:
-    """Extracts text content from a PDF document."""
-    if not os.path.exists(pdf_path) or not PdfReader:
+    """Extracts text content from a PDF document with multi-engine fallback."""
+    if not os.path.exists(pdf_path):
         return ""
+    
+    # Try pypdf
+    if PdfReader:
+        try:
+            reader = PdfReader(pdf_path)
+            pages_text = []
+            for p in reader.pages[:30]:  # Up to 30 pages
+                txt = p.extract_text()
+                if txt:
+                    pages_text.append(txt)
+            if pages_text:
+                return "\n\n".join(pages_text)
+        except Exception as e:
+            print(f"[warn] PyPDF extraction error: {e}")
+
+    # Fallback to pymupdf / fitz if available
     try:
-        reader = PdfReader(pdf_path)
+        import fitz
+        doc = fitz.open(pdf_path)
         pages_text = []
-        for p in reader.pages[:20]: # Up to 20 pages
-            txt = p.extract_text()
+        for page in doc[:30]:
+            txt = page.get_text()
             if txt:
                 pages_text.append(txt)
-        return "\n\n".join(pages_text)
+        if pages_text:
+            return "\n\n".join(pages_text)
+    except Exception:
+        pass
+
+    return ""
+
+
+def extract_text_from_document(file_path: str) -> str:
+    """Extracts text from documents: PDFs, Markdown files, Blueprints, Text notes, or JSON."""
+    if not os.path.exists(file_path):
+        return ""
+    
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext == ".pdf":
+        return extract_text_from_pdf(file_path)
+    
+    # Direct text/markdown/source read
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            return f.read()
     except Exception as e:
-        print(f"[warn] PyPDF extraction error: {e}")
+        print(f"[warn] Direct document read error: {e}")
         return ""
 
 
@@ -480,7 +521,11 @@ def build_extraction_system_prompt(existing_categories: List[str] = None) -> str
 
     return f"""You are OmniVault Intelligence, an expert digital knowledge extractor and research librarian built for Arush Sengar.
 
-Your job is to analyze raw input (OCR text from screenshots, web scrapes, PDF text, or user notes) and identify EVERY distinct website, utility, digital trick, or software tool mentioned.
+Your job is to analyze raw input (OCR text from screenshots, web scrapes, PDF text, architecture blueprints, guides, or user notes) and extract structured knowledge resources.
+
+BLUEPRINTS & SYSTEM SPECIFICATIONS:
+- If the input represents an architectural blueprint, design document, research paper, or system guide (e.g., 'Hermes Training Blueprint', 'AI Pipeline Architecture', 'Reverse Engineering Guide'), you MUST include an entry for the DOCUMENT/BLUEPRINT ITSELF as a primary resource with category "Blueprints & Architecture" (or appropriate domain) and subcategory (e.g. "System Architecture", "AI Agent Specs", "Security Blueprints", "Guides").
+- If distinct software tools, websites, or utilities are mentioned within the document, also extract each one.
 
 TAXONOMY & DYNAMIC TWO-TIER HIERARCHY RULES:
 Every item MUST be assigned both a high-level "category" and a specific "subcategory".

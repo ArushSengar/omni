@@ -243,61 +243,153 @@
             </div>
         </div>
 
-        <!-- Filter Segment Bar & Search Bar -->
-        <div class="apple-glass rounded-2xl p-4 space-y-3.5">
-            <div class="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-                <!-- Inline Live Search Input -->
-                <div class="relative flex-1">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-xs"></i>
-                    <input type="text" id="vault-search-input" oninput="handleSearchDebounce()"
-                           placeholder="Type to filter tools, Hindi use-cases, tags, or commands..." 
-                           class="w-full bg-[#0a0d14]/70 border border-white/[0.08] focus:border-indigo-500/60 rounded-xl pl-9 pr-24 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition-all duration-200">
-                    <button onclick="clearSearch()" id="clear-search-btn" class="hidden absolute right-3 top-2 text-slate-400 hover:text-white text-xs">
-                        <i class="fa-solid fa-circle-xmark"></i>
+        <!-- Two-Column Cockpit Layout: Left Category Tree Sidebar + Right Resource Grid -->
+        <div class="flex flex-col lg:flex-row gap-6 items-start">
+            
+            <!-- LEFT COLUMN: OMNIVAULT CATEGORY & TAXONOMY SIDEBAR -->
+            <aside id="vault-sidebar" class="w-full lg:w-72 xl:w-80 flex-shrink-0 apple-glass rounded-3xl p-5 border border-white/[0.08] shadow-2xl flex flex-col space-y-4">
+                <!-- Sidebar Header -->
+                <div class="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-sm border border-indigo-500/30">
+                            <i class="fa-solid fa-folder-tree"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-white tracking-wide">OmniVault</h3>
+                            <p class="text-[10px] text-slate-400 font-mono">Taxonomy & Branches</p>
+                        </div>
+                    </div>
+                    <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-300 border border-white/[0.08]">
+                        {{ categories|length }} Cats
+                    </span>
+                </div>
+
+                <!-- Quick Filters Navigation -->
+                <div class="space-y-1">
+                    <button onclick="selectCategory('All', 'All')" id="vault-cat-all-btn" class="vault-sidebar-item active w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold bg-indigo-600 text-white transition active:scale-98">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-base select-none">🌐</span>
+                            <span>All Resources</span>
+                        </div>
+                        <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-white/[0.2] text-white" id="sidebar-stat-total">{{ total_count }}</span>
+                    </button>
+
+                    <button onclick="toggleFavFilter()" id="vault-cat-starred-btn" class="vault-sidebar-item w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/[0.05] transition active:scale-98">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-amber-400 text-sm"><i class="fa-solid fa-star"></i></span>
+                            <span>Starred Favorites</span>
+                        </div>
+                        <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30" id="sidebar-stat-favs">{{ fav_count }}</span>
+                    </button>
+
+                    <button onclick="selectCategory('Blueprints & Architecture', 'All')" class="vault-sidebar-item w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/[0.05] transition active:scale-98">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-indigo-400 text-sm"><i class="fa-solid fa-compass-drafting"></i></span>
+                            <span>Blueprints & Specs</span>
+                        </div>
+                        <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">Specs</span>
                     </button>
                 </div>
 
-                <!-- Secondary Filters (Safety & Favorites) -->
-                <div class="flex items-center space-x-2">
-                    <select id="safety-filter" onchange="applyFilters()" class="bg-[#0a0d14]/70 border border-white/[0.08] text-slate-300 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500/60 font-mono transition">
-                        <option value="">All Safety Tiers</option>
-                        <option value="SAFE">Safe / Verified</option>
-                        <option value="PENTEST_ONLY">Pentest Lab Only</option>
-                        <option value="CAUTION">Caution / Privacy</option>
-                    </select>
+                <div class="border-t border-white/[0.08] pt-3">
+                    <div class="flex items-center justify-between text-[10px] font-mono uppercase text-slate-400 tracking-wider px-2 pb-2">
+                        <span>Categories (Click ▶ to toggle)</span>
+                    </div>
 
-                    <button id="fav-toggle-btn" onclick="toggleFavFilter()" class="bg-[#0a0d14]/70 border border-white/[0.08] hover:border-amber-500/40 text-slate-300 text-xs px-3.5 py-2 rounded-xl flex items-center space-x-1.5 transition">
-                        <i class="fa-solid fa-star text-amber-400 text-xs"></i>
-                        <span class="text-[11px] font-mono">Favorites</span>
-                    </button>
+                    <!-- Categories Tree List (Scrollable) -->
+                    <div id="category-sidebar-tree" class="space-y-1.5 max-h-[580px] overflow-y-auto custom-scrollbar pr-1">
+                        {% for cat in categories %}
+                        {% if cat.name != 'All' %}
+                        <div class="vault-category-node rounded-2xl transition bg-white/[0.02] border border-transparent hover:border-white/[0.06]" data-category-name="{{ cat.name }}">
+                            <div class="flex items-center justify-between p-2 rounded-2xl hover:bg-white/[0.06] transition group">
+                                <button onclick="selectCategory('{{ cat.name|escapejs }}', 'All', this)" class="vault-parent-cat-btn flex items-center space-x-2.5 flex-1 min-w-0 text-left py-0.5">
+                                    <span class="text-base select-none">{{ cat.icon }}</span>
+                                    <span class="text-xs font-semibold text-slate-200 group-hover:text-white truncate">{{ cat.name }}</span>
+                                    <span class="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-white/[0.06] text-slate-400 ml-auto mr-1.5">{{ cat.count }}</span>
+                                </button>
+                                
+                                {% if cat.subcategories %}
+                                <button onclick="toggleSubcategoryGroup('standalone-subcat-{{ forloop.counter }}', this, event)" class="cat-expand-btn w-6 h-6 rounded-lg bg-white/[0.04] hover:bg-white/[0.12] text-slate-400 hover:text-white flex items-center justify-center transition active:scale-90" title="Toggle {{ cat.name }} subcategories">
+                                    <i class="fa-solid fa-chevron-right text-[10px] transition-transform duration-200"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+
+                            {% if cat.subcategories %}
+                            <div id="standalone-subcat-{{ forloop.counter }}" class="subcat-tree-drawer hidden pl-5 pr-2 pb-2 space-y-1 border-l-2 border-indigo-500/30 ml-4.5 my-1">
+                                {% for sub in cat.subcategories %}
+                                <button onclick="selectCategory('{{ cat.name|escapejs }}', '{{ sub.name|escapejs }}', this)" class="vault-subcat-btn w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11px] font-medium text-slate-400 hover:text-white hover:bg-white/[0.06] transition text-left" data-parent-cat="{{ cat.name }}" data-subcat="{{ sub.name }}">
+                                    <span class="truncate flex items-center space-x-1.5">
+                                        <i class="fa-solid fa-turn-up rotate-90 text-[9px] text-indigo-400/80"></i>
+                                        <span class="truncate">{{ sub.name }}</span>
+                                    </span>
+                                    <span class="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-white/[0.04] text-slate-400">{{ sub.count }}</span>
+                                </button>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </aside>
+
+            <!-- RIGHT COLUMN: SEARCH, CONTROLS & RESOURCE CARDS GRID -->
+            <div class="flex-1 min-w-0 space-y-4 w-full">
+                <!-- Search & Filters Header Bar -->
+                <div class="apple-glass rounded-2xl p-4 space-y-3.5">
+                    <div class="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+                        <!-- Inline Live Search Input -->
+                        <div class="relative flex-1">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+                            <input type="text" id="vault-search-input" oninput="handleSearchDebounce()"
+                                   placeholder="Type to filter tools, blueprints, Hindi use-cases, tags..." 
+                                   class="w-full bg-[#0a0d14]/70 border border-white/[0.08] focus:border-indigo-500/60 rounded-xl pl-9 pr-24 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition-all duration-200">
+                            <button onclick="clearSearch()" id="clear-search-btn" class="hidden absolute right-3 top-2 text-slate-400 hover:text-white text-xs">
+                                <i class="fa-solid fa-circle-xmark"></i>
+                            </button>
+                        </div>
+
+                        <!-- Secondary Filters (Safety & Favorites) -->
+                        <div class="flex items-center space-x-2">
+                            <select id="safety-filter" onchange="applyFilters()" class="bg-[#0a0d14]/70 border border-white/[0.08] text-slate-300 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500/60 font-mono transition">
+                                <option value="">All Safety Tiers</option>
+                                <option value="SAFE">Safe / Verified</option>
+                                <option value="PENTEST_ONLY">Pentest Lab Only</option>
+                                <option value="CAUTION">Caution / Privacy</option>
+                            </select>
+
+                            <button onclick="toggleMobileVaultSidebar()" class="lg:hidden bg-[#0a0d14]/70 border border-white/[0.08] text-white text-xs px-3 py-2 rounded-xl flex items-center space-x-1.5">
+                                <i class="fa-solid fa-folder-tree text-indigo-400"></i>
+                                <span>Cats</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Breadcrumb Active Filter -->
+                    <div class="flex items-center space-x-2 text-xs pt-1 border-t border-white/[0.06]">
+                        <span class="text-slate-400"><i class="fa-solid fa-folder-open text-indigo-400 mr-1.5"></i> Category:</span>
+                        <span id="breadcrumb-category" class="font-bold text-white">All Resources</span>
+                        <span id="breadcrumb-subcat-wrapper" class="hidden flex items-center space-x-2">
+                            <span class="text-slate-600">/</span>
+                            <span id="breadcrumb-subcategory" class="font-mono text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-md border border-indigo-500/30"></span>
+                        </span>
+                        <button id="breadcrumb-reset-btn" onclick="selectCategory('All', 'All')" class="hidden ml-2 text-rose-400 hover:text-rose-300 text-[11px] font-mono transition" title="Clear Filter">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Resource Cards Grid -->
+                <div id="vault-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4.5">
+                    <div class="col-span-full py-20 text-center text-slate-500 text-xs font-mono">
+                        <i class="fa-solid fa-circle-notch fa-spin text-xl text-indigo-400 mb-2.5"></i>
+                        <p>Loading OmniVault memory ledger...</p>
+                    </div>
                 </div>
             </div>
 
-            <!-- Apple Segmented Category Switcher (Dynamic Categories) -->
-            <div id="category-pills" class="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs custom-scrollbar">
-                {% for cat in categories %}
-                <button onclick="selectCategory(this.dataset.cat)" data-cat="{{ cat.name }}" class="segmented-btn {% if forloop.first %}active{% endif %} px-3.5 py-1.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] font-medium whitespace-nowrap flex items-center space-x-1.5 transition active:scale-95">
-                    <span>{{ cat.icon }} {{ cat.name }}</span>
-                    {% if cat.count is not None %}
-                    <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-white/[0.08] text-slate-300 font-mono">{{ cat.count }}</span>
-                    {% endif %}
-                </button>
-                {% endfor %}
-            </div>
-
-            <!-- Apple Segmented Subcategory Chips (Dynamic Two-Tier Hierarchy) -->
-            <div id="subcategory-pills" class="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs custom-scrollbar mt-1.5 hidden">
-                <!-- Injected via JavaScript when a category with subcategories is chosen -->
-            </div>
-        </div>
-
-        <!-- Resource Cards Grid -->
-        <div id="vault-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4.5">
-            <!-- Rendered by JS -->
-            <div class="col-span-full py-20 text-center text-slate-500 text-xs font-mono">
-                <i class="fa-solid fa-circle-notch fa-spin text-xl text-indigo-400 mb-2.5"></i>
-                <p>Loading OmniVault memory ledger...</p>
-            </div>
         </div>
 
     </main>
@@ -450,14 +542,18 @@
                     </button>
                 </div>
 
-                <!-- Tab PDF -->
+                <!-- Tab PDF / Blueprints / Documents -->
                 <div id="tab-content-pdf" class="space-y-3.5 hidden">
                     <p class="text-slate-400 leading-relaxed">
-                        Upload a PDF cheatsheet or technical guide. PyPDF will extract text and index distinct tools.
+                        Upload a PDF, Markdown Blueprint, technical guide, or architecture spec. OmniVault will index the blueprint and all referenced tools.
                     </p>
-                    <input type="file" id="pdf-file-input" accept=".pdf" class="w-full bg-[#0a0d14]/70 border border-white/[0.08] rounded-xl p-2.5 text-white">
+                    <input type="file" id="pdf-file-input" accept=".pdf,.md,.markdown,.txt,.json,.docx" class="w-full bg-[#0a0d14]/70 border border-white/[0.08] rounded-xl p-2.5 text-white">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" id="pdf-custom-title" placeholder="Blueprint Title (Optional)" class="bg-[#0a0d14]/70 border border-white/[0.08] rounded-xl p-2.5 text-white text-xs">
+                        <input type="text" id="pdf-custom-category" placeholder="Category Override (Optional)" class="bg-[#0a0d14]/70 border border-white/[0.08] rounded-xl p-2.5 text-white text-xs">
+                    </div>
                     <button onclick="submitPdfIngest()" id="btn-submit-pdf" class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-[0.99] text-white font-semibold py-2.5 rounded-xl transition shadow-lg shadow-indigo-600/25 ring-1 ring-white/10">
-                        Parse PDF to Vault
+                        Parse & Save Blueprint to Vault
                     </button>
                 </div>
 
@@ -765,19 +861,94 @@
             grid.innerHTML = html;
         }
 
-        // Category & Dynamic Subcategory Controller
-        function selectCategory(cat) {
-            currentCategory = cat || "All";
-            currentSubcategory = "All";
-            document.querySelectorAll("#category-pills .segmented-btn").forEach(btn => {
-                const bCat = btn.dataset.cat || btn.getAttribute("data-cat") || btn.innerText.trim();
-                if (bCat.toLowerCase() === currentCategory.toLowerCase()) {
-                    btn.classList.add("active");
-                } else {
-                    btn.classList.remove("active");
+        function toggleMobileVaultSidebar() {
+            const sb = document.getElementById("vault-sidebar");
+            if (sb) {
+                sb.classList.toggle("hidden");
+                if (!sb.classList.contains("hidden")) {
+                    sb.scrollIntoView({ behavior: "smooth" });
                 }
+            }
+        }
+
+        function toggleSubcategoryGroup(drawerId, arrowBtn, event) {
+            if (event) event.stopPropagation();
+            const drawer = document.getElementById(drawerId);
+            if (!drawer) return;
+            const isHidden = drawer.classList.contains("hidden");
+            drawer.classList.toggle("hidden");
+            
+            const icon = arrowBtn ? arrowBtn.querySelector("i") : null;
+            if (icon) {
+                if (isHidden) {
+                    icon.classList.remove("fa-chevron-right");
+                    icon.classList.add("fa-chevron-down", "text-indigo-400");
+                } else {
+                    icon.classList.remove("fa-chevron-down", "text-indigo-400");
+                    icon.classList.add("fa-chevron-right");
+                }
+            }
+        }
+
+        // Category & Dynamic Subcategory Controller
+        function selectCategory(cat, subcat, btnElement) {
+            currentCategory = cat || "All";
+            currentSubcategory = subcat || "All";
+
+            // Update sidebar button highlights
+            document.querySelectorAll("#category-sidebar-tree .vault-parent-cat-btn").forEach(b => {
+                b.classList.remove("text-indigo-400", "font-bold");
             });
-            renderSubcategoryPills();
+            document.querySelectorAll("#category-sidebar-tree .vault-subcat-btn").forEach(b => {
+                b.classList.remove("active", "bg-indigo-600/30", "text-white", "border", "border-indigo-500/40");
+                b.classList.add("text-slate-400");
+            });
+            document.querySelectorAll(".vault-sidebar-item").forEach(b => {
+                b.classList.remove("active", "bg-indigo-600", "text-white");
+                b.classList.add("text-slate-300");
+            });
+
+            if (currentCategory === "All" && currentSubcategory === "All") {
+                const allBtn = document.getElementById("vault-cat-all-btn");
+                if (allBtn) {
+                    allBtn.classList.add("active", "bg-indigo-600", "text-white");
+                    allBtn.classList.remove("text-slate-300");
+                }
+            } else if (btnElement) {
+                if (btnElement.classList.contains("vault-subcat-btn")) {
+                    btnElement.classList.add("active", "bg-indigo-600/30", "text-white", "border", "border-indigo-500/40");
+                    btnElement.classList.remove("text-slate-400");
+                } else if (btnElement.classList.contains("vault-parent-cat-btn")) {
+                    btnElement.classList.add("text-indigo-400", "font-bold");
+                    const parentGroup = btnElement.closest(".vault-category-node");
+                    const drawer = parentGroup ? parentGroup.querySelector(".subcat-tree-drawer") : null;
+                    const arrowBtn = parentGroup ? parentGroup.querySelector(".cat-expand-btn") : null;
+                    if (drawer && drawer.classList.contains("hidden")) {
+                        toggleSubcategoryGroup(drawer.id, arrowBtn);
+                    }
+                }
+            }
+
+            // Update breadcrumb
+            const bcCat = document.getElementById("breadcrumb-category");
+            const bcSubWrapper = document.getElementById("breadcrumb-subcat-wrapper");
+            const bcSub = document.getElementById("breadcrumb-subcategory");
+            const resetBtn = document.getElementById("breadcrumb-reset-btn");
+
+            if (bcCat) bcCat.innerText = currentCategory;
+            if (currentSubcategory && currentSubcategory !== "All") {
+                if (bcSubWrapper) bcSubWrapper.classList.remove("hidden");
+                if (bcSub) bcSub.innerText = currentSubcategory;
+            } else {
+                if (bcSubWrapper) bcSubWrapper.classList.add("hidden");
+            }
+
+            if (currentCategory !== "All" || (currentSubcategory && currentSubcategory !== "All")) {
+                if (resetBtn) resetBtn.classList.remove("hidden");
+            } else {
+                if (resetBtn) resetBtn.classList.add("hidden");
+            }
+
             fetchResources();
         }
 
@@ -1165,12 +1336,17 @@
 
         function submitPdfIngest() {
             const fileInput = document.getElementById("pdf-file-input");
-            if (!fileInput.files || !fileInput.files[0]) return alert("Please choose a PDF file.");
+            if (!fileInput.files || !fileInput.files[0]) return alert("Please choose a PDF or document file.");
+
+            const customTitle = (document.getElementById("pdf-custom-title")?.value || "").trim();
+            const customCat = (document.getElementById("pdf-custom-category")?.value || "").trim();
 
             const fd = new FormData();
             fd.append("file", fileInput.files[0]);
+            if (customTitle) fd.append("title", customTitle);
+            if (customCat) fd.append("category", customCat);
 
-            setIngestStatus("Parsing PDF text and compiling tools...", "loading");
+            setIngestStatus("Parsing document & indexing blueprint into OmniVault...", "loading");
             fetch('/api/vault/ingest/pdf/', { method: 'POST', body: fd })
                 .then(r => r.json())
                 .then(data => {

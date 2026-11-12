@@ -131,22 +131,74 @@ def ingest_text_cli(text: str):
 
 def ingest_pdf_cli(pdf_path: str):
     if not os.path.exists(pdf_path):
-        print(f"❌ Error: PDF file not found at {pdf_path}")
+        print(f"❌ Error: Document or PDF file not found at {pdf_path}")
         return
 
-    print(f"📄 Extracting text from PDF document: {pdf_path}")
-    text = omni_vault_engine.extract_text_from_pdf(pdf_path)
+    file_name = Path(pdf_path).name
+    print(f"📄 Extracting text from document: {pdf_path}")
+    text = omni_vault_engine.extract_text_from_document(pdf_path)
     if not text:
-        print(f"❌ Error: Could not extract text from {pdf_path}")
+        # Direct read fallback
+        try:
+            with open(pdf_path, 'r', encoding='utf-8', errors='replace') as f:
+                text = f.read()
+        except Exception:
+            pass
+
+    if not text:
+        print(f"❌ Error: Could not extract readable text from {pdf_path}")
         return
     print(f"   Extracted {len(text)} characters across document.")
 
+    is_blueprint = any(k in file_name.lower() for k in ["blueprint", "arch", "roadmap", "spec", "plan"]) or \
+                   any(k in text[:1000].lower() for k in ["blueprint", "architecture", "system design"])
+
+    primary_title = Path(pdf_path).stem.replace("_", " ").replace("-", " ").title()
+    for line in text.splitlines()[:15]:
+        cl = line.strip()
+        if cl.startswith("# ") and len(cl) > 3:
+            primary_title = cl[2:].strip()
+            break
+
     print("🧠 Analyzing & decomposing tools with OmniRoute LLM...")
-    tools = omni_vault_engine.parse_and_enrich_text(text, source_context=f"CLI PDF Ingest: {Path(pdf_path).name}")
-    print(f"   Discovered {len(tools)} distinct tool(s)!")
+    tools = []
+    try:
+        tools = omni_vault_engine.parse_and_enrich_text(text, source_context=f"CLI Document Ingest: {file_name}")
+    except Exception as e:
+        print(f"   [warn] LLM enrichment error: {e}")
+
+    has_primary = any(t.get("title", "").strip().lower() == primary_title.lower() for t in tools)
+    if not has_primary:
+        doc_snippet = ""
+        for line in text.splitlines()[:25]:
+            cl = line.strip()
+            if cl and not cl.startswith("#") and not cl.startswith("```") and len(cl) > 15:
+                doc_snippet = cl[:220]
+                break
+        if not doc_snippet:
+            doc_snippet = f"Technical document and blueprint for {primary_title}."
+
+        primary_cat = "Blueprints & Architecture" if is_blueprint else "Student & Learning"
+        primary_subcat = "System Architecture" if is_blueprint else "Guides & Documentation"
+
+        primary_item = {
+            "title": primary_title,
+            "url": "",
+            "one_liner": doc_snippet,
+            "category": primary_cat,
+            "subcategory": primary_subcat,
+            "tags": ["blueprint", "architecture"] if is_blueprint else ["document"],
+            "detailed_summary": text[:1200],
+            "how_to_use": f"Refer to {primary_title} for architecture specifications and implementation details.",
+            "safety_status": "SAFE",
+            "safety_notes": "Internal technical reference and blueprint."
+        }
+        tools.insert(0, primary_item)
+
+    print(f"   Discovered {len(tools)} structured item(s)!")
 
     for t in tools:
-        res = save_vault_resource(t, source_type="pdf", raw_text=text)
+        res = save_vault_resource(t, source_type="pdf" if file_name.lower().endswith(".pdf") else "doc", raw_text=text)
         sub = f" // {res.subcategory}" if res.subcategory else ""
         print(f"\n   ✅ SAVED: {res.title} [{res.category}{sub}]")
         print(f"      Target: {res.url or 'N/A'}")

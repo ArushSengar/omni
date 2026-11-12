@@ -343,6 +343,133 @@ def ingest_note(text: str, title: str = None, category: str = None, as_json: boo
         return False
 
 
+def ingest_document(file_path: str, title: str = None, category: str = None, subcategory: str = None, as_json: bool = False):
+    """Ingests a PDF, Markdown blueprint, cheatsheet, or technical document into OmniVault."""
+    if not DJANGO_AVAILABLE:
+        format_output({"status": "error", "message": f"Django ORM unavailable: {_DJANGO_ERR}"}, as_json)
+        return False
+
+    p = Path(file_path)
+    if not p.exists():
+        format_output({"status": "error", "message": f"File not found: {file_path}"}, as_json)
+        return False
+
+    try:
+        text = omni_vault_engine.extract_text_from_document(str(p))
+        if not text:
+            try:
+                text = p.read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                text = ""
+
+        if not text:
+            format_output({"status": "error", "message": f"Could not extract readable text from {file_path}"}, as_json)
+            return False
+
+        is_blueprint = any(k in p.name.lower() or (title and k in title.lower()) for k in ["blueprint", "arch", "roadmap", "spec", "plan"]) or \
+                       any(k in text[:1200].lower() for k in ["blueprint", "architecture", "system design"])
+
+        primary_title = title
+        if not primary_title:
+            for line in text.splitlines()[:15]:
+                cl = line.strip()
+                if cl.startswith("# ") and len(cl) > 3:
+                    primary_title = cl[2:].strip()
+                    break
+        if not primary_title:
+            primary_title = p.stem.replace("_", " ").replace("-", " ").title()
+
+        primary_cat = category or ("Blueprints & Architecture" if is_blueprint else "Student & Learning")
+        primary_subcat = subcategory or ("System Architecture" if is_blueprint else "Guides & Documentation")
+
+        primary_cat, primary_subcat = omni_vault_engine.normalize_category_and_subcategory(
+            primary_cat, primary_subcat
+        )
+
+        tools = []
+        try:
+            tools = omni_vault_engine.parse_and_enrich_text(text, source_context=f"Hermes Document Ingest: {p.name}")
+        except Exception:
+            pass
+
+        has_primary = any(t.get("title", "").strip().lower() == primary_title.lower() for t in tools)
+        if not has_primary:
+            doc_snippet = ""
+            for line in text.splitlines()[:25]:
+                cl = line.strip()
+                if cl and not cl.startswith("#") and not cl.startswith("```") and len(cl) > 15:
+                    doc_snippet = cl[:220]
+                    break
+            if not doc_snippet:
+                doc_snippet = f"Technical document and blueprint for {primary_title}."
+
+            primary_item = {
+                "title": primary_title,
+                "url": "",
+                "one_liner": doc_snippet,
+                "category": primary_cat,
+                "subcategory": primary_subcat,
+                "tags": ["blueprint", "architecture"] if is_blueprint else ["document"],
+                "detailed_summary": text[:1500],
+                "how_to_use": f"Refer to {primary_title} for specifications and implementation details.",
+                "safety_status": "SAFE",
+                "safety_notes": "Internal technical reference."
+            }
+            tools.insert(0, primary_item)
+
+        saved = []
+        from django.db import transaction
+        with transaction.atomic():
+            for t in tools:
+                t_title = t.get("title", "").strip().lower()
+                if t_title == primary_title.lower():
+                    if category: t["category"] = category
+                    elif is_blueprint and "blueprint" not in (t.get("category") or "").lower():
+                        t["category"] = "Blueprints & Architecture"
+                    if subcategory: t["subcategory"] = subcategory
+
+                cat = t.get("category") or primary_cat
+                subcat = (t.get("subcategory") or "").strip() or primary_subcat
+
+                tags = t.get("tags", [])
+                tags_str = ",".join(tags) if isinstance(tags, list) else str(tags)
+
+                res = VaultResource.objects.create(
+                    title=t.get("title", primary_title),
+                    url=t.get("url", ""),
+                    one_liner=t.get("one_liner", "Technical document or tool"),
+                    category=cat,
+                    subcategory=subcat,
+                    tags=tags_str,
+                    detailed_summary=t.get("detailed_summary", ""),
+                    how_to_use=t.get("how_to_use", ""),
+                    safety_status=t.get("safety_status", "SAFE"),
+                    safety_notes=t.get("safety_notes", ""),
+                    source_type="pdf" if p.suffix.lower() == ".pdf" else "doc",
+                    image_path=p.name,
+                    raw_ocr_text=text[:6000]
+                )
+                saved.append({
+                    "id": res.id,
+                    "title": res.title,
+                    "category": res.category,
+                    "subcategory": res.subcategory,
+                    "one_liner": res.one_liner
+                })
+
+        format_output({
+            "status": "saved",
+            "message": f"Successfully ingested {p.name} into OmniVault ({len(saved)} item(s) registered)",
+            "primary": saved[0] if saved else {},
+            "all_resources": saved
+        }, as_json)
+        return True
+
+    except Exception as e:
+        format_output({"status": "error", "message": f"Document ingest failed: {e}"}, as_json)
+        return False
+
+
 def search_vault(query: str, limit: int = 5, as_json: bool = False):
     """Searches stored resources across title, category, description, and OCR keywords."""
     if not DJANGO_AVAILABLE:
@@ -352,7 +479,7 @@ def search_vault(query: str, limit: int = 5, as_json: bool = False):
     try:
         from django.db.models import Q
         q_clean = query.strip()
-        qs = VaultResource.objects.filter(
+        qs = list(VaultResource.objects.filter(
             Q(title__icontains=q_clean) |
             Q(one_liner__icontains=q_clean) |
             Q(category__icontains=q_clean) |
@@ -360,7 +487,11 @@ def search_vault(query: str, limit: int = 5, as_json: bool = False):
             Q(tags__icontains=q_clean) |
             Q(detailed_summary__icontains=q_clean) |
             Q(raw_ocr_text__icontains=q_clean)
-        ).order_by('-favorite', '-created_at')[:limit]
+        ).order_by('-favorite', '-created_at')[:limit * 3])
+
+        # Rank matches: Title matches first, then favorite, then recent
+        qs.sort(key=lambda r: (10 if q_clean.lower() in r.title.lower() else 0) + (5 if r.favorite else 0), reverse=True)
+        qs = qs[:limit]
 
         results = []
         for r in qs:
@@ -436,6 +567,14 @@ def main():
     p_note.add_argument("--category", help="Optional category")
     p_note.add_argument("--json", action="store_true", help="Output as JSON")
 
+    # Ingest Document / Blueprint / PDF
+    p_doc = subparsers.add_parser("ingest-doc", aliases=["ingest-pdf", "ingest-blueprint"], help="Ingest PDF, Markdown Blueprint, or technical document")
+    p_doc.add_argument("path", help="Path to document/PDF/blueprint file")
+    p_doc.add_argument("--title", help="Optional document/blueprint title")
+    p_doc.add_argument("--category", help="Optional category override")
+    p_doc.add_argument("--subcategory", help="Optional subcategory override")
+    p_doc.add_argument("--json", action="store_true", help="Output as JSON")
+
     # Search
     p_search = subparsers.add_parser("search", help="Search OmniVault resources")
     p_search.add_argument("query", help="Keywords or natural language search query")
@@ -458,6 +597,8 @@ def main():
         ingest_url(args.url, category=args.category, as_json=args.json)
     elif args.command == "ingest-note":
         ingest_note(args.text, title=args.title, category=args.category, as_json=args.json)
+    elif args.command in ["ingest-doc", "ingest-pdf", "ingest-blueprint"]:
+        ingest_document(args.path, title=args.title, category=args.category, subcategory=args.subcategory, as_json=args.json)
     elif args.command == "search":
         search_vault(args.query, limit=args.limit, as_json=args.json)
     elif args.command == "wallet":

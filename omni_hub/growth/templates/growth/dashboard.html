@@ -579,13 +579,21 @@
                     <div class="space-y-1">
                         <div class="flex items-center space-x-2">
                             <span class="px-3 py-1 rounded-full text-xs font-mono font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Zero-Loss Memory</span>
-                            <span class="text-xs text-slate-400">Multimodal Knowledge Vault</span>
+                            <span class="text-xs text-slate-400">Multimodal Knowledge & Blueprint Vault</span>
                         </div>
                         <h1 class="text-2xl font-black text-white">OmniVault Tool & Knowledge Repository</h1>
-                        <p class="text-xs text-slate-300">Screenshot vision OCR, URL scraping, PDF cheatsheets, and safe OSINT categorization.</p>
+                        <p class="text-xs text-slate-300">Upload PDF blueprints, cheatsheets, system specs, screenshot OCR, and dynamic hierarchical categorization.</p>
                     </div>
 
-                    <div class="flex flex-wrap gap-2.5">
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <button onclick="toggleMobileVaultSidebar()" class="lg:hidden px-3.5 py-2 rounded-2xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.1] text-white font-semibold text-xs flex items-center space-x-2 transition active:scale-95">
+                            <i class="fa-solid fa-folder-tree text-indigo-400"></i>
+                            <span>Categories</span>
+                        </button>
+                        <button onclick="openIngestModal('pdf')" class="px-3.5 py-2 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs flex items-center space-x-2 transition shadow-lg shadow-rose-600/30 active:scale-95">
+                            <i class="fa-solid fa-file-pdf"></i>
+                            <span>Upload PDF / Blueprint</span>
+                        </button>
                         <button onclick="openIngestModal('image')" class="px-3.5 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center space-x-2 transition shadow-lg shadow-indigo-600/30 active:scale-95">
                             <i class="fa-solid fa-image"></i>
                             <span>Drop Screenshot</span>
@@ -594,10 +602,6 @@
                             <i class="fa-solid fa-link text-blue-400"></i>
                             <span>Save URL</span>
                         </button>
-                        <button onclick="openIngestModal('pdf')" class="px-3.5 py-2 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-white font-medium text-xs flex items-center space-x-2 transition active:scale-95">
-                            <i class="fa-solid fa-file-pdf text-rose-400"></i>
-                            <span>Upload PDF</span>
-                        </button>
                         <button onclick="openIngestModal('text')" class="px-3.5 py-2 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-white font-medium text-xs flex items-center space-x-2 transition active:scale-95">
                             <i class="fa-solid fa-note-sticky text-amber-400"></i>
                             <span>Quick Note</span>
@@ -605,89 +609,259 @@
                     </div>
                 </div>
 
-                <!-- Vault Filter Bar: Search, Categories & Starred Filter -->
-                <div class="apple-card rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                <!-- Two-Column Cockpit Layout: Left Category Tree Sidebar + Right Resource Grid -->
+                <div class="flex flex-col lg:flex-row gap-6 items-start">
                     
-                    <!-- Search Input -->
-                    <div class="relative w-full md:w-80">
-                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                        <input id="vault-search-input" oninput="filterVaultCards()" type="text" placeholder="Search tools, tags, OSINT, flags..." class="w-full bg-[#0d1322] border border-white/[0.1] rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition">
-                    </div>
+                    <!-- =========================================================================
+                         LEFT COLUMN: OMNIVAULT CATEGORY & TAXONOMY SIDEBAR
+                         ========================================================================= -->
+                    <aside id="vault-sidebar" class="w-full lg:w-72 xl:w-80 flex-shrink-0 apple-glass rounded-3xl p-5 border border-white/[0.08] shadow-2xl flex flex-col space-y-4">
+                        
+                        <!-- Sidebar Header -->
+                        <div class="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-sm border border-indigo-500/30">
+                                    <i class="fa-solid fa-folder-tree"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-bold text-white tracking-wide">OmniVault</h3>
+                                    <p class="text-[10px] text-slate-400 font-mono">Taxonomy & Hierarchy</p>
+                                </div>
+                            </div>
+                            <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-300 border border-white/[0.08]">
+                                {{ vault_categories|length }} Cats
+                            </span>
+                        </div>
 
-                    <!-- Category Pills Horizontal Scroll (Dynamic Categories) -->
-                    <div class="flex items-center space-x-1.5 overflow-x-auto custom-scrollbar w-full md:w-auto pb-1 md:pb-0">
-                        {% for cat in vault_categories %}
-                        <button onclick="selectVaultCategory('{{ cat.name }}', this)" class="vault-cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap {% if forloop.first %}bg-indigo-600 text-white{% else %}bg-white/[0.05] text-slate-300 hover:text-white{% endif %} transition active:scale-95 flex items-center space-x-1.5">
-                            <span>{{ cat.icon }} {{ cat.name }}</span>
-                            {% if cat.count is not None %}
-                            <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-white/[0.1] text-slate-200 font-mono">{{ cat.count }}</span>
-                            {% endif %}
-                        </button>
-                        {% endfor %}
-                    </div>
+                        <!-- Quick Filters Navigation -->
+                        <div class="space-y-1">
+                            <!-- All Items -->
+                            <button onclick="selectVaultCategory('All', 'All', this)" id="vault-cat-all-btn" class="vault-sidebar-item active w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold bg-indigo-600 text-white transition active:scale-98">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="text-base select-none">🌐</span>
+                                    <span>All Resources</span>
+                                </div>
+                                <span class="vault-all-count text-[11px] font-mono px-2 py-0.5 rounded-full bg-white/[0.2] text-white">{{ vault_count }}</span>
+                            </button>
 
-                    <!-- Starred Only Toggle (Clickable) -->
-                    <button id="vault-fav-filter-btn" onclick="toggleStarredOnlyFilter()" class="flex-shrink-0 px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-amber-400 text-xs font-semibold flex items-center space-x-1.5 transition active:scale-95">
-                        <i class="fa-solid fa-star"></i>
-                        <span>Starred Only</span>
-                    </button>
-                </div>
+                            <!-- Starred Only -->
+                            <button onclick="toggleStarredOnlyFilter(this)" id="vault-cat-starred-btn" class="vault-sidebar-item w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/[0.05] transition active:scale-98">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="text-amber-400 text-sm"><i class="fa-solid fa-star"></i></span>
+                                    <span>Starred / Favorites</span>
+                                </div>
+                                <span id="vault-fav-counter-badge" class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">{{ vault_fav_count }}</span>
+                            </button>
 
-                <!-- Dynamic Grid of Vault Cards -->
-                <div id="vault-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <!-- Populated dynamically via JS or server rendered -->
-                    {% for r in vault_recent %}
-                    <div class="vault-resource-card apple-card rounded-3xl p-5 flex flex-col justify-between space-y-4" data-id="{{ r.id }}" data-category="{{ r.category }}" data-favorite="{{ r.favorite|lower }}" data-title="{{ r.title|lower }}" data-desc="{{ r.one_liner|lower }}">
-                        <div class="space-y-3">
-                            <div class="flex items-center justify-between text-xs">
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 truncate max-w-[180px]">{{ r.category }}</span>
-                                <div class="flex items-center space-x-2">
-                                    <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold {% if r.safety_status == 'SAFE' %}bg-emerald-500/20 text-emerald-300 border border-emerald-500/40{% elif r.safety_status == 'PENTEST_ONLY' %}bg-amber-500/20 text-amber-300 border border-amber-500/40{% else %}bg-rose-500/20 text-rose-300 border border-rose-500/40{% endif %}">
-                                        {{ r.safety_status }}
-                                    </span>
-                                    <button onclick="toggleFavorite('{{ r.id }}', this)" title="Toggle Favorite Star" class="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-amber-400 flex items-center justify-center transition active:scale-90">
-                                        <i class="{% if r.favorite %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
+                            <!-- Blueprints & Architecture Quick Filter -->
+                            <button onclick="selectVaultCategory('Blueprints & Architecture', 'All', this)" class="vault-sidebar-item w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/[0.05] transition active:scale-98">
+                                <div class="flex items-center space-x-2.5">
+                                    <span class="text-indigo-400 text-sm"><i class="fa-solid fa-compass-drafting"></i></span>
+                                    <span>Blueprints & Specs</span>
+                                </div>
+                                <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">Specs</span>
+                            </button>
+                        </div>
+
+                        <div class="border-t border-white/[0.08] pt-3">
+                            <div class="flex items-center justify-between text-[10px] font-mono uppercase text-slate-400 tracking-wider px-2 pb-2">
+                                <span>Categories & Branches</span>
+                                <span class="text-slate-500 text-[9px]">Click ▶ to toggle</span>
+                            </div>
+
+                            <!-- Categories Tree List (Scrollable) -->
+                            <div id="vault-sidebar-tree" class="space-y-1.5 max-h-[580px] overflow-y-auto custom-scrollbar pr-1">
+                                {% for cat in vault_categories %}
+                                {% if cat.name != 'All' %}
+                                <div class="vault-category-node rounded-2xl transition bg-white/[0.02] border border-transparent hover:border-white/[0.06]" data-category-name="{{ cat.name }}">
+                                    <div class="flex items-center justify-between p-2 rounded-2xl hover:bg-white/[0.06] transition group">
+                                        <!-- Category Filter Button -->
+                                        <button onclick="selectVaultCategory('{{ cat.name|escapejs }}', 'All', this)" class="vault-parent-cat-btn flex items-center space-x-2.5 flex-1 min-w-0 text-left py-0.5">
+                                            <span class="text-base select-none">{{ cat.icon }}</span>
+                                            <span class="text-xs font-semibold text-slate-200 group-hover:text-white truncate">{{ cat.name }}</span>
+                                            <span class="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-white/[0.06] text-slate-400 ml-auto mr-1.5">{{ cat.count }}</span>
+                                        </button>
+                                        
+                                        <!-- Subcategory Expand/Collapse Arrow Button -->
+                                        {% if cat.subcategories %}
+                                        <button onclick="toggleSubcategoryTree('vault-subcat-{{ forloop.counter }}', this, event)" class="cat-expand-btn w-6 h-6 rounded-lg bg-white/[0.04] hover:bg-white/[0.12] text-slate-400 hover:text-white flex items-center justify-center transition active:scale-90" title="Expand {{ cat.name }} subcategories">
+                                            <i class="fa-solid fa-chevron-right text-[10px] transition-transform duration-200"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Subcategories Drawer (Collapsible) -->
+                                    {% if cat.subcategories %}
+                                    <div id="vault-subcat-{{ forloop.counter }}" class="subcat-tree-drawer hidden pl-5 pr-2 pb-2 space-y-1 border-l-2 border-indigo-500/30 ml-4.5 my-1">
+                                        {% for sub in cat.subcategories %}
+                                        <button onclick="selectVaultCategory('{{ cat.name|escapejs }}', '{{ sub.name|escapejs }}', this)" class="vault-subcat-btn w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11px] font-medium text-slate-400 hover:text-white hover:bg-white/[0.06] transition text-left" data-parent-cat="{{ cat.name }}" data-subcat="{{ sub.name }}">
+                                            <span class="truncate flex items-center space-x-1.5">
+                                                <i class="fa-solid fa-turn-up rotate-90 text-[9px] text-indigo-400/80"></i>
+                                                <span class="truncate">{{ sub.name }}</span>
+                                            </span>
+                                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-white/[0.04] text-slate-400">{{ sub.count }}</span>
+                                        </button>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                    </aside>
+
+                    <!-- =========================================================================
+                         RIGHT COLUMN: SEARCH, BREADCRUMB, ACTIONS & RESOURCE CARDS GRID
+                         ========================================================================= -->
+                    <div class="flex-1 min-w-0 space-y-5 w-full">
+                        
+                        <!-- Breadcrumb & Control Bar -->
+                        <div class="apple-card rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <!-- Breadcrumb Navigation -->
+                            <div class="flex items-center space-x-2 text-xs w-full sm:w-auto overflow-x-auto">
+                                <span class="text-slate-400 whitespace-nowrap"><i class="fa-solid fa-folder-open text-indigo-400 mr-1.5"></i> OmniVault</span>
+                                <span class="text-slate-600">/</span>
+                                <span id="breadcrumb-category" class="font-bold text-white whitespace-nowrap">All Resources</span>
+                                <span id="breadcrumb-subcat-wrapper" class="hidden flex items-center space-x-2 whitespace-nowrap">
+                                    <span class="text-slate-600">/</span>
+                                    <span id="breadcrumb-subcategory" class="font-mono text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-md border border-indigo-500/30"></span>
+                                </span>
+                                <button id="breadcrumb-reset-btn" onclick="selectVaultCategory('All', 'All')" class="hidden ml-2 text-rose-400 hover:text-rose-300 text-[11px] font-mono transition" title="Clear Filter">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+
+                            <!-- Search Input -->
+                            <div class="relative w-full sm:w-72 md:w-80">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                                <input id="vault-search-input" oninput="filterVaultCards()" type="text" placeholder="Search blueprints, tools, OSINT, tags..." class="w-full bg-[#0d1322] border border-white/[0.1] rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition">
+                                <button onclick="document.getElementById('vault-search-input').value=''; filterVaultCards();" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs">
+                                    <i class="fa-solid fa-circle-xmark"></i>
+                                </button>
+                            </div>
+
+                            <!-- View Mode & Counter -->
+                            <div class="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-end">
+                                <span id="vault-results-counter" class="text-xs font-mono text-slate-400">
+                                    Showing <strong id="vault-visible-count" class="text-white">{{ vault_recent|length }}</strong> items
+                                </span>
+                                <div class="flex items-center space-x-1 bg-white/[0.04] p-1 rounded-xl border border-white/[0.08]">
+                                    <button onclick="setVaultViewMode('grid', this)" id="vault-view-grid-btn" class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs transition" title="Grid View">
+                                        <i class="fa-solid fa-table-cells-large"></i>
+                                    </button>
+                                    <button onclick="setVaultViewMode('list', this)" id="vault-view-list-btn" class="w-7 h-7 rounded-lg text-slate-400 hover:text-white flex items-center justify-center text-xs transition" title="List View">
+                                        <i class="fa-solid fa-list-ul"></i>
                                     </button>
                                 </div>
                             </div>
-                            
+                        </div>
+
+                        <!-- Dynamic Grid of Vault Cards -->
+                        <div id="vault-cards-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                            {% for r in vault_recent %}
+                            <div class="vault-resource-card apple-card rounded-3xl p-5 flex flex-col justify-between space-y-4 transition-all duration-200" 
+                                 data-id="{{ r.id }}" 
+                                 data-category="{{ r.category }}" 
+                                 data-subcategory="{{ r.subcategory|default:'' }}" 
+                                 data-favorite="{{ r.favorite|lower }}" 
+                                 data-title="{{ r.title|lower }}" 
+                                 data-desc="{{ r.one_liner|lower }}" 
+                                 data-tags="{{ r.tags|lower }}" 
+                                 data-source="{{ r.source_type|lower }}">
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between text-xs">
+                                        <div class="flex items-center space-x-1.5 truncate max-w-[210px]">
+                                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 truncate">{{ r.category }}</span>
+                                            {% if r.subcategory %}
+                                            <span class="px-2 py-0.5 rounded-full text-[9px] font-mono bg-white/[0.05] text-slate-300 border border-white/[0.08] truncate">{{ r.subcategory }}</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="flex items-center space-x-2 flex-shrink-0">
+                                            <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold {% if r.safety_status == 'SAFE' %}bg-emerald-500/20 text-emerald-300 border border-emerald-500/40{% elif r.safety_status == 'PENTEST_ONLY' %}bg-amber-500/20 text-amber-300 border border-amber-500/40{% else %}bg-rose-500/20 text-rose-300 border border-rose-500/40{% endif %}">
+                                                {{ r.safety_status }}
+                                            </span>
+                                            <button onclick="toggleFavorite('{{ r.id }}', this)" title="Toggle Favorite Star" class="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-amber-400 flex items-center justify-center transition active:scale-90">
+                                                <i class="{% if r.favorite %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <div class="flex items-center space-x-2">
+                                            {% if r.source_type == 'pdf' or r.source_type == 'doc' %}
+                                            <span class="w-5 h-5 rounded-md bg-rose-500/20 text-rose-300 flex items-center justify-center text-[10px] flex-shrink-0" title="Document / Blueprint">
+                                                <i class="fa-solid fa-file-pdf"></i>
+                                            </span>
+                                            {% elif r.source_type == 'image' %}
+                                            <span class="w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[10px] flex-shrink-0" title="Screenshot OCR">
+                                                <i class="fa-solid fa-image"></i>
+                                            </span>
+                                            {% else %}
+                                            <span class="w-5 h-5 rounded-md bg-blue-500/20 text-blue-300 flex items-center justify-center text-[10px] flex-shrink-0" title="Web Resource">
+                                                <i class="fa-solid fa-globe"></i>
+                                            </span>
+                                            {% endif %}
+                                            <h3 class="text-base font-extrabold text-white truncate">{{ r.title }}</h3>
+                                        </div>
+                                    </div>
+
+                                    <p class="text-xs text-slate-300 leading-relaxed line-clamp-3">{{ r.one_liner }}</p>
+
+                                    {% if r.tags %}
+                                    <div class="flex flex-wrap gap-1 pt-1">
+                                        {% for tag in r.tags|slice:":4" %}
+                                        <span class="px-2 py-0.5 rounded-md bg-white/[0.04] text-[10px] font-mono text-slate-400">#{{ tag }}</span>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs font-mono">
+                                    {% if r.url %}
+                                    <button onclick="copyToClipboard('{{ r.url|escapejs }}', this)" class="text-slate-400 hover:text-white transition flex items-center space-x-1">
+                                        <i class="fa-regular fa-copy text-[11px]"></i>
+                                        <span>Copy Link</span>
+                                    </button>
+                                    {% else %}
+                                    <span class="text-slate-500 text-[10px] font-mono uppercase tracking-wider flex items-center space-x-1">
+                                        <i class="fa-solid fa-shield-halved text-emerald-400 text-[10px]"></i>
+                                        <span>OmniVault Doc</span>
+                                    </span>
+                                    {% endif %}
+                                    <div class="flex items-center space-x-3">
+                                        <button onclick="viewResourceDetails('{{ r.id }}')" class="text-indigo-400 hover:text-indigo-300 font-semibold flex items-center space-x-1">
+                                            <i class="fa-solid fa-eye text-[10px]"></i>
+                                            <span>Inspect</span>
+                                        </button>
+                                        {% if r.url %}
+                                        <a href="{{ r.url }}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 font-semibold flex items-center space-x-1">
+                                            <span>Launch</span>
+                                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Empty State Notice -->
+                        <div id="vault-empty-state" class="hidden apple-card rounded-3xl p-12 text-center space-y-4">
+                            <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mx-auto flex items-center justify-center text-2xl">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </div>
                             <div>
-                                <h3 class="text-base font-extrabold text-white">{{ r.title }}</h3>
-                                {% if r.subcategory %}
-                                <div class="text-[11px] text-slate-400 font-mono mt-0.5">{{ r.subcategory }}</div>
-                                {% endif %}
+                                <h3 class="text-base font-bold text-white">No Resources Match This Filter</h3>
+                                <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Try selecting another category from the sidebar tree, clearing your search query, or uploading a new blueprint/tool.</p>
                             </div>
-
-                            <p class="text-xs text-slate-300 leading-relaxed line-clamp-3">{{ r.one_liner }}</p>
-
-                            {% if r.tags %}
-                            <div class="flex flex-wrap gap-1 pt-1">
-                                {% for tag in r.tags|slice:":4" %}
-                                <span class="px-2 py-0.5 rounded-md bg-white/[0.04] text-[10px] font-mono text-slate-400">#{{ tag }}</span>
-                                {% endfor %}
-                            </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs font-mono">
-                            <button onclick="copyToClipboard('{{ r.url|escapejs }}', this)" class="text-slate-400 hover:text-white transition flex items-center space-x-1">
-                                <i class="fa-regular fa-copy text-[11px]"></i>
-                                <span>Copy Link</span>
+                            <button onclick="selectVaultCategory('All', 'All')" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition">
+                                Reset to All Categories
                             </button>
-                            <div class="flex items-center space-x-3">
-                                <button onclick="viewResourceDetails('{{ r.id }}')" class="text-indigo-400 hover:text-indigo-300 font-semibold">
-                                    Details
-                                </button>
-                                {% if r.url %}
-                                <a href="{{ r.url }}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 font-semibold flex items-center space-x-1">
-                                    <span>Launch</span>
-                                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                                </a>
-                                {% endif %}
-                            </div>
                         </div>
+
                     </div>
-                    {% endfor %}
                 </div>
 
             </section>
@@ -1720,6 +1894,27 @@
                     <textarea id="ingest-input-text" rows="4" placeholder="Paste command flags, cheatsheet text, or research note..." class="w-full bg-[#0d1322] border border-white/[0.1] rounded-2xl p-3 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"></textarea>
                 </div>
 
+                <div id="ingest-field-meta" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 border-t border-white/[0.06]">
+                    <div>
+                        <label class="text-[11px] font-mono text-slate-400">Blueprint / Resource Title (Optional):</label>
+                        <input id="ingest-custom-title" type="text" placeholder="e.g. Hermes Architecture Blueprint" class="w-full bg-[#0d1322] border border-white/[0.1] rounded-2xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-mono text-slate-400">Category Domain (Optional):</label>
+                        <input id="ingest-custom-category" type="text" placeholder="e.g. Blueprints & Architecture" list="category-suggestions" class="w-full bg-[#0d1322] border border-white/[0.1] rounded-2xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                        <datalist id="category-suggestions">
+                            <option value="Blueprints & Architecture">
+                            <option value="Claude & Agent Skills">
+                            <option value="AI & LLM Tools">
+                            <option value="Cyber Security & Pentesting">
+                            <option value="Developer & APIs">
+                            <option value="Linux, Homelab & Systems">
+                            <option value="Productivity & Automation">
+                            <option value="Student & Learning">
+                        </datalist>
+                    </div>
+                </div>
+
                 <button type="submit" id="ingest-submit-btn" class="w-full py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition active:scale-95 shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2">
                     <i class="fa-solid fa-cloud-arrow-up"></i>
                     <span>Save to OmniVault</span>
@@ -2054,47 +2249,172 @@
         }
 
         let isStarredOnlyActive = false;
-        function toggleStarredOnlyFilter() {
-            isStarredOnlyActive = !isStarredOnlyActive;
-            const btn = document.getElementById('vault-fav-filter-btn');
-            if (isStarredOnlyActive) {
-                btn.classList.add('bg-amber-500/20', 'border-amber-400');
+        let selectedCategory = 'All';
+        let selectedSubcategory = 'All';
+        let vaultViewMode = 'grid';
+
+        function toggleMobileVaultSidebar() {
+            const sb = document.getElementById('vault-sidebar');
+            if (sb) {
+                sb.classList.toggle('hidden');
+                if (!sb.classList.contains('hidden')) {
+                    sb.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+        }
+
+        function toggleSubcategoryTree(drawerId, arrowBtn, event) {
+            if (event) event.stopPropagation();
+            const drawer = document.getElementById(drawerId);
+            if (!drawer) return;
+            const isHidden = drawer.classList.contains('hidden');
+            drawer.classList.toggle('hidden');
+            
+            const icon = arrowBtn ? arrowBtn.querySelector('i') : null;
+            if (icon) {
+                if (isHidden) {
+                    icon.classList.remove('fa-chevron-right');
+                    icon.classList.add('fa-chevron-down', 'text-indigo-400');
+                } else {
+                    icon.classList.remove('fa-chevron-down', 'text-indigo-400');
+                    icon.classList.add('fa-chevron-right');
+                }
+            }
+        }
+
+        function selectVaultCategory(cat, subcat, btnElement) {
+            selectedCategory = cat || 'All';
+            selectedSubcategory = subcat || 'All';
+
+            // Reset active classes
+            document.querySelectorAll('.vault-sidebar-item').forEach(b => {
+                b.classList.remove('active', 'bg-indigo-600', 'text-white');
+                b.classList.add('text-slate-300');
+            });
+            document.querySelectorAll('.vault-parent-cat-btn').forEach(b => {
+                b.classList.remove('text-indigo-400', 'font-bold');
+            });
+            document.querySelectorAll('.vault-subcat-btn').forEach(b => {
+                b.classList.remove('active', 'bg-indigo-600/30', 'text-white', 'border', 'border-indigo-500/40');
+                b.classList.add('text-slate-400');
+            });
+
+            if (selectedCategory === 'All' && selectedSubcategory === 'All') {
+                const allBtn = document.getElementById('vault-cat-all-btn');
+                if (allBtn) {
+                    allBtn.classList.add('active', 'bg-indigo-600', 'text-white');
+                    allBtn.classList.remove('text-slate-300');
+                }
+            } else if (btnElement) {
+                if (btnElement.classList.contains('vault-subcat-btn')) {
+                    btnElement.classList.add('active', 'bg-indigo-600/30', 'text-white', 'border', 'border-indigo-500/40');
+                    btnElement.classList.remove('text-slate-400');
+                } else if (btnElement.classList.contains('vault-parent-cat-btn')) {
+                    btnElement.classList.add('text-indigo-400', 'font-bold');
+                    const parentGroup = btnElement.closest('.vault-category-node');
+                    const drawer = parentGroup ? parentGroup.querySelector('.subcat-tree-drawer') : null;
+                    const arrowBtn = parentGroup ? parentGroup.querySelector('.cat-expand-btn') : null;
+                    if (drawer && drawer.classList.contains('hidden')) {
+                        toggleSubcategoryTree(drawer.id, arrowBtn);
+                    }
+                }
+            }
+
+            // Update Breadcrumb
+            const bcCat = document.getElementById('breadcrumb-category');
+            const bcSubWrapper = document.getElementById('breadcrumb-subcat-wrapper');
+            const bcSub = document.getElementById('breadcrumb-subcategory');
+            const resetBtn = document.getElementById('breadcrumb-reset-btn');
+
+            if (bcCat) bcCat.innerText = selectedCategory;
+            if (selectedSubcategory && selectedSubcategory !== 'All') {
+                if (bcSubWrapper) bcSubWrapper.classList.remove('hidden');
+                if (bcSub) bcSub.innerText = selectedSubcategory;
             } else {
-                btn.classList.remove('bg-amber-500/20', 'border-amber-400');
+                if (bcSubWrapper) bcSubWrapper.classList.add('hidden');
+            }
+
+            if (selectedCategory !== 'All' || (selectedSubcategory && selectedSubcategory !== 'All')) {
+                if (resetBtn) resetBtn.classList.remove('hidden');
+            } else {
+                if (resetBtn) resetBtn.classList.add('hidden');
+            }
+
+            filterVaultCards();
+        }
+
+        function toggleStarredOnlyFilter(btnElement) {
+            isStarredOnlyActive = !isStarredOnlyActive;
+            const btn = btnElement || document.getElementById('vault-cat-starred-btn');
+            if (btn) {
+                if (isStarredOnlyActive) {
+                    btn.classList.add('active', 'bg-amber-500/20', 'text-amber-300', 'border', 'border-amber-500/40');
+                    btn.classList.remove('text-slate-300');
+                } else {
+                    btn.classList.remove('active', 'bg-amber-500/20', 'text-amber-300', 'border', 'border-amber-500/40');
+                    btn.classList.add('text-slate-300');
+                }
             }
             filterVaultCards();
         }
 
-        let selectedCategory = 'All';
-        function selectVaultCategory(cat, btnElement) {
-            selectedCategory = cat;
-            document.querySelectorAll('.vault-cat-btn').forEach(b => {
-                b.className = 'vault-cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-white/[0.05] text-slate-300 hover:text-white transition active:scale-95';
-            });
-            if (btnElement) {
-                btnElement.className = 'vault-cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-indigo-600 text-white transition active:scale-95';
+        function setVaultViewMode(mode, btn) {
+            vaultViewMode = mode;
+            const grid = document.getElementById('vault-cards-grid');
+            const gridBtn = document.getElementById('vault-view-grid-btn');
+            const listBtn = document.getElementById('vault-view-list-btn');
+
+            if (mode === 'list') {
+                if (grid) grid.className = 'flex flex-col space-y-3';
+                if (listBtn) listBtn.className = 'w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs transition';
+                if (gridBtn) gridBtn.className = 'w-7 h-7 rounded-lg text-slate-400 hover:text-white flex items-center justify-center text-xs transition';
+            } else {
+                if (grid) grid.className = 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4';
+                if (gridBtn) gridBtn.className = 'w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs transition';
+                if (listBtn) listBtn.className = 'w-7 h-7 rounded-lg text-slate-400 hover:text-white flex items-center justify-center text-xs transition';
             }
-            filterVaultCards();
         }
 
         function filterVaultCards() {
-            const query = (document.getElementById('vault-search-input')?.value || '').toLowerCase();
-            document.querySelectorAll('.vault-resource-card').forEach(card => {
-                const title = card.getAttribute('data-title') || '';
-                const desc = card.getAttribute('data-desc') || '';
-                const cat = card.getAttribute('data-category') || '';
+            const query = (document.getElementById('vault-search-input')?.value || '').toLowerCase().trim();
+            const selCatLower = (selectedCategory || 'All').toLowerCase();
+            const selSubcatLower = (selectedSubcategory || 'All').toLowerCase();
+
+            let visibleCount = 0;
+            const cards = document.querySelectorAll('.vault-resource-card');
+            
+            cards.forEach(card => {
+                const title = (card.getAttribute('data-title') || '').toLowerCase();
+                const desc = (card.getAttribute('data-desc') || '').toLowerCase();
+                const cat = (card.getAttribute('data-category') || '').toLowerCase();
+                const subcat = (card.getAttribute('data-subcategory') || '').toLowerCase();
+                const tags = (card.getAttribute('data-tags') || '').toLowerCase();
                 const isFav = card.getAttribute('data-favorite') === 'true';
 
-                const matchesQuery = !query || title.includes(query) || desc.includes(query);
-                const matchesCat = (selectedCategory === 'All') || (cat === selectedCategory);
+                const matchesQuery = !query || title.includes(query) || desc.includes(query) || cat.includes(query) || subcat.includes(query) || tags.includes(query);
+                const matchesCat = (selCatLower === 'all') || (cat === selCatLower);
+                const matchesSubcat = (selSubcatLower === 'all') || (subcat === selSubcatLower);
                 const matchesFav = !isStarredOnlyActive || isFav;
 
-                if (matchesQuery && matchesCat && matchesFav) {
+                if (matchesQuery && matchesCat && matchesSubcat && matchesFav) {
                     card.classList.remove('hidden');
+                    visibleCount++;
                 } else {
                     card.classList.add('hidden');
                 }
             });
+
+            const countEl = document.getElementById('vault-visible-count');
+            if (countEl) countEl.innerText = visibleCount;
+
+            const emptyState = document.getElementById('vault-empty-state');
+            if (emptyState) {
+                if (visibleCount === 0) {
+                    emptyState.classList.remove('hidden');
+                } else {
+                    emptyState.classList.add('hidden');
+                }
+            }
         }
 
         let currentModalUrl = '';
@@ -2105,10 +2425,11 @@
                 if (data.status === 'ok' && data.resource) {
                     const r = data.resource;
                     document.getElementById('modal-title').innerText = r.title;
-                    document.getElementById('modal-category-badge').innerText = r.category;
-                    document.getElementById('modal-category-badge').className = 'px-2.5 py-0.5 rounded-full text-[10px] font-mono border bg-indigo-500/20 text-indigo-300 border-indigo-500/40';
+                    const catBadge = document.getElementById('modal-category-badge');
+                    catBadge.innerText = r.category + (r.subcategory ? ` // ${r.subcategory}` : '');
+                    catBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-mono border bg-indigo-500/20 text-indigo-300 border-indigo-500/40';
                     document.getElementById('modal-one-liner').innerText = r.one_liner || 'No one-liner provided.';
-                    document.getElementById('modal-url').innerText = r.url || 'No external URL';
+                    document.getElementById('modal-url').innerText = r.url || 'No external URL (OmniVault Internal Document)';
                     currentModalUrl = r.url || '';
                     document.getElementById('modal-summary').innerText = r.detailed_summary || 'No detailed summary recorded.';
                     document.getElementById('modal-how-to-use').innerText = r.how_to_use || 'Refer to documentation.';
@@ -2157,21 +2478,26 @@
             const urlField = document.getElementById('ingest-field-url');
             const fileField = document.getElementById('ingest-field-file');
             const textField = document.getElementById('ingest-field-text');
+            const metaField = document.getElementById('ingest-field-meta');
             const fileLabel = document.getElementById('ingest-file-label');
+            const fileInput = document.getElementById('ingest-input-file');
 
             urlField.classList.add('hidden');
             fileField.classList.add('hidden');
             textField.classList.add('hidden');
+            if (metaField) metaField.classList.remove('hidden');
 
             if (type === 'image') {
                 title.innerText = 'Upload Screenshot (OCR Vision)';
                 icon.className = 'fa-solid fa-image text-indigo-400 text-sm';
-                fileLabel.innerText = 'Select Screenshot (JPEG/PNG, max 15MB):';
+                fileLabel.innerText = 'Select Screenshot (JPEG/PNG/WEBP, max 15MB):';
+                if (fileInput) fileInput.accept = 'image/*';
                 fileField.classList.remove('hidden');
-            } else if (type === 'pdf') {
-                title.innerText = 'Upload PDF Cheatsheet';
+            } else if (type === 'pdf' || type === 'doc' || type === 'blueprint') {
+                title.innerText = 'Upload Document / PDF / Blueprint';
                 icon.className = 'fa-solid fa-file-pdf text-rose-400 text-sm';
-                fileLabel.innerText = 'Select PDF Document (max 25MB):';
+                fileLabel.innerText = 'Select PDF, Markdown Blueprint, or Technical Document (.pdf, .md, .txt, .docx, max 30MB):';
+                if (fileInput) fileInput.accept = '.pdf,.md,.markdown,.txt,.json,.docx';
                 fileField.classList.remove('hidden');
             } else if (type === 'text') {
                 title.innerText = 'Add Quick Command or Note';
@@ -2202,31 +2528,38 @@
                 let body = null;
                 let isFormData = false;
 
+                const customTitle = (document.getElementById('ingest-custom-title')?.value || '').trim();
+                const customCat = (document.getElementById('ingest-custom-category')?.value || '').trim();
+
                 if (type === 'image') {
                     endpoint = '/api/vault/ingest/image/';
                     const fileInput = document.getElementById('ingest-input-file');
-                    if (!fileInput.files.length) throw new Error('Please select an image');
+                    if (!fileInput.files.length) throw new Error('Please select an image file');
                     const fd = new FormData();
                     fd.append('file', fileInput.files[0]);
+                    if (customTitle) fd.append('title', customTitle);
+                    if (customCat) fd.append('category', customCat);
                     body = fd;
                     isFormData = true;
-                } else if (type === 'pdf') {
+                } else if (type === 'pdf' || type === 'doc' || type === 'blueprint') {
                     endpoint = '/api/vault/ingest/pdf/';
                     const fileInput = document.getElementById('ingest-input-file');
-                    if (!fileInput.files.length) throw new Error('Please select a PDF');
+                    if (!fileInput.files.length) throw new Error('Please select a PDF or Document');
                     const fd = new FormData();
                     fd.append('file', fileInput.files[0]);
+                    if (customTitle) fd.append('title', customTitle);
+                    if (customCat) fd.append('category', customCat);
                     body = fd;
                     isFormData = true;
                 } else if (type === 'text') {
                     endpoint = '/api/vault/ingest/text/';
                     const text = document.getElementById('ingest-input-text').value.trim();
                     if (!text) throw new Error('Please enter text');
-                    body = JSON.stringify({ text: text });
+                    body = JSON.stringify({ text: text, title: customTitle, category: customCat });
                 } else {
                     const url = document.getElementById('ingest-input-url').value.trim();
                     if (!url) throw new Error('Please enter a URL');
-                    body = JSON.stringify({ url: url });
+                    body = JSON.stringify({ url: url, title: customTitle, category: customCat });
                 }
 
                 const options = { method: 'POST', body: body, headers: { 'X-CSRFToken': getCSRFToken() } };
@@ -2235,7 +2568,7 @@
                 const res = await fetch(endpoint, options);
                 const data = await res.json();
                 if (data.status === 'ok') {
-                    showToast('Successfully ingested into OmniVault! 🚀');
+                    showToast('Successfully indexed into OmniVault! 🚀');
                     closeIngestModal();
                     setTimeout(() => location.reload(), 1200);
                 } else {
