@@ -381,8 +381,8 @@
                     </div>
                 </div>
 
-                <!-- Resource Cards Grid (Middle Stream) -->
-                <div id="vault-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                <!-- Resource Cards Grid (Spacious Multi-Column Stream) -->
+                <div id="vault-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     <div class="col-span-full py-20 text-center text-slate-500 text-xs font-mono">
                         <i class="fa-solid fa-circle-notch fa-spin text-xl text-indigo-400 mb-2.5"></i>
                         <p>Loading OmniVault memory ledger...</p>
@@ -390,14 +390,13 @@
                 </div>
             </div>
 
-            <!-- RIGHT COLUMN: macOS FINDER / APPLE NOTES PERSISTENT INSPECTOR PANE -->
-            <!-- Mobile Backdrop for Inspector Slide-over -->
-            <div id="standalone-inspector-backdrop" onclick="closeStandaloneInspector()" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden xl:hidden transition-opacity"></div>
+            <!-- Slide-Over Inspector Backdrop -->
+            <div id="standalone-inspector-backdrop" onclick="closeStandaloneInspector()" class="fixed inset-0 bg-black/70 backdrop-blur-md z-40 hidden transition-opacity duration-300"></div>
 
-            <!-- Standalone Inspector Pane -->
-            <aside id="standalone-inspector-pane" class="w-full xl:w-96 2xl:w-[420px] flex-shrink-0 xl:sticky xl:top-24 hidden xl:flex flex-col apple-glass rounded-3xl border border-white/[0.1] shadow-2xl overflow-hidden max-h-[calc(100vh-110px)] transition-all duration-300 z-50">
+            <!-- Slide-Over Inspector Drawer (Linear / Raycast / macOS Sheet) -->
+            <aside id="standalone-inspector-pane" class="fixed inset-y-0 right-0 z-50 w-full sm:w-[540px] md:w-[620px] bg-[#0c101d]/95 backdrop-blur-2xl border-l border-white/10 shadow-2xl flex flex-col translate-x-full transition-transform duration-300 ease-out overflow-hidden">
                 <!-- macOS Window Header Bar -->
-                <div class="px-4 py-3 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
+                <div class="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
                     <div class="flex items-center space-x-2.5">
                         <div class="flex items-center space-x-1.5 mr-1">
                             <span class="w-2.5 h-2.5 rounded-full bg-rose-500/80 inline-block"></span>
@@ -409,12 +408,12 @@
                             <span>Vault Inspector</span>
                         </span>
                     </div>
-                    <div class="flex items-center space-x-1.5">
-                        <button id="standalone-inspector-fav-btn" onclick="toggleStandaloneInspectorFav()" class="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-white/[0.12] text-amber-400 flex items-center justify-center text-xs transition active:scale-90" title="Star / Favorite">
+                    <div class="flex items-center space-x-2">
+                        <button id="standalone-inspector-fav-btn" onclick="toggleStandaloneInspectorFav()" class="w-8 h-8 rounded-xl bg-white/[0.05] hover:bg-white/[0.12] text-amber-400 flex items-center justify-center text-xs transition active:scale-90" title="Star / Favorite">
                             <i class="fa-regular fa-star"></i>
                         </button>
-                        <button onclick="closeStandaloneInspector()" class="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-white/[0.12] text-slate-400 hover:text-white flex items-center justify-center text-xs transition active:scale-90" title="Close / Minimize">
-                            <i class="fa-solid fa-xmark"></i>
+                        <button onclick="closeStandaloneInspector()" class="w-8 h-8 rounded-xl bg-white/[0.06] hover:bg-white/[0.15] text-slate-300 hover:text-white flex items-center justify-center text-xs transition active:scale-90" title="Close Drawer (Esc)">
+                            <i class="fa-solid fa-xmark text-sm"></i>
                         </button>
                     </div>
                 </div>
@@ -1002,13 +1001,6 @@
                 `;
             });
             grid.innerHTML = html;
-
-            if (items.length > 0 && window.innerWidth >= 1280) {
-                setTimeout(() => {
-                    const firstCard = document.querySelector('#vault-grid .apple-glass-card');
-                    inspectStandaloneItem(items[0].id, firstCard);
-                }, 50);
-            }
         }
 
         function toggleMobileVaultSidebar() {
@@ -1435,38 +1427,33 @@
             const contentEl = document.getElementById("standalone-inspector-content");
             if (contentEl) contentEl.classList.remove("hidden");
 
-            // Mobile slide-over drawer check
+            // Slide Open the Drawer
             const pane = document.getElementById("standalone-inspector-pane");
             const backdrop = document.getElementById("standalone-inspector-backdrop");
-            if (window.innerWidth < 1280) {
-                pane.classList.remove("hidden");
-                pane.classList.add("fixed", "inset-y-0", "right-0", "z-50", "w-full", "sm:w-[460px]", "bg-[#0b0e17]/95", "backdrop-blur-2xl", "p-0", "shadow-2xl");
-                if (backdrop) backdrop.classList.remove("hidden");
-            } else {
-                pane.classList.remove("hidden");
+            if (backdrop) backdrop.classList.remove("hidden");
+            if (pane) {
+                pane.classList.remove("translate-x-full");
+                pane.classList.add("translate-x-0");
             }
         }
 
         function closeStandaloneInspector() {
             const pane = document.getElementById("standalone-inspector-pane");
             const backdrop = document.getElementById("standalone-inspector-backdrop");
-            if (backdrop) backdrop.classList.add("hidden");
-            if (window.innerWidth < 1280) {
-                if (pane) {
-                    pane.classList.add("hidden");
-                    pane.classList.remove("fixed", "inset-y-0", "right-0", "z-50", "w-full", "sm:w-[460px]", "bg-[#0b0e17]/95", "backdrop-blur-2xl", "p-0", "shadow-2xl");
-                }
-            } else {
-                const content = document.getElementById("standalone-inspector-content");
-                const empty = document.getElementById("standalone-inspector-empty");
-                if (content) content.classList.add("hidden");
-                if (empty) empty.classList.remove("hidden");
-                document.querySelectorAll('#vault-grid .apple-glass-card').forEach(c => {
-                    c.classList.remove('ring-2', 'ring-indigo-500', 'border-indigo-500/80', 'bg-indigo-500/[0.08]');
-                });
-                activeStandaloneInspectedItem = null;
+            if (pane) {
+                pane.classList.remove("translate-x-0");
+                pane.classList.add("translate-x-full");
             }
+            if (backdrop) backdrop.classList.add("hidden");
+            document.querySelectorAll('#vault-grid .apple-glass-card').forEach(c => {
+                c.classList.remove('ring-2', 'ring-indigo-500', 'border-indigo-500/80', 'bg-indigo-500/[0.08]');
+            });
+            activeStandaloneInspectedItem = null;
         }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeStandaloneInspector();
+        });
 
         function copyStandaloneSnippet() {
             if (!activeStandaloneInspectedItem) return;
