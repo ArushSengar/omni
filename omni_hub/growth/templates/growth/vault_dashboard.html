@@ -198,7 +198,7 @@
     </header>
 
     <!-- Main Workspace Container -->
-    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <main class="flex-1 max-w-[1720px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
         <!-- Metrics Overview (Apple Stat Cards) -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
@@ -382,7 +382,7 @@
                 </div>
 
                 <!-- Resource Cards Grid (Spacious Multi-Column Stream) -->
-                <div id="vault-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div id="vault-grid" class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-5">
                     <div class="col-span-full py-20 text-center text-slate-500 text-xs font-mono">
                         <i class="fa-solid fa-circle-notch fa-spin text-xl text-indigo-400 mb-2.5"></i>
                         <p>Loading OmniVault memory ledger...</p>
@@ -936,66 +936,72 @@
                 else if (item.source_type === "pdf") sourceIcon = "fa-file-pdf";
                 else if (item.source_type === "manual") sourceIcon = "fa-pen";
 
-                const tagPills = (item.tags || []).slice(0, 3).map(t => 
-                    `<span class="bg-white/[0.04] text-slate-400 px-2 py-0.5 rounded-md border border-white/[0.06] text-[10px] font-mono">#${escapeHtml(t)}</span>`
+                const tagPills = (item.tags || []).slice(0, 4).map(t => 
+                    `<span class="bg-white/[0.05] text-slate-300 px-2.5 py-0.5 rounded-md border border-white/[0.08] text-[10px] font-mono whitespace-nowrap">#${escapeHtml(t)}</span>`
                 ).join(" ");
 
                 html += `
-                    <div class="apple-glass-card rounded-2xl p-4.5 flex flex-col justify-between group shadow-lg cursor-pointer border border-white/[0.06] hover:border-indigo-500/40 hover:bg-white/[0.04] transition-all duration-150" 
+                    <div class="apple-glass-card rounded-3xl p-5 flex flex-col justify-between group shadow-lg cursor-pointer border border-white/[0.06] hover:border-indigo-500/40 hover:bg-white/[0.04] transition-all duration-200" 
                          onclick="inspectStandaloneItem(${item.id}, this)"
                          data-id="${item.id}">
-                        <div class="space-y-3">
+                        <div class="space-y-3.5">
                             <!-- Card Header -->
-                            <div class="flex items-start justify-between gap-2">
-                                <div class="flex items-center space-x-2.5 truncate">
-                                    <span class="w-6 h-6 rounded-lg bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-slate-400 text-[11px]">
-                                        <i class="fa-solid ${sourceIcon}"></i>
-                                    </span>
-                                    <h3 class="font-bold text-white text-sm group-hover:text-indigo-300 transition truncate">${escapeHtml(item.title)}</h3>
+                            <div class="flex items-center justify-between text-xs gap-2">
+                                <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                                    <span class="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 whitespace-nowrap">${escapeHtml(item.category)}</span>
+                                    ${item.subcategory ? `<span class="px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/[0.05] text-slate-300 border border-white/[0.08] whitespace-nowrap">${escapeHtml(item.subcategory)}</span>` : ''}
                                 </div>
-                                <div class="flex items-center space-x-1 flex-shrink-0">
-                                    <button onclick="event.stopPropagation(); toggleFav(${item.id});" class="p-1 text-sm ${favClass} transition active:scale-90" title="Star Favorite">
+                                <div class="flex items-center space-x-2 flex-shrink-0">
+                                    <span class="px-2.5 py-0.5 rounded-md text-[9px] font-mono font-bold tracking-wider ${badgeClass}">
+                                        ${item.safety_status}
+                                    </span>
+                                    <button onclick="event.stopPropagation(); toggleFav(${item.id});" class="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] ${favClass} flex items-center justify-center transition active:scale-90" title="Star Favorite">
                                         <i class="fa-solid fa-star"></i>
                                     </button>
-                                    <button onclick="event.stopPropagation(); deleteResource(${item.id});" class="p-1 text-xs text-slate-600 hover:text-rose-400 transition" title="Delete">
-                                        <i class="fa-regular fa-trash-can"></i>
-                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Title & Icon -->
+                            <div class="flex items-start space-x-3 pt-0.5">
+                                <span class="w-8 h-8 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-slate-300 text-xs flex-shrink-0 mt-0.5">
+                                    <i class="fa-solid ${sourceIcon}"></i>
+                                </span>
+                                <div class="min-w-0 flex-1">
+                                    <h3 class="font-bold text-white text-base group-hover:text-indigo-300 transition leading-snug">${escapeHtml(item.title)}</h3>
                                 </div>
                             </div>
 
                             <!-- Punchy 1-Liner Purpose -->
-                            <div class="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3">
-                                <p class="text-xs text-indigo-200/90 font-medium leading-relaxed">
-                                    ${escapeHtml(item.one_liner)}
-                                </p>
-                            </div>
-
-                            <!-- Category & Safety Tier -->
-                            <div class="flex items-center justify-between text-[11px]">
-                                <span class="text-slate-400 font-medium truncate">${escapeHtml(item.category)}${item.subcategory ? ` <span class="text-indigo-400/80 font-mono text-[10px]">// ${escapeHtml(item.subcategory)}</span>` : ''}</span>
-                                <span class="px-2 py-0.5 rounded-full text-[9.5px] font-mono border ${badgeClass}">
-                                    ${item.safety_status}
-                                </span>
-                            </div>
+                            <p class="text-xs text-slate-300 leading-relaxed line-clamp-3">
+                                ${escapeHtml(item.one_liner)}
+                            </p>
 
                             <!-- Tags -->
-                            <div class="flex flex-wrap gap-1 pt-0.5">
+                            <div class="flex flex-wrap gap-1.5 pt-0.5">
                                 ${tagPills}
                             </div>
                         </div>
 
                         <!-- Card Footer Actions -->
-                        <div class="pt-3.5 mt-3.5 border-t border-white/[0.06] flex items-center justify-between text-xs">
-                            <span class="text-indigo-400 hover:text-indigo-300 font-semibold flex items-center space-x-1 transition text-[11px]">
+                        <div class="pt-3 mt-3 border-t border-white/[0.06] flex items-center justify-between text-xs font-mono">
+                            <span class="text-indigo-400 hover:text-indigo-300 font-semibold flex items-center space-x-1.5 transition text-[11px]">
                                 <i class="fa-solid fa-compass-drafting text-[10px]"></i>
-                                <span>Click to Inspect</span>
+                                <span>Inspect Specs</span>
+                                <i class="fa-solid fa-arrow-right text-[9px] group-hover:translate-x-1 transition-transform"></i>
                             </span>
-                            ${sanitizeUrl(item.url) ? `
-                                <a href="${sanitizeUrl(item.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-slate-400 hover:text-white flex items-center space-x-1 transition">
-                                    <span class="font-mono text-[11px]">Visit</span>
-                                    <i class="fa-solid fa-external-link text-[9px]"></i>
-                                </a>
-                            ` : ''}
+                            <div class="flex items-center space-x-2">
+                                ${sanitizeUrl(item.url) ? `
+                                    <a href="${sanitizeUrl(item.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-slate-300 hover:text-white font-semibold flex items-center space-x-1.5 text-[11px] bg-white/[0.06] hover:bg-white/[0.12] px-3 py-1 rounded-lg border border-white/[0.08] transition">
+                                        <span>Visit</span>
+                                        <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                                    </a>
+                                ` : `
+                                    <span class="text-slate-500 text-[10px] font-mono uppercase tracking-wider flex items-center space-x-1 bg-white/[0.03] px-2.5 py-1 rounded-lg border border-white/[0.05]">
+                                        <i class="fa-solid fa-shield-halved text-emerald-400 text-[9px]"></i>
+                                        <span>Doc</span>
+                                    </span>
+                                `}
+                            </div>
                         </div>
                     </div>
                 `;
