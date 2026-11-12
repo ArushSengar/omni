@@ -24,8 +24,9 @@ Usage:
 
 import os
 import sys
-# Strip stale python3.14 paths
-sys.path = [p for p in sys.path if "python3.14" not in p]
+# Strip stale python3.14 paths only when running under python < 3.14
+if sys.version_info < (3, 14):
+    sys.path = [p for p in sys.path if "python3.14" not in p]
 sys.path.insert(0, "/home/arush")
 
 import argparse

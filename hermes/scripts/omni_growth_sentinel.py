@@ -40,10 +40,10 @@ DIRECTIVES_PATH = Path.home() / ".hermes" / "growth_manager_directives.json"
 
 
 def get_python_exe() -> str:
-    """Returns hermes virtualenv python if available, falling back to sys.executable."""
-    venv_py = Path("/home/arush/.hermes/venv/bin/python")
-    if venv_py.exists():
-        return str(venv_py)
+    """Returns python executable equipped with django and growth packages (/usr/bin/python3)."""
+    # Prefer system python which has django, requests, PIL installed
+    if os.path.exists("/usr/bin/python3"):
+        return "/usr/bin/python3"
     return sys.executable
 
 

@@ -54,9 +54,15 @@ def main():
     scp(root / "hermes" / "scripts" / "jobbot_sentinel.py", "/home/arush/jobbot_sentinel.py")
     scp(root / "hermes" / "scripts" / "jobbot_sentinel.py", "/home/arush/.hermes/scripts/jobbot_sentinel.py")
 
-    # 4. Transfer growth sentinel, x_daily_post, growth_reporter_email
+    # 4. Transfer growth sentinel, copywriters, activity detector, x_daily_post, growth_reporter_email
     scp(root / "hermes" / "scripts" / "omni_growth_sentinel.py", "/home/arush/omni_growth_sentinel.py")
     scp(root / "hermes" / "scripts" / "omni_growth_sentinel.py", "/home/arush/.hermes/scripts/omni_growth_sentinel.py")
+    scp(root / "hermes" / "scripts" / "linkedin_activity_detector.py", "/home/arush/linkedin_activity_detector.py")
+    scp(root / "hermes" / "scripts" / "linkedin_activity_detector.py", "/home/arush/.hermes/scripts/linkedin_activity_detector.py")
+    scp(root / "hermes" / "scripts" / "linkedin_collage_generator.py", "/home/arush/linkedin_collage_generator.py")
+    scp(root / "hermes" / "scripts" / "linkedin_collage_generator.py", "/home/arush/.hermes/scripts/linkedin_collage_generator.py")
+    scp(root / "hermes" / "scripts" / "linkedin_daily_post.py", "/home/arush/linkedin_daily_post.py")
+    scp(root / "hermes" / "scripts" / "linkedin_daily_post.py", "/home/arush/.hermes/scripts/linkedin_daily_post.py")
     scp(root / "hermes" / "scripts" / "x_daily_post.py", "/home/arush/x_daily_post.py")
     scp(root / "hermes" / "scripts" / "x_daily_post.py", "/home/arush/.hermes/scripts/x_daily_post.py")
     scp(root / "hermes" / "scripts" / "growth_reporter_email.py", "/home/arush/growth_reporter_email.py")
