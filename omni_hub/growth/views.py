@@ -619,12 +619,12 @@ def get_categories_with_metadata():
     from . import omni_vault_engine
     from django.db.models import Count
 
-    cat_counts = dict(
-        VaultResource.objects.values_list('category')
+    cat_rows = list(
+        VaultResource.objects.values('category')
         .annotate(total=Count('id'))
         .order_by('-total')
     )
-    total_all = sum(cat_counts.values())
+    total_all = sum(r['total'] for r in cat_rows)
 
     # Collect subcategories per category with case-insensitive aggregation
     subcat_rows = (
@@ -654,44 +654,24 @@ def get_categories_with_metadata():
         "subcategories": []
     }]
 
-    preferred_order = [
-        "Blueprints & Architecture",
-        "Claude & Agent Skills",
-        "AI & LLM Tools",
-        "Cyber Security & Pentesting",
-        "Developer & APIs",
-        "Linux, Homelab & Systems",
-        "Media, Audio & Design",
-        "Productivity & Automation",
-        "Student & Learning"
-    ]
-
     seen = {"all"}
 
-    for cat_name in preferred_order:
-        db_key = next((k for k in cat_counts if k and k.strip().lower() == cat_name.lower()), None)
-        if db_key:
-            categories.append({
-                "name": cat_name,
-                "count": cat_counts[db_key],
-                "icon": omni_vault_engine.CATEGORY_ICONS.get(cat_name, "📁"),
-                "fa_icon": omni_vault_engine.CATEGORY_FA_ICONS.get(cat_name, "fa-folder"),
-                "subcategories": subcats_map.get(cat_name.lower(), [])
-            })
-            seen.add(cat_name.lower())
+    # 100% Dynamic Category Hierarchy derived directly from database, ordered by item count
+    for r in cat_rows:
+        raw_name = (r['category'] or '').strip()
+        if not raw_name or raw_name.lower() in seen:
+            continue
+        seen.add(raw_name.lower())
 
-    # Any other dynamic categories created by the AI or user
-    for cat_name, count in cat_counts.items():
-        if cat_name and cat_name.strip().lower() not in seen:
-            clean_name = cat_name.strip()
-            categories.append({
-                "name": clean_name,
-                "count": count,
-                "icon": omni_vault_engine.CATEGORY_ICONS.get(clean_name, "✨"),
-                "fa_icon": omni_vault_engine.CATEGORY_FA_ICONS.get(clean_name, "fa-tag"),
-                "subcategories": subcats_map.get(clean_name.lower(), [])
-            })
-            seen.add(clean_name.lower())
+        c_subcats = subcats_map.get(raw_name.lower(), [])
+
+        categories.append({
+            "name": raw_name,
+            "count": r['total'],
+            "icon": omni_vault_engine.get_category_icon(raw_name),
+            "fa_icon": omni_vault_engine.get_category_fa_icon(raw_name),
+            "subcategories": c_subcats
+        })
 
     return categories
 

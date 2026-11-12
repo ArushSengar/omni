@@ -83,6 +83,14 @@ def main():
     if code != 0:
         print("Migrate note:", err)
 
+    # 6.5. Run dynamic vault clean & normalize migration
+    scp(root / "scripts" / "clean_and_normalize_vault.py", "/home/arush/clean_and_normalize_vault.py")
+    print("Running dynamic vault normalization on Pi...")
+    code, out, err = ssh("python3 /home/arush/clean_and_normalize_vault.py")
+    print(out)
+    if err:
+        print("Normalization note:", err)
+
     # 7. Initial Career Sentinel & JobBot scan on Pi
     print("Executing initial Career Sentinel & JobBot scan on Pi...")
     code, out, err = ssh("python3 /home/arush/jobbot_sentinel.py --min-score 60")

@@ -130,16 +130,7 @@ def get_existing_categories_list() -> List[str]:
         cats = list(VaultResource.objects.values_list('category', flat=True).distinct().order_by('category'))
         return [c.strip() for c in cats if c and c.strip()]
     except Exception:
-        return [
-            "Claude & Agent Skills",
-            "AI & LLM Tools",
-            "Cyber Security & Pentesting",
-            "Developer & APIs",
-            "Linux, Homelab & Systems",
-            "Media, Audio & Design",
-            "Productivity & Automation",
-            "Student & Learning"
-        ]
+        return []
 
 
 def get_category_icon(category_name: str) -> str:
@@ -228,10 +219,10 @@ def normalize_category_and_subcategory(raw_cat: str, raw_subcat: str = "", exist
     if not cat:
         if subcat:
             cat = subcat
-            subcat = "General"
+            subcat = ""
         else:
-            cat = "General Utilities"
-            subcat = "Tools"
+            cat = "General"
+            subcat = ""
 
     def _normalize_phrase(text: str) -> str:
         clean = re.sub(r'[{}\[\]<>;"\'`\n\r\t]', '', text).replace("_", " ").replace("-", " ")
@@ -261,11 +252,15 @@ def normalize_category_and_subcategory(raw_cat: str, raw_subcat: str = "", exist
 
     if subcat:
         subcat_normalized = _normalize_phrase(subcat)
+        # Avoid creating trivial micro-subcategories
+        if cat_normalized.lower() == subcat_normalized.lower() or subcat_normalized.lower() in ("general", "tools", "misc", "skill", "skills", "tool"):
+            subcat_normalized = ""
     else:
-        subcat_normalized = "General"
+        subcat_normalized = ""
 
-    if cat_normalized.lower() == subcat_normalized.lower():
-        subcat_normalized = "General"
+    # Claude and agent skills are discrete items; do not create micro-subcategories per skill
+    if any(k in cat_normalized.lower() for k in ["claude", "agent skill"]):
+        subcat_normalized = ""
 
     return cat_normalized, subcat_normalized
 
@@ -527,23 +522,20 @@ BLUEPRINTS & SYSTEM SPECIFICATIONS:
 - If the input represents an architectural blueprint, design document, research paper, or system guide (e.g., 'Hermes Training Blueprint', 'AI Pipeline Architecture', 'Reverse Engineering Guide'), you MUST include an entry for the DOCUMENT/BLUEPRINT ITSELF as a primary resource with category "Blueprints & Architecture" (or appropriate domain) and subcategory (e.g. "System Architecture", "AI Agent Specs", "Security Blueprints", "Guides").
 - If distinct software tools, websites, or utilities are mentioned within the document, also extract each one.
 
-TAXONOMY & DYNAMIC TWO-TIER HIERARCHY RULES:
-Every item MUST be assigned both a high-level "category" and a specific "subcategory".
-
-CURRENT EXISTING CATEGORIES IN ARUSH'S VAULT:
+TAXONOMY & DYNAMIC CATEGORIZATION RULES:
+1. CATEGORY (Broad High-Level Domain):
+   - You MUST assign a clean, high-level category in Title Case based on the actual domain of the item.
+   - First, check CURRENT EXISTING CATEGORIES in the database:
 {cats_formatted}
+   - If one of the existing categories above fits the domain, REUSE that exact category name.
+   - If NO existing category fits, DYNAMICALLY INVENT a clean, natural new category (e.g. "Editing", "3D Modeling", "Finance", "Gaming", "Robotics", "Hardware", etc.).
+   - DO NOT force unrelated items into pre-built buckets.
 
-RULES FOR CATEGORY & SUBCATEGORY SELECTION:
-1. REUSE EXISTING CATEGORY IF A REASONABLE MATCH EXISTS:
-   - If one of the existing categories above fits the high-level domain of the item, REUSE that exact category name.
-   - Then, create or assign an appropriate, specific "subcategory" under it.
-   - Example: If the tool is a Claude Code extension or prompt pack, use category "Claude & Agent Skills" and subcategory "Coding Workflows" or "Agent Skills".
-   - Example: If the tool is an audio separation tool and "Media, Audio & Design" or "Editing" exists, use that category and subcategory "Audio Separation".
-
-2. DYNAMICALLY CREATE A NEW CATEGORY IF NO EXISTING ONE FITS:
-   - If the item belongs to a domain not covered by the existing categories, DO NOT force it into an unrelated bucket.
-   - DYNAMICALLY INVENT A BRAND NEW high-level category in clean Title Case (e.g. "Editing", "3D Modeling", "Finance", "Gaming", "Robotics", "Health & Fitness", etc.).
-   - Then, branch a specific "subcategory" under it (e.g. category "Editing", subcategory "Photos" or "Video").
+2. SUBCATEGORY (Only for Multi-Item Clusters - LEAVE EMPTY FOR STANDALONE TOOLS):
+   - Subcategories should ONLY be assigned if multiple items in this input share a specific functional group (e.g. 5 tools for 'Photo Editing' under category 'Editing' -> subcategory 'Photos').
+   - DO NOT invent a unique 1-item micro-subcategory for every individual tool or skill!
+   - If an item is an individual standalone utility, app, single website, or Claude skill: LEAVE "subcategory" AS EMPTY STRING ("").
+   - CLAUDE & AGENT SKILLS: Each skill is already an individual resource card. Put them under category "Claude Skills" and set "subcategory": "". NEVER create subcategories per skill.
 
 3. MULTI-TOOL BATCH COHESION:
    - If an image or note lists multiple tools of a shared domain (e.g. 5 websites for photo editing), group ALL of them under the same high-level category (e.g. "Editing") and assign fitting subcategories (e.g. "Photos").
