@@ -243,11 +243,11 @@
             </div>
         </div>
 
-        <!-- Two-Column Cockpit Layout: Left Category Tree Sidebar + Right Resource Grid -->
-        <div class="flex flex-col lg:flex-row gap-6 items-start">
+        <!-- macOS Finder / Apple Notes 3-Pane Cockpit: Left Categories + Middle Stream + Right Inspector -->
+        <div class="flex flex-col lg:flex-row gap-5 items-start relative w-full">
             
             <!-- LEFT COLUMN: OMNIVAULT CATEGORY & TAXONOMY SIDEBAR -->
-            <aside id="vault-sidebar" class="w-full lg:w-72 xl:w-80 flex-shrink-0 apple-glass rounded-3xl p-5 border border-white/[0.08] shadow-2xl flex flex-col space-y-4">
+            <aside id="vault-sidebar" class="w-full lg:w-64 xl:w-72 flex-shrink-0 apple-glass rounded-3xl p-5 border border-white/[0.08] shadow-2xl flex flex-col space-y-4">
                 <!-- Sidebar Header -->
                 <div class="flex items-center justify-between pb-3 border-b border-white/[0.08]">
                     <div class="flex items-center space-x-2.5">
@@ -381,14 +381,155 @@
                     </div>
                 </div>
 
-                <!-- Resource Cards Grid -->
-                <div id="vault-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4.5">
+                <!-- Resource Cards Grid (Middle Stream) -->
+                <div id="vault-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                     <div class="col-span-full py-20 text-center text-slate-500 text-xs font-mono">
                         <i class="fa-solid fa-circle-notch fa-spin text-xl text-indigo-400 mb-2.5"></i>
                         <p>Loading OmniVault memory ledger...</p>
                     </div>
                 </div>
             </div>
+
+            <!-- RIGHT COLUMN: macOS FINDER / APPLE NOTES PERSISTENT INSPECTOR PANE -->
+            <!-- Mobile Backdrop for Inspector Slide-over -->
+            <div id="standalone-inspector-backdrop" onclick="closeStandaloneInspector()" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden xl:hidden transition-opacity"></div>
+
+            <!-- Standalone Inspector Pane -->
+            <aside id="standalone-inspector-pane" class="w-full xl:w-96 2xl:w-[420px] flex-shrink-0 xl:sticky xl:top-24 hidden xl:flex flex-col apple-glass rounded-3xl border border-white/[0.1] shadow-2xl overflow-hidden max-h-[calc(100vh-110px)] transition-all duration-300 z-50">
+                <!-- macOS Window Header Bar -->
+                <div class="px-4 py-3 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="flex items-center space-x-1.5 mr-1">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500/80 inline-block"></span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block"></span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block"></span>
+                        </div>
+                        <span class="text-[11px] font-mono uppercase tracking-wider text-slate-300 font-bold flex items-center space-x-1.5">
+                            <i class="fa-solid fa-compass-drafting text-indigo-400"></i>
+                            <span>Vault Inspector</span>
+                        </span>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                        <button id="standalone-inspector-fav-btn" onclick="toggleStandaloneInspectorFav()" class="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-white/[0.12] text-amber-400 flex items-center justify-center text-xs transition active:scale-90" title="Star / Favorite">
+                            <i class="fa-regular fa-star"></i>
+                        </button>
+                        <button onclick="closeStandaloneInspector()" class="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-white/[0.12] text-slate-400 hover:text-white flex items-center justify-center text-xs transition active:scale-90" title="Close / Minimize">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Inspector Empty State -->
+                <div id="standalone-inspector-empty" class="p-8 text-center flex flex-col items-center justify-center my-auto space-y-3">
+                    <div class="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl shadow-inner">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <h4 class="text-sm font-bold text-white">Select Any Resource</h4>
+                    <p class="text-xs text-slate-400 max-w-xs leading-relaxed">
+                        Click any tool, Claude skill, or blueprint from the list to preview full architecture specs, terminal commands, and OCR documents.
+                    </p>
+                </div>
+
+                <!-- Inspector Content View -->
+                <div id="standalone-inspector-content" class="hidden p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1">
+                    <!-- Category & Safety Pill Bar -->
+                    <div class="flex items-center justify-between text-xs gap-2">
+                        <div class="flex items-center space-x-1.5 min-w-0">
+                            <span id="standalone-category-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 truncate">Category</span>
+                            <span id="standalone-subcat-badge" class="hidden px-2 py-0.5 rounded-full text-[9px] font-mono bg-white/[0.05] text-slate-300 border border-white/[0.08] truncate"></span>
+                        </div>
+                        <span id="standalone-safety-badge" class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex-shrink-0">SAFE</span>
+                    </div>
+
+                    <!-- Title & Source Icon -->
+                    <div class="space-y-1">
+                        <div class="flex items-center space-x-2.5">
+                            <span id="standalone-source-icon" class="w-7 h-7 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-xs flex-shrink-0 border border-indigo-500/30">
+                                <i class="fa-solid fa-globe"></i>
+                            </span>
+                            <h3 id="standalone-title" class="text-base font-extrabold text-white leading-snug">Tool Title</h3>
+                        </div>
+                        <p id="standalone-source-label" class="text-[10px] font-mono text-slate-400 pl-9">Web Resource</p>
+                    </div>
+
+                    <!-- Hindi & English Purpose / Utility Card (Gradient Accent) -->
+                    <div class="p-3.5 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent border border-indigo-500/20 space-y-1.5">
+                        <div class="flex items-center space-x-2 text-[11px] font-semibold text-indigo-300">
+                            <i class="fa-solid fa-bolt-lightning text-amber-400 text-xs"></i>
+                            <span>Purpose & Core Utility</span>
+                        </div>
+                        <p id="standalone-one-liner" class="text-xs text-slate-200 leading-relaxed font-sans">One liner explanation...</p>
+                    </div>
+
+                    <!-- How To Use / Actionable Command Block -->
+                    <div id="standalone-command-section" class="space-y-1.5">
+                        <div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                            <span class="flex items-center space-x-1.5">
+                                <i class="fa-solid fa-terminal text-cyan-400 text-[10px]"></i>
+                                <span class="uppercase font-bold tracking-wider text-[10px]">Command / Snippet</span>
+                            </span>
+                            <button onclick="copyStandaloneSnippet()" id="standalone-copy-snippet-btn" class="text-indigo-400 hover:text-indigo-300 transition text-[10px] flex items-center space-x-1 font-mono">
+                                <i class="fa-regular fa-copy"></i>
+                                <span>Copy</span>
+                            </button>
+                        </div>
+                        <div class="rounded-xl bg-[#070a12] border border-white/[0.08] p-3 text-xs font-mono text-cyan-300 leading-relaxed select-all overflow-x-auto custom-scrollbar" id="standalone-how-to-use">
+                            # Command / usage instruction
+                        </div>
+                    </div>
+
+                    <!-- Detailed Summary -->
+                    <div class="space-y-1.5">
+                        <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold flex items-center space-x-1.5">
+                            <i class="fa-solid fa-align-left text-indigo-400 text-[10px]"></i>
+                            <span>Architecture & Capabilities</span>
+                        </div>
+                        <p id="standalone-summary" class="text-xs text-slate-300 leading-relaxed whitespace-pre-line bg-white/[0.02] p-3 rounded-xl border border-white/[0.05]">
+                            Detailed summary...
+                        </p>
+                    </div>
+
+                    <!-- Raw Blueprint & Document OCR Text (If Available) -->
+                    <div id="standalone-ocr-section" class="hidden space-y-1.5">
+                        <div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                            <span class="flex items-center space-x-1.5">
+                                <i class="fa-solid fa-file-lines text-rose-400 text-[10px]"></i>
+                                <span class="uppercase font-bold tracking-wider text-[10px]">Blueprint Document Text / OCR</span>
+                            </span>
+                            <button onclick="copyStandaloneDocText()" id="standalone-copy-doc-btn" class="text-rose-400 hover:text-rose-300 transition text-[10px] flex items-center space-x-1 font-mono">
+                                <i class="fa-regular fa-copy"></i>
+                                <span>Copy Text</span>
+                            </button>
+                        </div>
+                        <div class="rounded-xl bg-[#05070d] border border-rose-500/20 p-3 text-[11px] font-mono text-slate-300 max-h-48 overflow-y-auto custom-scrollbar whitespace-pre-wrap select-all" id="standalone-raw-ocr">
+                        </div>
+                    </div>
+
+                    <!-- Safety Notes -->
+                    <div id="standalone-safety-notes-box" class="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06] text-[11px] text-slate-400 flex items-start space-x-2">
+                        <i class="fa-solid fa-shield-halved text-amber-400 text-xs mt-0.5 flex-shrink-0"></i>
+                        <span id="standalone-safety-notes" class="leading-relaxed">Safety notes...</span>
+                    </div>
+
+                    <!-- Dynamic Tags -->
+                    <div id="standalone-tags-container" class="space-y-1.5">
+                        <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">Dynamic Tags (Click to filter)</div>
+                        <div id="standalone-tags-list" class="flex flex-wrap gap-1.5"></div>
+                    </div>
+
+                    <!-- Primary Actions Toolbar -->
+                    <div class="pt-3 border-t border-white/[0.08] flex items-center justify-between gap-2">
+                        <button onclick="copyStandaloneUrl()" id="standalone-copy-url-btn" class="px-3 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-xs font-semibold text-slate-300 hover:text-white transition flex items-center space-x-1.5 active:scale-95">
+                            <i class="fa-regular fa-copy"></i>
+                            <span>Copy Link</span>
+                        </button>
+                        <a id="standalone-launch-btn" href="#" target="_blank" rel="noopener noreferrer" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-lg shadow-indigo-600/30 active:scale-95">
+                            <span>Launch Web Tool</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
+                    </div>
+                </div>
+            </aside>
 
         </div>
 
@@ -801,7 +942,9 @@
                 ).join(" ");
 
                 html += `
-                    <div class="apple-glass-card rounded-2xl p-4.5 flex flex-col justify-between group shadow-lg">
+                    <div class="apple-glass-card rounded-2xl p-4.5 flex flex-col justify-between group shadow-lg cursor-pointer border border-white/[0.06] hover:border-indigo-500/40 hover:bg-white/[0.04] transition-all duration-150" 
+                         onclick="inspectStandaloneItem(${item.id}, this)"
+                         data-id="${item.id}">
                         <div class="space-y-3">
                             <!-- Card Header -->
                             <div class="flex items-start justify-between gap-2">
@@ -812,10 +955,10 @@
                                     <h3 class="font-bold text-white text-sm group-hover:text-indigo-300 transition truncate">${escapeHtml(item.title)}</h3>
                                 </div>
                                 <div class="flex items-center space-x-1 flex-shrink-0">
-                                    <button onclick="toggleFav(${item.id})" class="p-1 text-sm ${favClass} transition active:scale-90" title="Star Favorite">
+                                    <button onclick="event.stopPropagation(); toggleFav(${item.id});" class="p-1 text-sm ${favClass} transition active:scale-90" title="Star Favorite">
                                         <i class="fa-solid fa-star"></i>
                                     </button>
-                                    <button onclick="deleteResource(${item.id})" class="p-1 text-xs text-slate-600 hover:text-rose-400 transition" title="Delete">
+                                    <button onclick="event.stopPropagation(); deleteResource(${item.id});" class="p-1 text-xs text-slate-600 hover:text-rose-400 transition" title="Delete">
                                         <i class="fa-regular fa-trash-can"></i>
                                     </button>
                                 </div>
@@ -844,12 +987,12 @@
 
                         <!-- Card Footer Actions -->
                         <div class="pt-3.5 mt-3.5 border-t border-white/[0.06] flex items-center justify-between text-xs">
-                            <button onclick="showDetailModal(${item.id})" class="text-indigo-400 hover:text-indigo-300 font-semibold flex items-center space-x-1 transition">
-                                <span>Inspect Details</span>
-                                <i class="fa-solid fa-chevron-right text-[9px] ml-0.5"></i>
-                            </button>
+                            <span class="text-indigo-400 hover:text-indigo-300 font-semibold flex items-center space-x-1 transition text-[11px]">
+                                <i class="fa-solid fa-compass-drafting text-[10px]"></i>
+                                <span>Click to Inspect</span>
+                            </span>
                             ${sanitizeUrl(item.url) ? `
-                                <a href="${sanitizeUrl(item.url)}" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-white flex items-center space-x-1 transition">
+                                <a href="${sanitizeUrl(item.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-slate-400 hover:text-white flex items-center space-x-1 transition">
                                     <span class="font-mono text-[11px]">Visit</span>
                                     <i class="fa-solid fa-external-link text-[9px]"></i>
                                 </a>
@@ -859,6 +1002,13 @@
                 `;
             });
             grid.innerHTML = html;
+
+            if (items.length > 0 && window.innerWidth >= 1280) {
+                setTimeout(() => {
+                    const firstCard = document.querySelector('#vault-grid .apple-glass-card');
+                    inspectStandaloneItem(items[0].id, firstCard);
+                }, 50);
+            }
         }
 
         function toggleMobileVaultSidebar() {
@@ -1154,44 +1304,206 @@
             showDetailModal(id);
         }
 
-        // Detail Inspector Modal
-        function showDetailModal(id) {
+        let activeStandaloneInspectedItem = null;
+
+        function inspectStandaloneItem(id, cardEl) {
             const item = allResourcesCache.find(x => x.id === id);
             if (!item) return;
+            activeStandaloneInspectedItem = item;
 
-            document.getElementById("modal-title").innerText = item.title;
-            document.getElementById("modal-one-liner").innerText = item.one_liner;
-            document.getElementById("modal-category-badge").innerText = item.category + (item.subcategory ? ` // ${item.subcategory}` : '');
-            document.getElementById("modal-category-badge").className = "px-2.5 py-0.5 rounded-full text-[10px] font-mono border border-indigo-500/30 bg-indigo-500/10 text-indigo-300";
-
-            const urlEl = document.getElementById("modal-url");
-            const visitBtn = document.getElementById("modal-visit-link");
-            const safeUrl = sanitizeUrl(item.url);
-            if (safeUrl) {
-                urlEl.innerText = item.url;
-                visitBtn.href = safeUrl;
-                visitBtn.classList.remove("hidden");
-            } else {
-                urlEl.innerText = item.url ? "Invalid or non-HTTP URL" : "No external URL specified";
-                visitBtn.classList.add("hidden");
+            // Highlight selected card visually
+            document.querySelectorAll('#vault-grid .apple-glass-card').forEach(c => {
+                c.classList.remove('ring-2', 'ring-indigo-500', 'border-indigo-500/80', 'bg-indigo-500/[0.08]');
+            });
+            const target = cardEl || document.querySelector(`#vault-grid .apple-glass-card[data-id="${id}"]`);
+            if (target) {
+                target.classList.add('ring-2', 'ring-indigo-500', 'border-indigo-500/80', 'bg-indigo-500/[0.08]');
             }
 
-            document.getElementById("modal-summary").innerText = item.detailed_summary || "No extended overview provided.";
-            document.getElementById("modal-how-to-use").innerText = item.how_to_use || "Visit tool portal to start using.";
-            
-            const safetyEl = document.getElementById("modal-safety-pill");
-            safetyEl.innerText = item.safety_status;
-            if (item.safety_status === "SAFE") safetyEl.className = "text-[10px] font-bold px-2 py-0.5 rounded-full font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30";
-            else if (item.safety_status === "PENTEST_ONLY") safetyEl.className = "text-[10px] font-bold px-2 py-0.5 rounded-full font-mono bg-purple-500/15 text-purple-400 border border-purple-500/30";
-            else safetyEl.className = "text-[10px] font-bold px-2 py-0.5 rounded-full font-mono bg-amber-500/15 text-amber-400 border border-amber-500/30";
+            // Category & Subcategory
+            const catBadge = document.getElementById("standalone-category-badge");
+            if (catBadge) catBadge.innerText = item.category;
+            const subcatBadge = document.getElementById("standalone-subcat-badge");
+            if (subcatBadge) {
+                if (item.subcategory) {
+                    subcatBadge.innerText = item.subcategory;
+                    subcatBadge.classList.remove("hidden");
+                } else {
+                    subcatBadge.classList.add("hidden");
+                }
+            }
 
-            document.getElementById("modal-safety-notes").innerText = item.safety_notes || "Verified clean for engineering use.";
-            
-            const tagsBox = document.getElementById("modal-tags");
-            tagsBox.innerHTML = (item.tags || []).map(t => `<span class="bg-white/[0.04] text-slate-400 px-2 py-0.5 rounded-md border border-white/[0.06] font-mono">#${escapeHtml(t)}</span>`).join(" ");
-            
-            document.getElementById("modal-created-at").innerText = `Saved: ${item.created_at}`;
-            document.getElementById("detail-modal").classList.remove("hidden");
+            // Safety
+            const safetyBadge = document.getElementById("standalone-safety-badge");
+            if (safetyBadge) {
+                const s = item.safety_status || "SAFE";
+                safetyBadge.innerText = s;
+                if (s === "SAFE") {
+                    safetyBadge.className = "px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex-shrink-0";
+                } else if (s === "PENTEST_ONLY") {
+                    safetyBadge.className = "px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex-shrink-0";
+                } else {
+                    safetyBadge.className = "px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 flex-shrink-0";
+                }
+            }
+
+            // Source Icon & Label
+            const srcIcon = document.getElementById("standalone-source-icon");
+            const srcLabel = document.getElementById("standalone-source-label");
+            if (srcIcon) {
+                if (item.source_type === "pdf" || item.source_type === "doc") {
+                    srcIcon.innerHTML = '<i class="fa-solid fa-file-pdf text-rose-400"></i>';
+                    if (srcLabel) srcLabel.innerText = "Document / Architecture Blueprint";
+                } else if (item.source_type === "image") {
+                    srcIcon.innerHTML = '<i class="fa-solid fa-image text-indigo-400"></i>';
+                    if (srcLabel) srcLabel.innerText = "Screenshot / OCR Asset";
+                } else {
+                    srcIcon.innerHTML = '<i class="fa-solid fa-globe text-blue-400"></i>';
+                    if (srcLabel) srcLabel.innerText = item.url ? item.url : "OmniVault Knowledge Asset";
+                }
+            }
+
+            // Title & One-Liner
+            document.getElementById("standalone-title").innerText = item.title;
+            document.getElementById("standalone-one-liner").innerText = item.one_liner || "No one-liner summary recorded.";
+
+            // Command Snippet
+            document.getElementById("standalone-how-to-use").innerText = item.how_to_use || "# No command provided. Refer to documentation.";
+
+            // Summary
+            document.getElementById("standalone-summary").innerText = item.detailed_summary || "No detailed architecture description recorded.";
+
+            // Raw OCR / Blueprint Text
+            const ocrSec = document.getElementById("standalone-ocr-section");
+            const ocrEl = document.getElementById("standalone-raw-ocr");
+            if (ocrSec && ocrEl) {
+                if (item.raw_ocr_text && item.raw_ocr_text.trim()) {
+                    ocrEl.innerText = item.raw_ocr_text.trim();
+                    ocrSec.classList.remove("hidden");
+                } else {
+                    ocrSec.classList.add("hidden");
+                }
+            }
+
+            // Safety Notes
+            document.getElementById("standalone-safety-notes").innerText = item.safety_notes || "Standard tool compliance.";
+
+            // Tags List
+            const tagsList = document.getElementById("standalone-tags-list");
+            if (tagsList) {
+                tagsList.innerHTML = "";
+                if (item.tags && item.tags.length > 0) {
+                    item.tags.forEach(t => {
+                        const btn = document.createElement("button");
+                        btn.className = "px-2 py-0.5 rounded-md bg-white/[0.06] hover:bg-indigo-600/30 hover:text-indigo-300 text-[10px] font-mono text-slate-300 border border-white/[0.08] transition active:scale-95";
+                        btn.innerText = "#" + t;
+                        btn.onclick = () => {
+                            const searchEl = document.getElementById("vault-search-input");
+                            if (searchEl) {
+                                searchEl.value = t;
+                                handleSearchDebounce();
+                            }
+                        };
+                        tagsList.appendChild(btn);
+                    });
+                } else {
+                    tagsList.innerHTML = '<span class="text-[10px] font-mono text-slate-500">None</span>';
+                }
+            }
+
+            // Launch Button
+            const launchBtn = document.getElementById("standalone-launch-btn");
+            const safeUrl = sanitizeUrl(item.url);
+            if (launchBtn) {
+                if (safeUrl) {
+                    launchBtn.href = safeUrl;
+                    launchBtn.classList.remove("hidden");
+                } else {
+                    launchBtn.classList.add("hidden");
+                }
+            }
+
+            // Fav Button
+            const favBtn = document.getElementById("standalone-inspector-fav-btn");
+            if (favBtn) {
+                favBtn.innerHTML = item.favorite ? '<i class="fa-solid fa-star text-amber-400"></i>' : '<i class="fa-regular fa-star"></i>';
+            }
+
+            // Show Content, Hide Empty
+            const emptyEl = document.getElementById("standalone-inspector-empty");
+            if (emptyEl) emptyEl.classList.add("hidden");
+            const contentEl = document.getElementById("standalone-inspector-content");
+            if (contentEl) contentEl.classList.remove("hidden");
+
+            // Mobile slide-over drawer check
+            const pane = document.getElementById("standalone-inspector-pane");
+            const backdrop = document.getElementById("standalone-inspector-backdrop");
+            if (window.innerWidth < 1280) {
+                pane.classList.remove("hidden");
+                pane.classList.add("fixed", "inset-y-0", "right-0", "z-50", "w-full", "sm:w-[460px]", "bg-[#0b0e17]/95", "backdrop-blur-2xl", "p-0", "shadow-2xl");
+                if (backdrop) backdrop.classList.remove("hidden");
+            } else {
+                pane.classList.remove("hidden");
+            }
+        }
+
+        function closeStandaloneInspector() {
+            const pane = document.getElementById("standalone-inspector-pane");
+            const backdrop = document.getElementById("standalone-inspector-backdrop");
+            if (backdrop) backdrop.classList.add("hidden");
+            if (window.innerWidth < 1280) {
+                if (pane) {
+                    pane.classList.add("hidden");
+                    pane.classList.remove("fixed", "inset-y-0", "right-0", "z-50", "w-full", "sm:w-[460px]", "bg-[#0b0e17]/95", "backdrop-blur-2xl", "p-0", "shadow-2xl");
+                }
+            } else {
+                const content = document.getElementById("standalone-inspector-content");
+                const empty = document.getElementById("standalone-inspector-empty");
+                if (content) content.classList.add("hidden");
+                if (empty) empty.classList.remove("hidden");
+                document.querySelectorAll('#vault-grid .apple-glass-card').forEach(c => {
+                    c.classList.remove('ring-2', 'ring-indigo-500', 'border-indigo-500/80', 'bg-indigo-500/[0.08]');
+                });
+                activeStandaloneInspectedItem = null;
+            }
+        }
+
+        function copyStandaloneSnippet() {
+            if (!activeStandaloneInspectedItem) return;
+            const code = document.getElementById("standalone-how-to-use")?.innerText || "";
+            copyToClipboard(code, document.getElementById("standalone-copy-snippet-btn"));
+        }
+
+        function copyStandaloneDocText() {
+            if (!activeStandaloneInspectedItem) return;
+            const txt = document.getElementById("standalone-raw-ocr")?.innerText || "";
+            copyToClipboard(txt, document.getElementById("standalone-copy-doc-btn"));
+        }
+
+        function copyStandaloneUrl() {
+            if (!activeStandaloneInspectedItem || !activeStandaloneInspectedItem.url) {
+                showToast("No external link for this item", "error");
+                return;
+            }
+            copyToClipboard(activeStandaloneInspectedItem.url, document.getElementById("standalone-copy-url-btn"));
+        }
+
+        async function toggleStandaloneInspectorFav() {
+            if (!activeStandaloneInspectedItem) return;
+            await toggleFav(activeStandaloneInspectedItem.id);
+            const updated = allResourcesCache.find(x => x.id === activeStandaloneInspectedItem.id);
+            if (updated) {
+                activeStandaloneInspectedItem.favorite = updated.favorite;
+                const favBtn = document.getElementById("standalone-inspector-fav-btn");
+                if (favBtn) {
+                    favBtn.innerHTML = updated.favorite ? '<i class="fa-solid fa-star text-amber-400"></i>' : '<i class="fa-regular fa-star"></i>';
+                }
+            }
+        }
+
+        // Bridge legacy showDetailModal to standalone inspector
+        function showDetailModal(id) {
+            inspectStandaloneItem(id);
         }
 
         function closeDetailModal() {

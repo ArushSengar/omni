@@ -708,7 +708,7 @@ def dashboard_view(request):
     vault_count = VaultResource.objects.count()
     vault_fav_count = VaultResource.objects.filter(favorite=True).count()
     vault_categories = get_categories_with_metadata()
-    vault_recent = VaultResource.objects.all()[:80]
+    vault_recent = VaultResource.objects.all()[:300]
 
     jobs_count = JobOpportunity.objects.count()
     jobs_high_match_count = JobOpportunity.objects.filter(match_score__gte=80).count()
@@ -1147,6 +1147,7 @@ def api_vault_detail(request, resource_id):
                 "safety_notes": r.safety_notes,
                 "source_type": r.source_type,
                 "image_path": Path(r.image_path).name if r.image_path else "",
+                "raw_ocr_text": r.raw_ocr_text or "",
                 "favorite": r.favorite,
                 "rating": r.rating,
                 "created_at": r.created_at.strftime("%d %b %Y, %H:%M")
@@ -1205,6 +1206,7 @@ def api_vault_list(request):
             "safety_notes": r.safety_notes,
             "source_type": r.source_type,
             "image_path": Path(r.image_path).name if r.image_path else "",
+            "raw_ocr_text": r.raw_ocr_text or "",
             "favorite": r.favorite,
             "rating": r.rating,
             "created_at": r.created_at.strftime("%d %b %Y, %H:%M")
