@@ -46,3 +46,7 @@ desktop.ini
 # Agent teamwork cache
 .agents/
 
+# OpenDots Sub-workspace & Node modules
+OpenDots/
+node_modules/
+
